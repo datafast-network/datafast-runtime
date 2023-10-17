@@ -1,36 +1,101 @@
+mod conversion;
+mod global;
+mod store;
+
+use std::str;
 use wasmer::imports;
+use wasmer::wat2wasm;
 use wasmer::Function;
 use wasmer::FunctionEnv;
 use wasmer::FunctionType;
 use wasmer::Instance;
+use wasmer::IntoBytes;
 use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
-use wasmer::Value;
 
 struct Env {}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wasm_bytes = std::fs::read("./subgraph.wasm")?;
+    // let wat_bytes = std::fs::read("./subgraph.wat")?;
+    // println!("------ wat wat: {:?}", str::from_utf8(&wat_bytes));
+    // let wasm_bytes = wat2wasm(&wat_bytes).expect("failed to load").to_vec();
+    // println!("-------------- OK");
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
-
+    // println!("-------------- OK2");
     // Define env of host
-    let env = FunctionEnv::new(&mut store, Env {});
+    // let env = FunctionEnv::new(&mut store, Env {});
 
-    // Define host functions
-    let abort_type = FunctionType::new(vec![], vec![]);
-    let abort = Function::new(&mut store, &abort_type, |_| Ok(vec![Value::I32(0)]));
+    // Global functions
+    let abort = Function::new(&mut store, global::ABORT_TYPE, global::abort);
+
+    // Conversion functions
+    let big_int_to_hex = Function::new(
+        &mut store,
+        conversion::CONVERSION_TYPE,
+        // TODO: fix implementation
+        conversion::big_int_to_hex,
+    );
+
+    let big_decimal_to_string = Function::new(
+        &mut store,
+        conversion::CONVERSION_TYPE,
+        // TODO: fix implementation
+        conversion::big_int_to_hex,
+    );
+
+    let bytes_to_hex = Function::new(
+        &mut store,
+        conversion::CONVERSION_TYPE,
+        // TODO: fix implementation
+        conversion::bytes_to_hex,
+    );
+
+    let big_int_to_string = Function::new(
+        &mut store,
+        conversion::CONVERSION_TYPE,
+        // TODO: fix implementation
+        conversion::big_int_to_string,
+    );
+
+    // Store functions
+    let store_set = Function::new(
+        &mut store,
+        store::STORE_SET_TYPE,
+        // TODO: fix implementation
+        store::store_set,
+    );
+
+    let store_get = Function::new(
+        &mut store,
+        store::STORE_GET_TYPE,
+        // TODO: fix implementation
+        store::store_get,
+    );
 
     // Running cargo-run will immediately tell which functions are missing
     let import_object = imports! {
         "env" => {
             "abort" => abort
+        },
+        "conversion" => {
+            "typeConversion.bigIntToHex" => big_int_to_hex,
+            "typeConversion.bytesToHex" => bytes_to_hex,
+            "typeConversion.bigIntToString" => big_int_to_string,
+        },
+        "numbers" => {
+            "bigDecimal.toString" => big_decimal_to_string
+        },
+        "index" => {
+            "store.set" => store_set,
+            "store.get" => store_get,
         }
     };
     let instance = Instance::new(&mut store, &module, &import_object)?;
 
-    let handle_gravatar: TypedFunction<i32, i32> = instance
+    let handle_gravatar: TypedFunction<i32, ()> = instance
         .exports
         .get_function("handleNewGravatar")?
         .typed(&mut store)?;
@@ -39,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = handle_gravatar.call(&mut store, 1)?;
 
     println!("Results of `handle_gravatar`: {:?}", result);
-    assert_eq!(result, 2);
+    // assert_eq!(result, 2);
 
     Ok(())
 }
