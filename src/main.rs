@@ -18,10 +18,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Define env of host
     let env = FunctionEnv::new(&mut store, Env {});
 
-    // Define exports functions
+    // Define host functions
     let abort_type = FunctionType::new(vec![], vec![]);
     let abort = Function::new(&mut store, &abort_type, |_| Ok(vec![Value::I32(0)]));
 
+    // Running cargo-run will immediately tell which functions are missing
     let import_object = imports! {
         "env" => {
             "abort" => abort
