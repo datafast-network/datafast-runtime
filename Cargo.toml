@@ -7,3 +7,9 @@ edition = "2021"
 
 [dependencies]
 wasmer = "4.2.2"
+semver = "1.0.20"
+anyhow = "1.0.75"
+ethabi = "17.2"
+web3 = "0.18.0"
+num-bigint = { version = "0.2.6", features = [] }
+serde_json = { version = "1.0.107", features = [] }
