@@ -586,3 +586,15 @@ pub const HEADER_SIZE: usize = 20;
 pub fn padding_to_16(content_length: usize) -> usize {
     (16 - (HEADER_SIZE + content_length) % 16) % 16
 }
+
+pub fn asc_new<C, T: ?Sized, H: AscHeap + ?Sized>(
+    heap: &mut H,
+    rust_obj: &T,
+) -> Result<AscPtr<C>, AscError>
+where
+    C: AscType + AscIndexId,
+    T: ToAscObj<C>,
+{
+    let obj = rust_obj.to_asc_obj(heap)?;
+    AscPtr::alloc_obj(obj, heap)
+}
