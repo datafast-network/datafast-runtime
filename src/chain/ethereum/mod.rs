@@ -7,6 +7,8 @@ use crate::asc::asc_base::{
 
 use crate::asc::asc_types::{Array, AscEnum, AscString, Uint8Array};
 use crate::asc::errors::AscError;
+use crate::{impl_asc_type_enum, impl_asc_type_struct};
+
 #[repr(C)]
 pub struct Block {
     pub hash: AscPtr<AscH256>,
@@ -26,6 +28,25 @@ pub struct Block {
     pub base_fee_per_block: AscPtr<AscBigInt>,
 }
 
+impl_asc_type_struct!(
+    Block;
+    hash => AscPtr<AscH256>,
+    parent_hash => AscPtr<AscH256>,
+    uncles_hash => AscPtr<AscH256>,
+    author => AscPtr<AscH160>,
+    state_root => AscPtr<AscH256>,
+    transactions_root => AscPtr<AscH256>,
+    receipts_root => AscPtr<AscH256>,
+    number => AscPtr<AscBigInt>,
+    gas_used => AscPtr<AscBigInt>,
+    gas_limit => AscPtr<AscBigInt>,
+    timestamp => AscPtr<AscBigInt>,
+    difficulty => AscPtr<AscBigInt>,
+    total_difficulty => AscPtr<AscBigInt>,
+    size => AscPtr<AscBigInt>,
+    base_fee_per_block => AscPtr<AscBigInt>
+);
+
 #[repr(C)]
 pub(crate) struct AscEthereumTransaction {
     pub hash: AscPtr<AscH256>,
@@ -38,6 +59,19 @@ pub(crate) struct AscEthereumTransaction {
     pub input: AscPtr<Uint8Array>,
     pub nonce: AscPtr<AscBigInt>,
 }
+
+impl_asc_type_struct!(
+    AscEthereumTransaction;
+    hash => AscPtr<AscH256>,
+    index => AscPtr<AscBigInt>,
+    from => AscPtr<AscH160>,
+    to => AscPtr<AscH160>,
+    value => AscPtr<AscBigInt>,
+    gas_limit => AscPtr<AscBigInt>,
+    gas_price => AscPtr<AscBigInt>,
+    input => AscPtr<Uint8Array>,
+    nonce => AscPtr<AscBigInt>
+);
 
 #[repr(u32)]
 #[derive(Copy, Clone)]
@@ -71,42 +105,18 @@ impl EthereumValueKind {
     }
 }
 
-impl AscType for EthereumValueKind {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
-        let discriminant: u32 = match self {
-            EthereumValueKind::Address => 0,
-            EthereumValueKind::FixedBytes => 1,
-            EthereumValueKind::Bytes => 2,
-            EthereumValueKind::Int => 3,
-            EthereumValueKind::Uint => 4,
-            EthereumValueKind::Bool => 5,
-            EthereumValueKind::String => 6,
-            EthereumValueKind::FixedArray => 7,
-            EthereumValueKind::Array => 8,
-            EthereumValueKind::Tuple => 9,
-        };
-        discriminant.to_asc_bytes()
-    }
-
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
-            .map_err(|_| AscError::Plain("invalid Kind".to_string()))?;
-        let discriminant = u32::from_le_bytes(u32_bytes);
-        match discriminant {
-            0 => Ok(EthereumValueKind::Address),
-            1 => Ok(EthereumValueKind::FixedBytes),
-            2 => Ok(EthereumValueKind::Bytes),
-            3 => Ok(EthereumValueKind::Int),
-            4 => Ok(EthereumValueKind::Uint),
-            5 => Ok(EthereumValueKind::Bool),
-            6 => Ok(EthereumValueKind::String),
-            7 => Ok(EthereumValueKind::FixedArray),
-            8 => Ok(EthereumValueKind::Array),
-            9 => Ok(EthereumValueKind::Tuple),
-            _ => Err(AscError::Plain("invalid Kind".to_string())),
-        }
-    }
-}
+impl_asc_type_enum!(EthereumValueKind;
+    Address => 0,
+    FixedBytes => 1,
+    Bytes => 2,
+    Int => 3,
+    Uint => 4,
+    Bool => 5,
+    String => 6,
+    FixedArray => 7,
+    Array => 8,
+    Tuple => 9
+);
 
 impl Default for EthereumValueKind {
     fn default() -> Self {
@@ -122,10 +132,16 @@ impl AscIndexId for Array<AscPtr<AscEnum<EthereumValueKind>>> {
 
 //LogParam for ASC
 #[repr(C)]
-pub(crate) struct AscLogParam {
+pub struct AscLogParam {
     pub name: AscPtr<AscString>,
     pub value: AscPtr<AscEnum<EthereumValueKind>>,
 }
+
+impl_asc_type_struct!(
+    AscLogParam;
+    name => AscPtr<AscString>,
+    value => AscPtr<AscEnum<EthereumValueKind>>
+);
 
 pub struct AscLogParamArray(Array<AscPtr<AscLogParam>>);
 impl AscIndexId for AscLogParam {
@@ -134,16 +150,6 @@ impl AscIndexId for AscLogParam {
 
 impl AscIndexId for AscEnum<EthereumValueKind> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::EthereumValue;
-}
-
-impl AscType for AscLogParam {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
-        todo!()
-    }
-
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        todo!()
-    }
 }
 
 impl AscType for AscLogParamArray {
@@ -177,11 +183,7 @@ impl AscIndexId for AscLogParamArray {
 }
 
 #[repr(C)]
-pub(crate) struct AscEthereumEvent<T, B>
-where
-    T: AscType,
-    B: AscType,
-{
+pub struct AscEthereumEvent<T: AscType, B: AscType> {
     pub address: AscPtr<AscAddress>,
     pub log_index: AscPtr<AscBigInt>,
     pub transaction_log_index: AscPtr<AscBigInt>,
@@ -190,3 +192,14 @@ where
     pub transaction: AscPtr<T>,
     pub params: AscPtr<AscLogParamArray>,
 }
+
+impl_asc_type_struct!(
+    AscEthereumEvent<T: AscType, B: AscType>;
+    address => AscPtr<AscAddress>,
+    log_index => AscPtr<AscBigInt>,
+    transaction_log_index => AscPtr<AscBigInt>,
+    log_type => AscPtr<AscString>,
+    block => AscPtr<B>,
+    transaction => AscPtr<T>,
+    params => AscPtr<AscLogParamArray>
+);

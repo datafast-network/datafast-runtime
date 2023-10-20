@@ -6,7 +6,8 @@ use super::asc_base::AscValue;
 use super::asc_base::IndexForAscTypeId;
 use super::errors::AscError;
 
-use crate::asc::asc_base::{padding_to_16, HEADER_SIZE};
+use crate::asc::asc_base::ToAscObj;
+use crate::impl_asc_type_struct;
 use std::marker::PhantomData;
 use std::mem::{size_of, size_of_val};
 
@@ -91,11 +92,6 @@ pub struct TypedArray<T> {
     // Not included in memory layout, it's just for typings
     ty: PhantomData<T>,
 }
-
-// impl<T> AscIndexId for TypedArray<T> {
-//     // NOTE: not sure if this is critical!
-//     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Uint8Array;
-// }
 
 impl AscIndexId for TypedArray<i8> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Int8Array;
@@ -259,6 +255,24 @@ impl AscType for AscString {
     }
 }
 
+impl ToAscObj<AscString> for str {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
+        Ok(AscString::new(&self.encode_utf16().collect::<Vec<_>>())?)
+    }
+}
+
+impl ToAscObj<AscString> for &str {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
+        Ok(AscString::new(&self.encode_utf16().collect::<Vec<_>>())?)
+    }
+}
+
+impl ToAscObj<AscString> for String {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
+        self.as_str().to_asc_obj(heap)
+    }
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Default)]
 pub struct EnumPayload(pub u64);
@@ -355,103 +369,21 @@ pub struct Array<T> {
     ty: PhantomData<T>,
 }
 
+impl_asc_type_struct!(
+    Array<T>;
+    buffer => AscPtr<ArrayBuffer>,
+    buffer_data_start => u32,
+    buffer_data_length => u32,
+    length => i32,
+    ty => PhantomData<T>
+);
+
 impl AscIndexId for Array<bool> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayBool;
 }
 
 impl AscIndexId for Array<Uint8Array> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayUint8Array;
-}
-
-macro_rules! field_to_bytes {
-    ($ty:ty, $bytes:ident, $offset:ident, $max_align:ident, $field_data:ident) => {
-        let field_align = std::mem::align_of::<$ty>();
-        let field_size = std::mem::size_of::<$ty>();
-        let field_bytes = $field_data.to_asc_bytes()?;
-        let field_len = field_bytes.len();
-
-        if $max_align < field_align {
-            $max_align = field_align;
-        }
-
-        if field_len > 0 {
-            let misalignment = $offset % field_align;
-
-            if misalignment > 0 {
-                let padding_size = field_align - misalignment;
-
-                $bytes.extend_from_slice(&vec![0; padding_size]);
-
-                $offset += padding_size;
-            }
-
-            $bytes.extend_from_slice(&field_bytes);
-
-            $offset += field_len;
-        }
-    };
-}
-
-/// Convert a field from bytes to a Rust type.
-/// This macro is used in the `from_asc_bytes` function.
-macro_rules! bytes_to_field {
-    ($field_name:ident, $ty:ty, $asc_obj:ident, $offset:ident) => {
-        let field_align = std::mem::align_of::<$ty>();
-        let field_size = std::mem::size_of::<$ty>();
-        let field_data = $asc_obj
-            .get($offset..($offset + field_size))
-            .ok_or_else(|| {
-                AscError::Plain(format!(
-                    "Attempted to read past end of array for field {}",
-                    $field_name
-                ))
-            })?;
-        let $field_name = AscType::from_asc_bytes(&field_data)?;
-        $offset += field_size;
-    };
-}
-impl<T> AscType for Array<T> {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
-        let in_memory_byte_count = std::mem::size_of::<Self>();
-        let mut bytes = Vec::with_capacity(in_memory_byte_count);
-
-        let mut offset = 0;
-        // max field alignment will also be struct alignment which we need to pad the end
-        let mut max_align = 0;
-        let buffer = self.buffer;
-        //loop over fields
-        field_to_bytes!(AscPtr<ArrayBuffer>, bytes, offset, max_align, buffer);
-        let buffer_data = self.buffer_data_start;
-        field_to_bytes!(u32, bytes, offset, max_align, buffer_data);
-        let buffer_data_length = self.buffer_data_length;
-        field_to_bytes!(u32, bytes, offset, max_align, buffer_data_length);
-        let length = self.length;
-        field_to_bytes!(i32, bytes, offset, max_align, length);
-
-        Ok(bytes)
-    }
-
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        let content_size = std::mem::size_of::<Self>();
-        let aligned_size = padding_to_16(content_size);
-
-        if HEADER_SIZE + asc_obj.len() == aligned_size + content_size {
-            return Err(AscError::Plain("Size does not match".to_string()));
-        }
-        let mut offset = 0;
-        bytes_to_field!(buffer, AscPtr<ArrayBuffer>, asc_obj, offset);
-        bytes_to_field!(buffer_data_start, u32, asc_obj, offset);
-        bytes_to_field!(buffer_data_length, u32, asc_obj, offset);
-        bytes_to_field!(length, i32, asc_obj, offset);
-
-        Ok(Self {
-            buffer,
-            buffer_data_start,
-            buffer_data_length,
-            length,
-            ty: PhantomData::from_asc_bytes(asc_obj)?, //todo validate phantom data from_asc_bytes
-        })
-    }
 }
 
 impl<T: AscValue> Array<T> {
@@ -537,13 +469,4 @@ impl AscIndexId for Array<f32> {
 
 impl AscIndexId for Array<f64> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayF64;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_array_struct_to_bytes() {
-        let arr = Array::new(&[1, 2, 3], &mut ())?;
-    }
 }
