@@ -1,10 +1,13 @@
+use crate::impl_asc_type;
+
 use super::errors::AscError;
+
 use std::fmt;
 use std::marker::PhantomData;
-use std::mem::size_of;
 use std::mem::MaybeUninit;
 
-const SIZE_OF_RT_SIZE: u32 = 4;
+pub const SIZE_OF_RT_SIZE: u32 = 4;
+pub const HEADER_SIZE: usize = 20;
 
 pub trait AscIndexId {
     /// Constant string with the name of the type in AssemblyScript.
@@ -288,33 +291,6 @@ impl AscType for bool {
     }
 }
 
-// impl AscValue for bool {}
-// impl<T> AscValue for AscPtr<T> {}
-
-macro_rules! impl_asc_type {
-    ($($T:ty),*) => {
-        $(
-            impl AscType for $T {
-                fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
-                    Ok(self.to_le_bytes().to_vec())
-                }
-
-                fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-                    let bytes = asc_obj.try_into().map_err(|_| {
-                        AscError::Plain(format!("Incorrect size for {}. Expected {}, got {},", stringify!($T),
-                            size_of::<Self>(),
-                            asc_obj.len()))
-                    })?;
-
-                    Ok(Self::from_le_bytes(bytes))
-                }
-            }
-
-            impl AscValue for $T {}
-        )*
-    };
-}
-
 impl_asc_type!(u8, u16, u32, u64, i8, i32, i64, f32, f64);
 
 // /// Contains type IDs and their discriminants for every blockchain supported by Graph-Node.
@@ -580,8 +556,6 @@ impl ToAscObj<u32> for IndexForAscTypeId {
         Ok(*self as u32)
     }
 }
-
-pub const HEADER_SIZE: usize = 20;
 
 pub fn padding_to_16(content_length: usize) -> usize {
     (16 - (HEADER_SIZE + content_length) % 16) % 16
