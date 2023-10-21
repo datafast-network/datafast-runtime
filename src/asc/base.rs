@@ -8,6 +8,7 @@ use std::mem::MaybeUninit;
 
 pub const SIZE_OF_RT_SIZE: u32 = 4;
 pub const HEADER_SIZE: usize = 20;
+pub const MAX_RECURSION_DEPTH: usize = 128;
 
 pub trait AscIndexId {
     /// Constant string with the name of the type in AssemblyScript.
@@ -574,4 +575,38 @@ where
 {
     let obj = rust_obj.to_asc_obj(heap)?;
     AscPtr::alloc_obj(obj, heap)
+}
+
+pub fn asc_get<T, C, H: AscHeap + ?Sized>(
+    heap: &H,
+    asc_ptr: AscPtr<C>,
+    mut depth: usize,
+) -> Result<T, AscError>
+where
+    C: AscType + AscIndexId,
+    T: FromAscObj<C>,
+{
+    depth += 1;
+
+    if depth > MAX_RECURSION_DEPTH {
+        return Err(AscError::MaxRecursion);
+    }
+
+    T::from_asc_obj(asc_ptr.read_ptr(heap)?, heap, depth)
+}
+
+impl<C: AscType, T: ToAscObj<C>> ToAscObj<C> for &T {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<C, AscError> {
+        (*self).to_asc_obj(heap)
+    }
+}
+
+impl ToAscObj<bool> for bool {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, _heap: &mut H) -> Result<bool, AscError> {
+        Ok(*self)
+    }
+}
+
+pub trait FromAscObj<C: AscType>: Sized {
+    fn from_asc_obj<H: AscHeap + ?Sized>(obj: C, heap: &H, depth: usize) -> Result<Self, AscError>;
 }

@@ -4,4 +4,5 @@ pub enum AscError {
     Plain(String),
     IncorrectBool(usize),
     SizeNotMatch,
+    MaxRecursion,
 }
