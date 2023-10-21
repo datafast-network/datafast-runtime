@@ -46,3 +46,42 @@ impl_asc_type_struct!(
     size => AscPtr<AscBigInt>,
     base_fee_per_block => AscPtr<AscBigInt>
 );
+
+/*
+/// Convert bblock data from query store to Asc Block
+impl ToAscObj<AscBlock> for BlockFromQueryStore {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+        gas: &GasCounter,
+    ) -> Result<AscBlock, AscError> {
+        Ok(AscBlock {
+            hash: asc_new(heap, &self.hash, gas)?,
+            parent_hash: asc_new(heap, &self.parent_hash, gas)?,
+            uncles_hash: asc_new(heap, &self.uncles_hash, gas)?,
+            author: asc_new(heap, &self.author, gas)?,
+            state_root: asc_new(heap, &self.state_root, gas)?,
+            transactions_root: asc_new(heap, &self.transactions_root, gas)?,
+            receipts_root: asc_new(heap, &self.receipts_root, gas)?,
+            number: asc_new(heap, &BigInt::from(self.number), gas)?,
+            gas_used: asc_new(heap, &BigInt::from_unsigned_u256(&self.gas_used), gas)?,
+            gas_limit: asc_new(heap, &BigInt::from_unsigned_u256(&self.gas_limit), gas)?,
+            timestamp: asc_new(heap, &BigInt::from_unsigned_u256(&self.timestamp), gas)?,
+            difficulty: asc_new(heap, &BigInt::from_unsigned_u256(&self.difficulty), gas)?,
+            total_difficulty: asc_new(
+                heap,
+                &BigInt::from_unsigned_u256(&self.total_difficulty),
+                gas,
+            )?,
+            size: self
+                .size
+                .map(|size| asc_new(heap, &BigInt::from_unsigned_u256(&size), gas))
+                .unwrap_or(Ok(AscPtr::null()))?,
+            base_fee_per_block: self
+                .base_fee_per_gas
+                .map(|base_fee| asc_new(heap, &BigInt::from_unsigned_u256(&base_fee), gas))
+                .unwrap_or(Ok(AscPtr::null()))?,
+        })
+    }
+}
+*/
