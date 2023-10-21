@@ -224,11 +224,11 @@ macro_rules! impl_asc_type_enum {
 
             fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::AscError> {
                 let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
-                    .map_err(|_| AscError::Plain("invalid Kind".to_string()))?;
+                    .map_err(|_| crate::asc::errors::AscError::Plain("invalid Kind".to_string()))?;
                 let discriminant = u32::from_le_bytes(u32_bytes);
                 match discriminant {
                     $($variant_index => Ok($enum_name::$variant_name),)*
-                    _ => Err(AscError::Plain("invalid Kind".to_string()))
+                    _ => Err(crate::asc::errors::AscError::Plain("invalid Kind".to_string()))
                 }
             }
         }
@@ -246,11 +246,11 @@ macro_rules! impl_asc_type_enum {
 
             fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::AscError> {
                 let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
-                    .map_err(|_| AscError::Plain("invalid enum type".to_string()))?;
+                    .map_err(|_| crate::asc::errors::AscError::Plain("invalid enum type".to_string()))?;
                 let discriminant = u32::from_le_bytes(u32_bytes);
                 match discriminant {
                     $($variant_index => Ok($enum_name::$variant_name($variant_type::from_asc_bytes(asc_obj)?)),)*
-                    _ => Err(AscError::Plain("invalid enum type".to_string()))
+                    _ => Err(crate::asc::errors::AscError::Plain("invalid enum type".to_string()))
                 }
             }
         }

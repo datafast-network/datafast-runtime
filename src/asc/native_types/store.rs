@@ -1,4 +1,4 @@
-use crate::asc::AscValue;
+use crate::asc::base::AscValue;
 use crate::impl_asc_type_enum;
 
 #[repr(u32)]

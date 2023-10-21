@@ -1251,6 +1251,7 @@ dependencies = [
  "ethabi",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn 2.0.38",
  "thiserror",
  "wasmer",

@@ -1,9 +1,14 @@
 use super::array::Array;
+use super::json::JsonValueKind;
+use super::store::StoreValueKind;
 
+use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
 use crate::asc::base::AscValue;
+use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
+use crate::impl_asc_type_struct;
 
 #[repr(C)]
 #[derive(Copy, Clone, Default)]
@@ -84,6 +89,21 @@ pub struct AscEnum<D: AscValue> {
     pub kind: D,
     pub _padding: u32, // Make padding explicit.
     pub payload: EnumPayload,
+}
+
+impl_asc_type_struct!(
+    AscEnum<D: AscValue>;
+    kind => D,
+    _padding => u32,
+    payload => EnumPayload
+);
+
+impl AscIndexId for AscEnum<StoreValueKind> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::StoreValue;
+}
+
+impl AscIndexId for AscEnum<JsonValueKind> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::JsonValue;
 }
 
 pub type AscEnumArray<D> = AscPtr<Array<AscPtr<AscEnum<D>>>>;

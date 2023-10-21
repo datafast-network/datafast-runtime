@@ -277,6 +277,9 @@ impl<T> AscType for AscPtr<T> {
 /// same size, and size must be equal to alignment.
 pub trait AscValue: AscType + Copy + Default {}
 
+impl<T> AscValue for AscPtr<T> {}
+impl AscValue for bool {}
+
 impl AscType for bool {
     fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
         Ok(vec![*self as u8])
