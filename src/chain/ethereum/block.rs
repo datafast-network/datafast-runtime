@@ -1,10 +1,12 @@
 use super::asc::*;
 
+use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::IndexForAscTypeId;
 use crate::impl_asc_type_struct;
 
 #[repr(C)]
-pub struct Block {
+pub(crate) struct AscBlock {
     pub hash: AscPtr<AscH256>,
     pub parent_hash: AscPtr<AscH256>,
     pub uncles_hash: AscPtr<AscH256>,
@@ -22,8 +24,12 @@ pub struct Block {
     pub base_fee_per_block: AscPtr<AscBigInt>,
 }
 
+impl AscIndexId for AscBlock {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::EthereumBlock;
+}
+
 impl_asc_type_struct!(
-    Block;
+    AscBlock;
     hash => AscPtr<AscH256>,
     parent_hash => AscPtr<AscH256>,
     uncles_hash => AscPtr<AscH256>,
