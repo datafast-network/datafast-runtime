@@ -1,6 +1,9 @@
 use crate::asc::base::AscValue;
-
 use crate::impl_asc_type_enum;
+
+use super::r#enum::AscEnum;
+use super::string::AscString;
+use super::typed_map::AscTypedMap;
 
 #[repr(u32)]
 #[derive(Copy, Clone)]
@@ -45,3 +48,5 @@ impl JsonValueKind {
         }
     }
 }
+
+pub type AscJson = AscTypedMap<AscString, AscEnum<JsonValueKind>>;

@@ -1,7 +1,3 @@
-use super::array_buffer::ArrayBuffer;
-use super::string::AscString;
-use super::Uint8Array;
-
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
@@ -9,6 +5,10 @@ use crate::asc::base::AscValue;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
 use crate::impl_asc_type_struct;
+
+use super::array_buffer::ArrayBuffer;
+use super::string::AscString;
+use super::Uint8Array;
 
 use std::marker::PhantomData;
 
