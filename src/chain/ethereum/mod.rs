@@ -1,13 +1,24 @@
 mod asc;
+
 use asc::*;
 
-use crate::asc::asc_base::{
-    asc_new, AscHeap, AscIndexId, AscPtr, AscType, AscValue, IndexForAscTypeId, ToAscObj,
-};
+use crate::asc::base::asc_new;
+use crate::asc::base::AscHeap;
+use crate::asc::base::AscIndexId;
+use crate::asc::base::AscPtr;
+use crate::asc::base::AscType;
+use crate::asc::base::AscValue;
+use crate::asc::base::IndexForAscTypeId;
+use crate::asc::base::ToAscObj;
 
-use crate::asc::asc_types::{Array, AscEnum, AscString, Uint8Array};
+use crate::impl_asc_type_enum;
+use crate::impl_asc_type_struct;
+
 use crate::asc::errors::AscError;
-use crate::{impl_asc_type_enum, impl_asc_type_struct};
+use crate::asc::native_types::array::Array;
+use crate::asc::native_types::r#enum::AscEnum;
+use crate::asc::native_types::string::AscString;
+use crate::asc::native_types::Uint8Array;
 
 #[repr(C)]
 pub struct Block {
@@ -105,7 +116,8 @@ impl EthereumValueKind {
     }
 }
 
-impl_asc_type_enum!(EthereumValueKind;
+impl_asc_type_enum!(
+    EthereumValueKind;
     Address => 0,
     FixedBytes => 1,
     Bytes => 2,
@@ -130,7 +142,6 @@ impl AscIndexId for Array<AscPtr<AscEnum<EthereumValueKind>>> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayEthereumValue;
 }
 
-//LogParam for ASC
 #[repr(C)]
 pub struct AscLogParam {
     pub name: AscPtr<AscString>,

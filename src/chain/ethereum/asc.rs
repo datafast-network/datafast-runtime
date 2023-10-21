@@ -1,4 +1,4 @@
-use crate::asc::asc_types::Uint8Array;
+use crate::asc::native_types::Uint8Array;
 
 pub type AscH256 = Uint8Array;
 pub type AscH2048 = Uint8Array;
