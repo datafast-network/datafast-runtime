@@ -5,5 +5,5 @@ pub mod asc;
 pub mod block;
 pub mod transaction;
 
-// pub mod log;
+pub mod log;
 // pub mod event;
