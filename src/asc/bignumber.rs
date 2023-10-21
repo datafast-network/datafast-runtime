@@ -1,10 +1,17 @@
+use super::base::asc_get;
+use super::base::asc_new;
 use super::base::AscHeap;
+use super::base::AscIndexId;
+use super::base::AscPtr;
 use super::base::FromAscObj;
+use super::base::IndexForAscTypeId;
 use super::base::ToAscObj;
 use super::errors::AscError;
 use super::native_types::Uint8Array;
 
+use crate::bignumber::bigdecimal::BigDecimal;
 use crate::bignumber::bigint::BigInt;
+use crate::impl_asc_type_struct;
 
 pub type AscBigInt = Uint8Array;
 
@@ -23,5 +30,63 @@ impl FromAscObj<AscBigInt> for BigInt {
     ) -> Result<Self, AscError> {
         let bytes = <Vec<u8>>::from_asc_obj(array_buffer, heap, depth)?;
         Ok(BigInt::from_signed_bytes_le(&bytes)?)
+    }
+}
+
+#[repr(C)]
+pub struct AscBigDecimal {
+    pub digits: AscPtr<AscBigInt>,
+    // Decimal exponent. This is the opposite of `scale` in rust BigDecimal.
+    pub exp: AscPtr<AscBigInt>,
+}
+
+impl_asc_type_struct!(
+    AscBigDecimal;
+    digits => AscPtr<AscBigInt>,
+    exp => AscPtr<AscBigInt>
+);
+
+impl AscIndexId for AscBigDecimal {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::BigDecimal;
+}
+
+impl ToAscObj<AscBigDecimal> for BigDecimal {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigDecimal, AscError> {
+        // From the docs: "Note that a positive exponent indicates a negative power of 10",
+        // so "exponent" is the opposite of what you'd expect.
+        let (digits, negative_exp) = self.as_bigint_and_exponent();
+        Ok(AscBigDecimal {
+            exp: asc_new(heap, &BigInt::from(-negative_exp))?,
+            digits: asc_new(heap, &BigInt::new(digits)?)?,
+        })
+    }
+}
+
+impl FromAscObj<AscBigDecimal> for BigDecimal {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        big_decimal: AscBigDecimal,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let digits: BigInt = asc_get(heap, big_decimal.digits, depth)?;
+        let exp: BigInt = asc_get(heap, big_decimal.exp, depth)?;
+
+        let bytes = exp.to_signed_bytes_le();
+        let mut byte_array = if exp >= 0.into() { [0; 8] } else { [255; 8] };
+        byte_array[..bytes.len()].copy_from_slice(&bytes);
+        let big_decimal = BigDecimal::new(digits, i64::from_le_bytes(byte_array));
+
+        // Validate the exponent.
+        let exp = -big_decimal.as_bigint_and_exponent().1;
+        let min_exp: i64 = BigDecimal::MIN_EXP.into();
+        let max_exp: i64 = BigDecimal::MAX_EXP.into();
+        if exp < min_exp || max_exp < exp {
+            Err(AscError::Plain(format!(
+                "big decimal exponent `{}` is outside the `{}` to `{}` range",
+                exp, min_exp, max_exp
+            )))
+        } else {
+            Ok(big_decimal)
+        }
     }
 }
