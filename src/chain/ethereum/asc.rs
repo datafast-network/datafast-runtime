@@ -1,4 +1,4 @@
-use web3::types as web3;
+use web3::types as w3;
 
 use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;
@@ -83,13 +83,17 @@ impl AscIndexId for Array<AscPtr<AscEnum<EthereumValueKind>>> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayEthereumValue;
 }
 
-impl ToAscObj<Uint8Array> for web3::H160 {
+impl AscIndexId for AscEnum<EthereumValueKind> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::EthereumValue;
+}
+
+impl ToAscObj<Uint8Array> for w3::H160 {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, AscError> {
         self.0.to_asc_obj(heap)
     }
 }
 
-impl FromAscObj<Uint8Array> for web3::H160 {
+impl FromAscObj<Uint8Array> for w3::H160 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         typed_array: Uint8Array,
         heap: &H,
@@ -100,7 +104,7 @@ impl FromAscObj<Uint8Array> for web3::H160 {
     }
 }
 
-impl FromAscObj<Uint8Array> for web3::H256 {
+impl FromAscObj<Uint8Array> for w3::H256 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         typed_array: Uint8Array,
         heap: &H,
@@ -111,52 +115,17 @@ impl FromAscObj<Uint8Array> for web3::H256 {
     }
 }
 
-impl ToAscObj<Uint8Array> for web3::H256 {
+impl ToAscObj<Uint8Array> for w3::H256 {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, AscError> {
         self.0.to_asc_obj(heap)
     }
 }
 
-impl ToAscObj<AscBigInt> for web3::U128 {
+impl ToAscObj<AscBigInt> for w3::U128 {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigInt, AscError> {
         let mut bytes: [u8; 16] = [0; 16];
         self.to_little_endian(&mut bytes);
         bytes.to_asc_obj(heap)
-    }
-}
-
-impl ToAscObj<AscEnum<EthereumValueKind>> for ethabi::Token {
-    fn to_asc_obj<H: AscHeap + ?Sized>(
-        &self,
-        heap: &mut H,
-    ) -> Result<AscEnum<EthereumValueKind>, AscError> {
-        use ethabi::Token::*;
-
-        let kind = EthereumValueKind::get_kind(self);
-        let payload = match self {
-            Address(address) => asc_new::<AscAddress, _, _>(heap, address)?.to_payload(),
-            FixedBytes(bytes) | Bytes(bytes) => {
-                asc_new::<Uint8Array, _, _>(heap, &**bytes)?.to_payload()
-            }
-            Int(uint) => {
-                let n = BigInt::from_signed_u256(uint);
-                asc_new(heap, &n)?.to_payload()
-            }
-            Uint(uint) => {
-                let n = BigInt::from_unsigned_u256(uint);
-                asc_new(heap, &n)?.to_payload()
-            }
-            Bool(b) => *b as u64,
-            String(string) => asc_new(heap, &**string)?.to_payload(),
-            FixedArray(tokens) | Array(tokens) => asc_new(heap, &**tokens)?.to_payload(),
-            Tuple(tokens) => asc_new(heap, &**tokens)?.to_payload(),
-        };
-
-        Ok(AscEnum {
-            kind,
-            _padding: 0,
-            payload: EnumPayload(payload),
-        })
     }
 }
 
@@ -209,6 +178,60 @@ impl FromAscObj<AscEnum<EthereumValueKind>> for ethabi::Token {
                 let ptr: AscEnumArray<EthereumValueKind> = AscPtr::from(payload);
                 Token::Tuple(asc_get(heap, ptr, depth)?)
             }
+        })
+    }
+}
+
+impl ToAscObj<AscEnum<EthereumValueKind>> for ethabi::Token {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscEnum<EthereumValueKind>, AscError> {
+        use ethabi::Token::*;
+
+        let kind = EthereumValueKind::get_kind(self);
+        // let payload = match self {
+        //     Address(address) => asc_new::<AscAddress, _, _>(heap, address)?.to_payload(),
+        //     FixedBytes(bytes) | Bytes(bytes) => {
+        //         asc_new::<Uint8Array, _, _>(heap, &**bytes)?.to_payload()
+        //     }
+        //     Int(uint) => {
+        //         let n = BigInt::from_signed_u256(uint);
+        //         asc_new(heap, &n)?.to_payload()
+        //     }
+        //     Uint(uint) => {
+        //         let n = BigInt::from_unsigned_u256(uint);
+        //         asc_new(heap, &n)?.to_payload()
+        //     }
+        //     Bool(b) => *b as u64,
+        //     String(string) => asc_new(heap, &**string)?.to_payload(),
+        //     FixedArray(tokens) | Array(tokens) => asc_new(heap, &**tokens)?.to_payload(),
+        //     Tuple(tokens) => asc_new(heap, &**tokens)?.to_payload(),
+        // };
+
+        let payload = match self {
+            Address(address) => asc_new::<AscAddress, _, _>(heap, address)?.to_payload(),
+            FixedBytes(bytes) | Bytes(bytes) => {
+                asc_new::<Uint8Array, _, _>(heap, &**bytes)?.to_payload()
+            }
+            Int(uint) => {
+                let n = BigInt::from_signed_u256(uint);
+                asc_new(heap, &n)?.to_payload()
+            }
+            Uint(uint) => {
+                let n = BigInt::from_unsigned_u256(uint);
+                asc_new(heap, &n)?.to_payload()
+            }
+            Bool(b) => *b as u64,
+            String(string) => asc_new(heap, &**string)?.to_payload(),
+            FixedArray(tokens) | Array(tokens) => asc_new(heap, &**tokens)?.to_payload(),
+            Tuple(tokens) => asc_new(heap, &**tokens)?.to_payload(),
+        };
+
+        Ok(AscEnum {
+            kind,
+            _padding: 0,
+            payload: EnumPayload(payload),
         })
     }
 }

@@ -1,4 +1,4 @@
-use crate::asc::base::AscValue;
+use crate::asc::base::{AscIndexId, AscValue, IndexForAscTypeId};
 use crate::impl_asc_type_enum;
 
 use super::r#enum::AscEnum;

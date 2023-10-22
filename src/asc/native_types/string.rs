@@ -1,8 +1,8 @@
-use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscType;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
+use crate::asc::base::{AscHeap, FromAscObj};
 use crate::asc::errors::AscError;
 
 use std::mem::size_of_val;
@@ -32,6 +32,10 @@ impl AscString {
             byte_length: content.len() as u32,
             content: content.into(),
         })
+    }
+
+    pub fn content(&self) -> &[u16] {
+        &self.content
     }
 }
 
@@ -95,14 +99,31 @@ impl ToAscObj<AscString> for str {
     }
 }
 
-impl ToAscObj<AscString> for &str {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
-        Ok(AscString::new(&self.encode_utf16().collect::<Vec<_>>())?)
-    }
-}
+// impl ToAscObj<AscString> for &str {
+//     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
+//         Ok(AscString::new(&self.encode_utf16().collect::<Vec<_>>())?)
+//     }
+// }
 
 impl ToAscObj<AscString> for String {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
         self.as_str().to_asc_obj(heap)
+    }
+}
+
+impl FromAscObj<AscString> for String {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        asc_string: AscString,
+        _: &H,
+        _depth: usize,
+    ) -> Result<Self, AscError> {
+        let mut string =
+            String::from_utf16(asc_string.content()).map_err(|e| AscError::Plain(e.to_string()))?;
+
+        // Strip null characters since they are not accepted by Postgres.
+        if string.contains('\u{0000}') {
+            string = string.replace('\u{0000}', "");
+        }
+        Ok(string)
     }
 }
