@@ -8,7 +8,8 @@ use crate::asc::base::AscValue;
 use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
+use crate::asc::errors::DeterministicHostError;
+use crate::asc::errors::HostExportError;
 use crate::impl_asc_type_struct;
 
 use super::array_buffer::ArrayBuffer;
@@ -49,7 +50,7 @@ impl AscIndexId for Array<Uint8Array> {
 }
 
 impl<T: AscValue> Array<T> {
-    pub fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
+    pub fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, HostExportError> {
         let arr_buffer = ArrayBuffer::new(content)?;
         let buffer = AscPtr::alloc_obj(arr_buffer, heap)?;
         let buffer_data_length = buffer.read_len(heap)?;
@@ -62,7 +63,10 @@ impl<T: AscValue> Array<T> {
         })
     }
 
-    pub(crate) fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
+    pub(crate) fn to_vec<H: AscHeap + ?Sized>(
+        &self,
+        heap: &H,
+    ) -> Result<Vec<T>, DeterministicHostError> {
         // We're trying to read the pointer below, we should check it's
         // not null before using it.
         self.buffer.check_is_not_null()?;
@@ -77,7 +81,7 @@ impl<T: AscValue> Array<T> {
             .buffer_data_start
             .checked_sub(self.buffer.wasm_ptr())
             .ok_or_else(|| {
-                AscError::Plain(format!(
+                DeterministicHostError::from(anyhow::anyhow!(
                     "Subtract overflow on pointer: {}",
                     self.buffer_data_start
                 ))
@@ -138,7 +142,7 @@ impl<C: AscType + AscIndexId, T: FromAscObj<C>> FromAscObj<Array<AscPtr<C>>> for
         array: Array<AscPtr<C>>,
         heap: &H,
         depth: usize,
-    ) -> Result<Self, AscError> {
+    ) -> Result<Self, DeterministicHostError> {
         array
             .to_vec(heap)?
             .into_iter()
@@ -148,7 +152,10 @@ impl<C: AscType + AscIndexId, T: FromAscObj<C>> FromAscObj<Array<AscPtr<C>>> for
 }
 
 impl<C: AscType + AscIndexId, T: ToAscObj<C>> ToAscObj<Array<AscPtr<C>>> for [T] {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Array<AscPtr<C>>, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<Array<AscPtr<C>>, HostExportError> {
         let content: Result<Vec<_>, _> = self.iter().map(|x| asc_new(heap, x)).collect();
         let content = content?;
         Array::new(&content, heap)

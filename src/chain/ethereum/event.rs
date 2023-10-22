@@ -13,6 +13,7 @@ use crate::asc::base::AscType;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
+use crate::asc::errors::HostExportError;
 use crate::asc::native_types::string::AscString;
 use crate::bignumber::bigint::BigInt;
 use crate::chain::ethereum::block::AscEthereumBlock;
@@ -69,7 +70,7 @@ where
     fn to_asc_obj<H: AscHeap + ?Sized>(
         &self,
         heap: &mut H,
-    ) -> Result<AscEthereumEvent<T, B>, AscError> {
+    ) -> Result<AscEthereumEvent<T, B>, HostExportError> {
         Ok(AscEthereumEvent {
             address: asc_new(heap, &self.address)?,
             log_index: asc_new(heap, &BigInt::from_unsigned_u256(&self.log_index))?,

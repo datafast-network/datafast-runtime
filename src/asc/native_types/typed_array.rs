@@ -5,7 +5,8 @@ use crate::asc::base::AscValue;
 use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
+use crate::asc::errors::DeterministicHostError;
+use crate::asc::errors::HostExportError;
 use crate::impl_asc_type_struct;
 
 use super::array_buffer::ArrayBuffer;
@@ -74,7 +75,10 @@ impl AscIndexId for TypedArray<f64> {
 }
 
 impl<T: AscValue> TypedArray<T> {
-    pub(crate) fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
+    pub(crate) fn new<H: AscHeap + ?Sized>(
+        content: &[T],
+        heap: &mut H,
+    ) -> Result<Self, HostExportError> {
         let buffer = ArrayBuffer::new(content)?;
         let byte_length = content.len() as u32;
         let ptr = AscPtr::alloc_obj(buffer, heap)?;
@@ -86,7 +90,10 @@ impl<T: AscValue> TypedArray<T> {
         })
     }
 
-    pub(crate) fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
+    pub(crate) fn to_vec<H: AscHeap + ?Sized>(
+        &self,
+        heap: &H,
+    ) -> Result<Vec<T>, DeterministicHostError> {
         // We're trying to read the pointer below, we should check it's
         // not null before using it.
         self.buffer.check_is_not_null()?;
@@ -101,7 +108,10 @@ impl<T: AscValue> TypedArray<T> {
             .data_start
             .checked_sub(self.buffer.wasm_ptr())
             .ok_or_else(|| {
-                AscError::Plain(format!("Subtract overflow on pointer: {}", self.data_start))
+                DeterministicHostError::from(anyhow::anyhow!(
+                    "Subtract overflow on pointer: {}",
+                    self.data_start
+                ))
             })?;
 
         self.buffer.read_ptr(heap)?.get(
@@ -116,13 +126,16 @@ impl<T: AscValue> FromAscObj<TypedArray<T>> for Vec<T> {
         typed_array: TypedArray<T>,
         heap: &H,
         _depth: usize,
-    ) -> Result<Self, AscError> {
+    ) -> Result<Self, DeterministicHostError> {
         typed_array.to_vec(heap)
     }
 }
 
 impl<T: AscValue> ToAscObj<TypedArray<T>> for [T] {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<TypedArray<T>, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<TypedArray<T>, HostExportError> {
         TypedArray::new(self, heap)
     }
 }
@@ -132,10 +145,10 @@ impl<T: AscValue + Send + Sync, const LEN: usize> FromAscObj<TypedArray<T>> for 
         typed_array: TypedArray<T>,
         heap: &H,
         _depth: usize,
-    ) -> Result<Self, AscError> {
+    ) -> Result<Self, DeterministicHostError> {
         let v = typed_array.to_vec(heap)?;
         let array = <[T; LEN]>::try_from(v).map_err(|v| {
-            AscError::Plain(format!(
+            DeterministicHostError::from(anyhow::anyhow!(
                 "expected array of length {}, found length {}",
                 LEN,
                 v.len()

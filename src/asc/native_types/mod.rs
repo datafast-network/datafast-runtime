@@ -18,7 +18,7 @@ use crate::asc::base::AscPtr;
 use crate::asc::base::AscValue;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
+use crate::asc::errors::HostExportError;
 use crate::impl_asc_type_struct;
 
 pub type Uint8Array = TypedArray<u8>;
@@ -47,7 +47,10 @@ impl AscIndexId for AscWrapped<AscPtr<AscEnum<JsonValueKind>>> {
 }
 
 impl<T: AscValue> ToAscObj<AscWrapped<T>> for AscWrapped<T> {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, _heap: &mut H) -> Result<AscWrapped<T>, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        _heap: &mut H,
+    ) -> Result<AscWrapped<T>, HostExportError> {
         Ok(*self)
     }
 }

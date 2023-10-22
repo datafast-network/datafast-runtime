@@ -17,6 +17,10 @@ pub enum AscError {
     MaxRecursion,
     #[error(transparent)]
     BigNumberOutOfRange(#[from] BNErr::BigNumberErr),
+    #[error("Deterministic host error: {0}")]
+    DeterministicHostError(#[from] DeterministicHostError),
+    #[error("Host export error: {0}")]
+    HostExportError(#[from] HostExportError),
 }
 
 #[derive(Debug)]
@@ -63,6 +67,9 @@ pub enum HostExportError {
 
     #[error("{0:#}")]
     Deterministic(anyhow::Error),
+
+    #[error("{0:#}")]
+    BigNumberError(#[from] BNErr::BigNumberErr),
 }
 
 impl From<DeterministicHostError> for HostExportError {

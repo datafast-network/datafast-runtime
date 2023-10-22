@@ -1,7 +1,7 @@
 use crate::impl_asc_type;
 
-use super::errors::AscError;
-
+use crate::asc::errors::DeterministicHostError;
+use crate::asc::errors::HostExportError;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
@@ -22,17 +22,17 @@ pub trait AscIndexId {
 
 pub trait AscHeap {
     /// Allocate new space and write `bytes`, return the allocated address.
-    fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError>;
+    fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, DeterministicHostError>;
 
     fn read<'a>(
         &self,
         offset: u32,
         buffer: &'a mut [MaybeUninit<u8>],
-    ) -> Result<&'a mut [u8], AscError>;
+    ) -> Result<&'a mut [u8], DeterministicHostError>;
 
-    fn read_u32(&self, offset: u32) -> Result<u32, AscError>;
+    fn read_u32(&self, offset: u32) -> Result<u32, DeterministicHostError>;
 
-    fn asc_type_id(&mut self, type_id_index: IndexForAscTypeId) -> Result<u32, AscError>;
+    fn asc_type_id(&mut self, type_id_index: IndexForAscTypeId) -> Result<u32, HostExportError>;
 }
 
 pub struct AscPtr<C>(u32, PhantomData<C>);
@@ -80,10 +80,10 @@ impl<C> AscPtr<C> {
 pub trait AscType: Sized {
     /// Transform the Rust representation of this instance into an sequence of
     /// bytes that is precisely the memory layout of a corresponding Asc instance.
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError>;
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError>;
 
     /// The Rust representation of an Asc object as layed out in Asc memory.
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError>;
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError>;
 
     fn content_len(&self, asc_bytes: &[u8]) -> usize {
         asc_bytes.len()
@@ -91,7 +91,10 @@ pub trait AscType: Sized {
 
     /// Size of the corresponding Asc instance in bytes.
     /// Only used for version <= 0.0.3.
-    fn asc_size<H: AscHeap + ?Sized>(_ptr: AscPtr<Self>, _heap: &H) -> Result<u32, AscError> {
+    fn asc_size<H: AscHeap + ?Sized>(
+        _ptr: AscPtr<Self>,
+        _heap: &H,
+    ) -> Result<u32, DeterministicHostError> {
         Ok(std::mem::size_of::<Self>() as u32)
     }
 }
@@ -99,11 +102,11 @@ pub trait AscType: Sized {
 // Only implemented because of structs that derive AscType and
 // contain fields that are PhantomData.
 impl<T> AscType for std::marker::PhantomData<T> {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         Ok(vec![])
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         assert!(asc_obj.is_empty());
 
         Ok(Self)
@@ -118,7 +121,7 @@ impl<C: AscType> AscPtr<C> {
     }
 
     /// Read from `self` into the Rust struct `C`.
-    pub fn read_ptr<H: AscHeap + ?Sized>(self, heap: &H) -> Result<C, AscError> {
+    pub fn read_ptr<H: AscHeap + ?Sized>(self, heap: &H) -> Result<C, DeterministicHostError> {
         let len = self.read_len(heap)?;
 
         let using_buffer = |buffer: &mut [MaybeUninit<u8>]| {
@@ -138,7 +141,10 @@ impl<C: AscType> AscPtr<C> {
     }
 
     /// Allocate `asc_obj` as an Asc object of class `C`.
-    pub fn alloc_obj<H: AscHeap + ?Sized>(asc_obj: C, heap: &mut H) -> Result<AscPtr<C>, AscError>
+    pub fn alloc_obj<H: AscHeap + ?Sized>(
+        asc_obj: C,
+        heap: &mut H,
+    ) -> Result<AscPtr<C>, HostExportError>
     where
         C: AscIndexId,
     {
@@ -165,7 +171,7 @@ impl<C: AscType> AscPtr<C> {
 
     /// Helper used by arrays and strings to read their length.
     /// Only used for version <= 0.0.4.
-    pub fn read_u32<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<u32, AscError> {
+    pub fn read_u32<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<u32, DeterministicHostError> {
         // Read the bytes pointed to by `self` as the bytes of a `u32`.
         heap.read_u32(self.0)
     }
@@ -183,7 +189,7 @@ impl<C: AscType> AscPtr<C> {
         type_id_index: IndexForAscTypeId,
         content_length: usize,
         full_length: usize,
-    ) -> Result<Vec<u8>, AscError> {
+    ) -> Result<Vec<u8>, HostExportError> {
         let mut header: Vec<u8> = Vec::with_capacity(20);
 
         let gc_info: [u8; 4] = (0u32).to_le_bytes();
@@ -214,15 +220,17 @@ impl<C: AscType> AscPtr<C> {
     /// - rt_size: u32
     /// This function returns the `rt_size`.
     /// Only used for version >= 0.0.5.
-    pub fn read_len<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<u32, AscError> {
+    pub fn read_len<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<u32, DeterministicHostError> {
         // We're trying to read the pointer below, we should check it's
         // not null before using it.
         self.check_is_not_null()?;
 
-        let start_of_rt_size = self
-            .0
-            .checked_sub(SIZE_OF_RT_SIZE)
-            .ok_or_else(|| AscError::Overflow(self.0))?;
+        let start_of_rt_size = self.0.checked_sub(SIZE_OF_RT_SIZE).ok_or_else(|| {
+            DeterministicHostError::from(anyhow::anyhow!(
+                "Subtract overflow on pointer: {}",
+                self.0
+            ))
+        })?;
 
         heap.read_u32(start_of_rt_size)
     }
@@ -242,9 +250,11 @@ impl<C: AscType> AscPtr<C> {
     /// this function does this error handling.
     ///
     /// Summary: ALWAYS call this before reading an AscPtr.
-    pub fn check_is_not_null(&self) -> Result<(), AscError> {
+    pub fn check_is_not_null(&self) -> Result<(), DeterministicHostError> {
         if self.is_null() {
-            return Err(AscError::Plain("Tried to read AssemblyScript value that is 'null'. Suggestion: look into the function that the error happened and add 'log' calls till you find where a 'null' value is being used as non-nullable. It's likely that you're calling a 'graph-ts' function (or operator) with a 'null' value when it doesn't support it.".to_string()));
+            return Err(DeterministicHostError::from(anyhow::anyhow!(
+                "Tried to read AssemblyScript value that is 'null'. Suggestion: look into the function that the error happened and add 'log' calls till you find where a 'null' value is being used as non-nullable. It's likely that you're calling a 'graph-ts' function (or operator) with a 'null' value when it doesn't support it."
+            )));
         }
 
         Ok(())
@@ -263,11 +273,11 @@ impl<C> From<u32> for AscPtr<C> {
 }
 
 impl<T> AscType for AscPtr<T> {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         let bytes = u32::from_asc_bytes(asc_obj)?;
         Ok(AscPtr::new(bytes))
     }
@@ -282,13 +292,16 @@ impl<T> AscValue for AscPtr<T> {}
 impl AscValue for bool {}
 
 impl AscType for bool {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         Ok(vec![*self as u8])
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         if asc_obj.len() != 1 {
-            Err(AscError::IncorrectBool(asc_obj.len()))
+            Err(DeterministicHostError::from(anyhow::anyhow!(
+                "Incorrect size for bool. Expected 1, got {},",
+                asc_obj.len()
+            )))
         } else {
             Ok(asc_obj[0] != 0)
         }
@@ -552,11 +565,11 @@ pub enum IndexForAscTypeId {
 }
 
 pub trait ToAscObj<C: AscType> {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<C, AscError>;
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<C, HostExportError>;
 }
 
 impl ToAscObj<u32> for IndexForAscTypeId {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, _heap: &mut H) -> Result<u32, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, _heap: &mut H) -> Result<u32, HostExportError> {
         Ok(*self as u32)
     }
 }
@@ -568,7 +581,7 @@ pub fn padding_to_16(content_length: usize) -> usize {
 pub fn asc_new<C, T: ?Sized, H: AscHeap + ?Sized>(
     heap: &mut H,
     rust_obj: &T,
-) -> Result<AscPtr<C>, AscError>
+) -> Result<AscPtr<C>, HostExportError>
 where
     C: AscType + AscIndexId,
     T: ToAscObj<C>,
@@ -581,7 +594,7 @@ pub fn asc_get<T, C, H: AscHeap + ?Sized>(
     heap: &H,
     asc_ptr: AscPtr<C>,
     mut depth: usize,
-) -> Result<T, AscError>
+) -> Result<T, DeterministicHostError>
 where
     C: AscType + AscIndexId,
     T: FromAscObj<C>,
@@ -589,24 +602,30 @@ where
     depth += 1;
 
     if depth > MAX_RECURSION_DEPTH {
-        return Err(AscError::MaxRecursion);
+        return Err(DeterministicHostError::Other(anyhow::anyhow!(
+            "recursion limit reached"
+        )));
     }
 
     T::from_asc_obj(asc_ptr.read_ptr(heap)?, heap, depth)
 }
 
 impl<C: AscType, T: ToAscObj<C>> ToAscObj<C> for &T {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<C, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<C, HostExportError> {
         (*self).to_asc_obj(heap)
     }
 }
 
 impl ToAscObj<bool> for bool {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, _heap: &mut H) -> Result<bool, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, _heap: &mut H) -> Result<bool, HostExportError> {
         Ok(*self)
     }
 }
 
 pub trait FromAscObj<C: AscType>: Sized {
-    fn from_asc_obj<H: AscHeap + ?Sized>(obj: C, heap: &H, depth: usize) -> Result<Self, AscError>;
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: C,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, DeterministicHostError>;
 }

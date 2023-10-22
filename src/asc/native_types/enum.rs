@@ -7,7 +7,7 @@ use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
 use crate::asc::base::AscValue;
 use crate::asc::base::IndexForAscTypeId;
-use crate::asc::errors::AscError;
+use crate::asc::errors::DeterministicHostError;
 use crate::impl_asc_type_struct;
 
 #[repr(C)]
@@ -15,11 +15,11 @@ use crate::impl_asc_type_struct;
 pub struct EnumPayload(pub u64);
 
 impl AscType for EnumPayload {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         Ok(EnumPayload(u64::from_asc_bytes(asc_obj)?))
     }
 }

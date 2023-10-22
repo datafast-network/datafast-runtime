@@ -4,7 +4,8 @@ use crate::asc::base::AscType;
 use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
+use crate::asc::errors::DeterministicHostError;
+use crate::asc::errors::HostExportError;
 
 use std::mem::size_of_val;
 
@@ -22,11 +23,11 @@ impl AscIndexId for AscString {
 }
 
 impl AscString {
-    pub fn new(content: &[u16]) -> Result<Self, AscError> {
+    pub fn new(content: &[u16]) -> Result<Self, DeterministicHostError> {
         if size_of_val(content) > u32::MAX as usize {
-            return Err(AscError::Plain(
-                "string cannot fit in WASM memory".to_string(),
-            ));
+            return Err(DeterministicHostError::from(anyhow::anyhow!(
+                "string cannot fit in WASM memory"
+            )));
         }
 
         Ok(AscString {
@@ -41,7 +42,7 @@ impl AscString {
 }
 
 impl AscType for AscString {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         let mut content: Vec<u8> = Vec::new();
 
         // Write the code points, in little-endian (LE) order.
@@ -62,7 +63,7 @@ impl AscType for AscString {
     }
 
     /// The Rust representation of an Asc object as layed out in Asc memory.
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         // UTF-16 (used in assemblyscript) always uses one
         // pair of bytes per code unit.
         // https://mathiasbynens.be/notes/javascript-encoding
@@ -78,9 +79,9 @@ impl AscType for AscString {
             let code_point_bytes = [
                 pair[0],
                 *pair.get(1).ok_or_else(|| {
-                    AscError::Plain(
-                        "Attempted to read past end of string content bytes chunk".to_string(),
-                    )
+                    DeterministicHostError::from(anyhow::anyhow!(
+                        "Attempted to read past end of string content bytes chunk"
+                    ))
                 })?,
             ];
             let code_point = u16::from_le_bytes(code_point_bytes);
@@ -95,7 +96,7 @@ impl AscType for AscString {
 }
 
 impl ToAscObj<AscString> for str {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, HostExportError> {
         Ok(AscString::new(&self.encode_utf16().collect::<Vec<_>>())?)
     }
 }
@@ -107,7 +108,7 @@ impl ToAscObj<AscString> for str {
 // }
 
 impl ToAscObj<AscString> for String {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, HostExportError> {
         self.as_str().to_asc_obj(heap)
     }
 }
@@ -117,9 +118,9 @@ impl FromAscObj<AscString> for String {
         asc_string: AscString,
         _: &H,
         _depth: usize,
-    ) -> Result<Self, AscError> {
-        let mut string =
-            String::from_utf16(asc_string.content()).map_err(|e| AscError::Plain(e.to_string()))?;
+    ) -> Result<Self, DeterministicHostError> {
+        let mut string = String::from_utf16(asc_string.content())
+            .map_err(|e| DeterministicHostError::from(anyhow::Error::from(e)))?;
 
         // Strip null characters since they are not accepted by Postgres.
         if string.contains('\u{0000}') {

@@ -1,7 +1,7 @@
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscType;
 use crate::asc::base::IndexForAscTypeId;
-use crate::asc::errors::AscError;
+use crate::asc::errors::DeterministicHostError;
 
 use std::mem::size_of;
 
@@ -13,7 +13,7 @@ pub struct ArrayBuffer {
 }
 
 impl ArrayBuffer {
-    pub fn new<T: AscType>(values: &[T]) -> Result<Self, AscError> {
+    pub fn new<T: AscType>(values: &[T]) -> Result<Self, DeterministicHostError> {
         let mut content = Vec::new();
         for value in values {
             let asc_bytes = value.to_asc_bytes()?;
@@ -21,9 +21,9 @@ impl ArrayBuffer {
         }
 
         if content.len() > u32::MAX as usize {
-            return Err(AscError::Plain(
-                "slice cannot fit in WASM memory".to_string(),
-            ));
+            return Err(DeterministicHostError::from(anyhow::anyhow!(
+                "slice cannot fit in WASM memory"
+            )));
         }
         Ok(ArrayBuffer {
             byte_length: content.len() as u32,
@@ -34,7 +34,11 @@ impl ArrayBuffer {
     /// Read `length` elements of type `T` starting at `byte_offset`.
     ///
     /// Panics if that tries to read beyond the length of `self.content`.
-    pub fn get<T: AscType>(&self, byte_offset: u32, length: u32) -> Result<Vec<T>, AscError> {
+    pub fn get<T: AscType>(
+        &self,
+        byte_offset: u32,
+        length: u32,
+    ) -> Result<Vec<T>, DeterministicHostError> {
         let length = length as usize;
         let byte_offset = byte_offset as usize;
 
@@ -51,7 +55,7 @@ impl AscIndexId for ArrayBuffer {
 }
 
 impl AscType for ArrayBuffer {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         // let in_memory_byte_count = size_of::<Self>();
         // let mut bytes = Vec::with_capacity(in_memory_byte_count);
         //
@@ -62,7 +66,7 @@ impl AscType for ArrayBuffer {
         Ok(vec![])
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         Ok(ArrayBuffer {
             byte_length: asc_obj.len() as u32,
             content: asc_obj.to_vec().into(),

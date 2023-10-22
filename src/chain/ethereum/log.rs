@@ -7,7 +7,8 @@ use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
+use crate::asc::errors::DeterministicHostError;
+use crate::asc::errors::HostExportError;
 use crate::asc::native_types::array::Array;
 use crate::asc::native_types::r#enum::AscEnum;
 use crate::asc::native_types::string::AscString;
@@ -19,7 +20,10 @@ use web3::types::Log;
 use web3::types::H256;
 
 impl ToAscObj<AscLogParam> for ethabi::LogParam {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscLogParam, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscLogParam, HostExportError> {
         Ok(AscLogParam {
             name: asc_new(heap, self.name.as_str())?,
             value: asc_new(heap, &self.value)?,
@@ -46,16 +50,19 @@ impl AscIndexId for AscLogParam {
 pub struct AscLogParamArray(Array<AscPtr<AscLogParam>>);
 
 impl AscType for AscLogParamArray {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         self.0.to_asc_bytes()
     }
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         Ok(Self(Array::from_asc_bytes(asc_obj)?))
     }
 }
 
 impl ToAscObj<AscLogParamArray> for Vec<ethabi::LogParam> {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscLogParamArray, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscLogParamArray, HostExportError> {
         let content: Result<Vec<_>, _> = self
             .iter()
             .map(|log_param| asc_new(heap, log_param))
@@ -72,17 +79,20 @@ impl AscIndexId for AscLogParamArray {
 pub struct AscTopicArray(Array<AscPtr<AscH256>>);
 
 impl AscType for AscTopicArray {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         Ok(Self(Array::from_asc_bytes(asc_obj)?))
     }
 }
 
 impl ToAscObj<AscTopicArray> for Vec<H256> {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscTopicArray, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscTopicArray, HostExportError> {
         let topics = self
             .iter()
             .map(|topic| asc_new(heap, topic))
@@ -132,17 +142,20 @@ impl_asc_type_struct!(
 pub struct AscLogArray(Array<AscPtr<AscEthereumLog>>);
 
 impl AscType for AscLogArray {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, DeterministicHostError> {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, DeterministicHostError> {
         Ok(Self(Array::from_asc_bytes(asc_obj)?))
     }
 }
 
 impl ToAscObj<AscEthereumLog> for Log {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscEthereumLog, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscEthereumLog, HostExportError> {
         Ok(AscEthereumLog {
             address: asc_new(heap, &self.address)?,
             topics: asc_new(heap, &self.topics)?,
@@ -185,7 +198,10 @@ impl ToAscObj<AscEthereumLog> for Log {
 }
 
 impl ToAscObj<AscLogArray> for Vec<Log> {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscLogArray, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscLogArray, HostExportError> {
         let logs = self
             .iter()
             .map(|log| asc_new(heap, &log))

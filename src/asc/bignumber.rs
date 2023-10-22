@@ -6,8 +6,9 @@ use super::base::AscPtr;
 use super::base::FromAscObj;
 use super::base::IndexForAscTypeId;
 use super::base::ToAscObj;
-use super::errors::AscError;
 use super::native_types::Uint8Array;
+use crate::asc::errors::DeterministicHostError;
+use crate::asc::errors::HostExportError;
 
 use crate::bignumber::bigdecimal::BigDecimal;
 use crate::bignumber::bigint::BigInt;
@@ -16,7 +17,7 @@ use crate::impl_asc_type_struct;
 pub type AscBigInt = Uint8Array;
 
 impl ToAscObj<AscBigInt> for BigInt {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigInt, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigInt, HostExportError> {
         let bytes = self.to_signed_bytes_le();
         bytes.to_asc_obj(heap)
     }
@@ -27,9 +28,10 @@ impl FromAscObj<AscBigInt> for BigInt {
         array_buffer: AscBigInt,
         heap: &H,
         depth: usize,
-    ) -> Result<Self, AscError> {
+    ) -> Result<Self, DeterministicHostError> {
         let bytes = <Vec<u8>>::from_asc_obj(array_buffer, heap, depth)?;
-        Ok(BigInt::from_signed_bytes_le(&bytes)?)
+        Ok(BigInt::from_signed_bytes_le(&bytes)
+            .map_err(|e| DeterministicHostError::from(anyhow::anyhow!("{}", e)))?)
     }
 }
 
@@ -51,7 +53,10 @@ impl AscIndexId for AscBigDecimal {
 }
 
 impl ToAscObj<AscBigDecimal> for BigDecimal {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigDecimal, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscBigDecimal, HostExportError> {
         // From the docs: "Note that a positive exponent indicates a negative power of 10",
         // so "exponent" is the opposite of what you'd expect.
         let (digits, negative_exp) = self.as_bigint_and_exponent();
@@ -67,7 +72,7 @@ impl FromAscObj<AscBigDecimal> for BigDecimal {
         big_decimal: AscBigDecimal,
         heap: &H,
         depth: usize,
-    ) -> Result<Self, AscError> {
+    ) -> Result<Self, DeterministicHostError> {
         let digits: BigInt = asc_get(heap, big_decimal.digits, depth)?;
         let exp: BigInt = asc_get(heap, big_decimal.exp, depth)?;
 
@@ -81,9 +86,11 @@ impl FromAscObj<AscBigDecimal> for BigDecimal {
         let min_exp: i64 = BigDecimal::MIN_EXP.into();
         let max_exp: i64 = BigDecimal::MAX_EXP.into();
         if exp < min_exp || max_exp < exp {
-            Err(AscError::Plain(format!(
+            Err(DeterministicHostError::from(anyhow::anyhow!(
                 "big decimal exponent `{}` is outside the `{}` to `{}` range",
-                exp, min_exp, max_exp
+                exp,
+                min_exp,
+                max_exp
             )))
         } else {
             Ok(big_decimal)

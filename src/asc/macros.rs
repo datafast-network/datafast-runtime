@@ -3,15 +3,14 @@ macro_rules! impl_asc_type {
     ($($T:ty),*) => {
         $(
             impl AscType for $T {
-                fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+                fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::DeterministicHostError> {
                     Ok(self.to_le_bytes().to_vec())
                 }
 
-                fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+                fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::DeterministicHostError> {
                     let bytes = asc_obj.try_into().map_err(|_| {
-                        AscError::Plain(format!("Incorrect size for {}. Expected {}, got {},", stringify!($T),
-                            std::mem::size_of::<Self>(),
-                            asc_obj.len()))
+                        crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!(
+                            "invalid bytes for {}", stringify!($T)))
                     })?;
 
                     Ok(Self::from_le_bytes(bytes))
@@ -27,7 +26,7 @@ macro_rules! impl_asc_type {
 macro_rules! impl_asc_type_struct {
     ($struct_name:ident; $($field_name:ident => $field_type:ty),*) => {
         impl crate::asc::base::AscType for $struct_name  {
-            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::AscError> {
+            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::DeterministicHostError> {
                 let in_memory_byte_count = std::mem::size_of::<Self>();
                 let mut bytes = Vec::with_capacity(in_memory_byte_count);
 
@@ -82,13 +81,14 @@ macro_rules! impl_asc_type_struct {
 
             #[allow(unused_variables)]
             #[allow(unused_assignments)]
-            fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::DeterministicHostError> {
                 // Sanity check
                 let content_size = std::mem::size_of::<Self>();
                 let aligned_size = crate::asc::base::padding_to_16(content_size);
 
                 if crate::asc::base::HEADER_SIZE + asc_obj.len() == aligned_size + content_size {
-                    return Err(crate::asc::errors::AscError::SizeNotMatch);
+                    return Err(crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!(
+                        "Size does not match")));
                 }
 
                 let mut offset = 0;
@@ -105,7 +105,8 @@ macro_rules! impl_asc_type_struct {
 
                     let field_size = std::mem::size_of::<$field_type>();
                     let field_data = asc_obj.get(offset..(offset + field_size)).ok_or_else(|| {
-                        crate::asc::errors::AscError::Plain("Attempted to read past end of array".to_string())
+                        crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!(
+                            "Attempted to read past end of array"))
                     })?;
                     let $field_name = crate::asc::base::AscType::from_asc_bytes(&field_data)?;
                     offset += field_size;
@@ -119,7 +120,7 @@ macro_rules! impl_asc_type_struct {
     };
     ($struct_name:ident $(< $( $generic_name:tt $( : $generic_type:tt $(+ $generic_type_n:tt )* )? ),+ >)?; $($field_name:ident => $field_type:ty),*) => {
         impl $(< $( $generic_name $( : $generic_type $(+ $generic_type_n )* )? ),+ >)? crate::asc::base::AscType for $struct_name  $(< $( $generic_name ),+ >)? {
-            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::AscError> {
+            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::DeterministicHostError> {
                 let in_memory_byte_count = std::mem::size_of::<Self>();
                 let mut bytes = Vec::with_capacity(in_memory_byte_count);
 
@@ -174,13 +175,14 @@ macro_rules! impl_asc_type_struct {
 
             #[allow(unused_variables)]
             #[allow(unused_assignments)]
-            fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::DeterministicHostError> {
                 // Sanity check
                 let content_size = std::mem::size_of::<Self>();
                 let aligned_size = crate::asc::base::padding_to_16(content_size);
 
                 if crate::asc::base::HEADER_SIZE + asc_obj.len() == aligned_size + content_size {
-                    return Err(crate::asc::errors::AscError::SizeNotMatch);
+                    return Err(crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!(
+                        "Size does not match")));
                 }
 
                 let mut offset = 0;
@@ -197,7 +199,8 @@ macro_rules! impl_asc_type_struct {
 
                     let field_size = std::mem::size_of::<$field_type>();
                     let field_data = asc_obj.get(offset..(offset + field_size)).ok_or_else(|| {
-                        crate::asc::errors::AscError::Plain("Attempted to read past end of array".to_string())
+                        crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!(
+                            "Attempted to read past end of array"))
                     })?;
                     let $field_name = crate::asc::base::AscType::from_asc_bytes(&field_data)?;
                     offset += field_size;
@@ -215,20 +218,20 @@ macro_rules! impl_asc_type_struct {
 macro_rules! impl_asc_type_enum {
     ($enum_name:ident; $($variant_name:ident => $variant_index:tt),*) => {
         impl crate::asc::base::AscType for $enum_name  {
-            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::AscError> {
+            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::DeterministicHostError> {
                let discriminant: u32 = match self {
                     $($enum_name::$variant_name => $variant_index,)*
                 };
                 discriminant.to_asc_bytes()
             }
 
-            fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::DeterministicHostError> {
                 let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
-                    .map_err(|_| crate::asc::errors::AscError::Plain("invalid Kind".to_string()))?;
+                    .map_err(|_| crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!("Invalid kind")))?;
                 let discriminant = u32::from_le_bytes(u32_bytes);
                 match discriminant {
                     $($variant_index => Ok($enum_name::$variant_name),)*
-                    _ => Err(crate::asc::errors::AscError::Plain("invalid Kind".to_string()))
+                    _ => Err(crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!("Invalid kind")))
                 }
             }
         }
@@ -238,19 +241,19 @@ macro_rules! impl_asc_type_enum {
         impl $(< $( $generic_name $( : $generic_type $(+ $generic_type_n )* )? ),+ >)? crate::asc::base::AscType
         for $enum_name  $(< $( $generic_name ),+ >)? where $($variant_type: crate::asc::base::AscType),+
         {
-            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::AscError> {
+            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::asc::errors::DeterministicHostError> {
                 match self {
                     $($enum_name::$variant_name(value) => value.to_asc_bytes(),)*
                 }
             }
 
-            fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, crate::asc::errors::DeterministicHostError> {
                 let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
-                    .map_err(|_| crate::asc::errors::AscError::Plain("invalid enum type".to_string()))?;
+                    .map_err(|_| crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!("Invalid enum type")))?;
                 let discriminant = u32::from_le_bytes(u32_bytes);
                 match discriminant {
                     $($variant_index => Ok($enum_name::$variant_name($variant_type::from_asc_bytes(asc_obj)?)),)*
-                    _ => Err(crate::asc::errors::AscError::Plain("invalid enum type".to_string()))
+                    _ => Err(crate::asc::errors::DeterministicHostError::from(anyhow::anyhow!("Invalid enum type")))
                 }
             }
         }

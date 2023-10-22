@@ -13,7 +13,7 @@ use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
+use crate::asc::errors::HostExportError;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::chain::ethereum::log::AscLogArray;
@@ -144,7 +144,7 @@ impl ToAscObj<AscEthereumTransactionReceipt> for &TransactionReceipt {
     fn to_asc_obj<H: AscHeap + ?Sized>(
         &self,
         heap: &mut H,
-    ) -> Result<AscEthereumTransactionReceipt, AscError> {
+    ) -> Result<AscEthereumTransactionReceipt, HostExportError> {
         Ok(AscEthereumTransactionReceipt {
             transaction_hash: asc_new(heap, &self.transaction_hash)?,
             transaction_index: asc_new(heap, &BigInt::from(self.transaction_index))?,

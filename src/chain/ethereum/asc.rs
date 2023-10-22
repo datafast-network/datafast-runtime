@@ -9,7 +9,8 @@ use crate::asc::base::AscValue;
 use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
+use crate::asc::errors::DeterministicHostError;
+use crate::asc::errors::HostExportError;
 use crate::asc::native_types::array::Array;
 use crate::asc::native_types::r#enum::AscEnum;
 use crate::asc::native_types::r#enum::AscEnumArray;
@@ -88,7 +89,7 @@ impl AscIndexId for AscEnum<EthereumValueKind> {
 }
 
 impl ToAscObj<Uint8Array> for w3::H160 {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, HostExportError> {
         self.0.to_asc_obj(heap)
     }
 }
@@ -98,7 +99,7 @@ impl FromAscObj<Uint8Array> for w3::H160 {
         typed_array: Uint8Array,
         heap: &H,
         depth: usize,
-    ) -> Result<Self, AscError> {
+    ) -> Result<Self, DeterministicHostError> {
         let data = <[u8; 20]>::from_asc_obj(typed_array, heap, depth)?;
         Ok(Self(data))
     }
@@ -109,20 +110,20 @@ impl FromAscObj<Uint8Array> for w3::H256 {
         typed_array: Uint8Array,
         heap: &H,
         depth: usize,
-    ) -> Result<Self, AscError> {
+    ) -> Result<Self, DeterministicHostError> {
         let data = <[u8; 32]>::from_asc_obj(typed_array, heap, depth)?;
         Ok(Self(data))
     }
 }
 
 impl ToAscObj<Uint8Array> for w3::H256 {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, HostExportError> {
         self.0.to_asc_obj(heap)
     }
 }
 
 impl ToAscObj<AscBigInt> for w3::U128 {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigInt, AscError> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigInt, HostExportError> {
         let mut bytes: [u8; 16] = [0; 16];
         self.to_little_endian(&mut bytes);
         bytes.to_asc_obj(heap)
@@ -133,7 +134,7 @@ impl ToAscObj<AscEnum<EthereumValueKind>> for ethabi::Token {
     fn to_asc_obj<H: AscHeap + ?Sized>(
         &self,
         heap: &mut H,
-    ) -> Result<AscEnum<EthereumValueKind>, AscError> {
+    ) -> Result<AscEnum<EthereumValueKind>, HostExportError> {
         use ethabi::Token::*;
 
         let kind = EthereumValueKind::get_kind(self);
@@ -169,7 +170,7 @@ impl FromAscObj<AscEnum<EthereumValueKind>> for ethabi::Token {
         asc_enum: AscEnum<EthereumValueKind>,
         heap: &H,
         depth: usize,
-    ) -> Result<Self, AscError> {
+    ) -> Result<Self, DeterministicHostError> {
         use ethabi::Token;
 
         let payload = asc_enum.payload;

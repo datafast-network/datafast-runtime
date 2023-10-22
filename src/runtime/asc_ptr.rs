@@ -1,7 +1,12 @@
 use super::gas::GasCounter;
-use super::{padding_to_16, DeterministicHostError, HostExportError};
+use super::padding_to_16;
+use super::DeterministicHostError;
+use super::HostExportError;
 
-use super::{AscHeap, AscIndexId, AscType, IndexForAscTypeId};
+use super::AscHeap;
+use super::AscIndexId;
+use super::AscType;
+use super::IndexForAscTypeId;
 use semver::Version;
 use std::fmt;
 use std::marker::PhantomData;

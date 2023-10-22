@@ -1,18 +1,18 @@
-use std::mem::MaybeUninit;
-use semver::Version;
-use wasmer::{Memory, RuntimeError, Store, TypedFunction};
+use wasmer::Memory;
+use wasmer::RuntimeError;
+use wasmer::Store;
 use wasmer::Type;
+use wasmer::TypedFunction;
 use wasmer::Value;
-use crate::utils::init_slice;
 
 pub const ABORT_TYPE: ([Type; 4], [Type; 0]) = ([Type::I32, Type::I32, Type::I32, Type::I32], []);
 
 pub fn abort(messages: &[Value]) -> Result<Vec<Value>, RuntimeError> {
     //convert message to string
     println!("ABORT: {:?}", messages);
-    let message = messages.iter().fold(String::new(), |acc, val| {
-        acc + &val.to_string()
-    });
+    let message = messages
+        .iter()
+        .fold(String::new(), |acc, val| acc + &val.to_string());
     println!("ABORT: {}", message);
     Ok(vec![])
 }
@@ -23,7 +23,7 @@ pub struct GlobalMemory {
     pub id_of_type: TypedFunction<u32, u32>,
     pub arena_free_size: i32,
     pub arena_start_ptr: i32,
-    pub api_version: Version,
+    // pub api_version: Version,
 }
 
 impl GlobalMemory {

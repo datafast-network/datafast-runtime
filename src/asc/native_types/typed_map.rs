@@ -5,7 +5,7 @@ use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
+use crate::asc::errors::HostExportError;
 use crate::impl_asc_type_struct;
 
 use super::array::Array;
@@ -71,7 +71,7 @@ impl<K: AscType + AscIndexId, V: AscType + AscIndexId, T: ToAscObj<K>, U: ToAscO
     fn to_asc_obj<H: AscHeap + ?Sized>(
         &self,
         heap: &mut H,
-    ) -> Result<AscTypedMapEntry<K, V>, AscError> {
+    ) -> Result<AscTypedMapEntry<K, V>, HostExportError> {
         Ok(AscTypedMapEntry {
             key: asc_new(heap, &self.0)?,
             value: asc_new(heap, &self.1)?,
