@@ -7,7 +7,7 @@ use crate::asc::native_types::Uint8Array;
 use crate::impl_asc_type_struct;
 
 #[repr(C)]
-pub struct AscTransaction {
+pub struct AscEthereumTransaction {
     pub hash: AscPtr<AscH256>,
     pub index: AscPtr<AscBigInt>,
     pub from: AscPtr<AscH160>,
@@ -19,12 +19,12 @@ pub struct AscTransaction {
     pub nonce: AscPtr<AscBigInt>,
 }
 
-impl AscIndexId for AscTransaction {
+impl AscIndexId for AscEthereumTransaction {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::EthereumTransaction;
 }
 
 impl_asc_type_struct!(
-    AscTransaction;
+    AscEthereumTransaction;
     hash => AscPtr<AscH256>,
     index => AscPtr<AscBigInt>,
     from => AscPtr<AscH160>,
@@ -38,13 +38,13 @@ impl_asc_type_struct!(
 
 /*
 /// Convert to Asc Transaction from Query Store
-impl ToAscObj<AscTransaction> for EthereumTransactionData {
+impl ToAscObj<AscEthereumTransaction> for EthereumTransactionData {
     fn to_asc_obj<H: AscHeap + ?Sized>(
         &self,
         heap: &mut H,
         gas: &GasCounter,
-    ) -> Result<AscTransaction, HostExportError> {
-        Ok(AscTransaction {
+    ) -> Result<AscEthereumTransaction, HostExportError> {
+        Ok(AscEthereumTransaction {
             hash: asc_new(heap, &self.hash, gas)?,
             index: asc_new(heap, &BigInt::from_unsigned_u128(self.index), gas)?,
             from: asc_new(heap, &self.from, gas)?,
