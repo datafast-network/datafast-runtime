@@ -1,4 +1,3 @@
-use ethabi::Token;
 use web3::types as w3;
 
 use crate::asc::base::asc_get;
@@ -6,7 +5,6 @@ use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
-use crate::asc::base::AscType;
 use crate::asc::base::AscValue;
 use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
@@ -17,10 +15,8 @@ use crate::asc::native_types::r#enum::AscEnum;
 use crate::asc::native_types::r#enum::AscEnumArray;
 use crate::asc::native_types::r#enum::EnumPayload;
 use crate::asc::native_types::string::AscString;
-use crate::asc::native_types::typed_array::TypedArray;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
-use crate::impl_asc_type;
 use crate::impl_asc_type_enum;
 
 pub type AscH256 = Uint8Array;
