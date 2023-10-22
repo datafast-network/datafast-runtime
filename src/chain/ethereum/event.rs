@@ -1,10 +1,15 @@
 use super::asc::*;
+
 use ethabi::LogParam;
 use web3::types::Address;
-use web3::types::TransactionReceipt;
 use web3::types::U256;
 
+use super::block::AscEthereumBlock;
+use super::block::EthereumBlockData;
 use super::log::AscLogParamArray;
+use super::transaction::AscEthereumTransaction;
+use super::transaction::EthereumTransactionData;
+
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
@@ -16,11 +21,6 @@ use crate::asc::errors::AscError;
 use crate::asc::errors::HostExportError;
 use crate::asc::native_types::string::AscString;
 use crate::bignumber::bigint::BigInt;
-use crate::chain::ethereum::block::AscEthereumBlock;
-use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::transaction::AscEthereumTransaction;
-use crate::chain::ethereum::transaction::AscEthereumTransactionReceipt;
-use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::impl_asc_type_struct;
 
 #[repr(C)]
