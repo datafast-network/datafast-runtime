@@ -1,4 +1,9 @@
 use super::asc::*;
+use web3::types::Block;
+use web3::types::H160;
+use web3::types::H256;
+use web3::types::U256;
+use web3::types::U64;
 
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
@@ -85,3 +90,44 @@ impl ToAscObj<AscBlock> for BlockFromQueryStore {
     }
 }
 */
+
+#[derive(Clone, Debug, Default)]
+pub struct EthereumBlockData {
+    pub hash: H256,
+    pub parent_hash: H256,
+    pub uncles_hash: H256,
+    pub author: H160,
+    pub state_root: H256,
+    pub transactions_root: H256,
+    pub receipts_root: H256,
+    pub number: U64,
+    pub gas_used: U256,
+    pub gas_limit: U256,
+    pub timestamp: U256,
+    pub difficulty: U256,
+    pub total_difficulty: U256,
+    pub size: Option<U256>,
+    pub base_fee_per_gas: Option<U256>,
+}
+
+impl<'a, T> From<&'a Block<T>> for EthereumBlockData {
+    fn from(block: &'a Block<T>) -> EthereumBlockData {
+        EthereumBlockData {
+            hash: block.hash.unwrap(),
+            parent_hash: block.parent_hash,
+            uncles_hash: block.uncles_hash,
+            author: block.author,
+            state_root: block.state_root,
+            transactions_root: block.transactions_root,
+            receipts_root: block.receipts_root,
+            number: block.number.unwrap(),
+            gas_used: block.gas_used,
+            gas_limit: block.gas_limit,
+            timestamp: block.timestamp,
+            difficulty: block.difficulty,
+            total_difficulty: block.total_difficulty.unwrap_or_default(),
+            size: block.size,
+            base_fee_per_gas: block.base_fee_per_gas,
+        }
+    }
+}
