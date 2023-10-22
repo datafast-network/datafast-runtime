@@ -7,7 +7,7 @@ use crate::asc::native_types::string::AscString;
 use crate::impl_asc_type_struct;
 
 #[repr(C)]
-pub struct AscEvent<T: AscType, B: AscType> {
+pub struct AscEthereumEvent<T: AscType, B: AscType> {
     pub address: AscPtr<AscAddress>,
     pub log_index: AscPtr<AscBigInt>,
     pub transaction_log_index: AscPtr<AscBigInt>,
@@ -18,7 +18,7 @@ pub struct AscEvent<T: AscType, B: AscType> {
 }
 
 impl_asc_type_struct!(
-    AscEvent<T: AscType, B: AscType>;
+    AscEthereumEvent<T: AscType, B: AscType>;
     address => AscPtr<AscAddress>,
     log_index => AscPtr<AscBigInt>,
     transaction_log_index => AscPtr<AscBigInt>,
