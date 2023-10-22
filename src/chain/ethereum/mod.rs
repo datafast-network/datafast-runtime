@@ -7,4 +7,4 @@ pub mod transaction;
 
 pub mod log;
 // mod event;
-// pub mod event;
+pub mod event;
