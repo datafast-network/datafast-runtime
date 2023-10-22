@@ -1,4 +1,5 @@
 use crate::asc::base::asc_get;
+use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
@@ -6,6 +7,7 @@ use crate::asc::base::AscType;
 use crate::asc::base::AscValue;
 use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
+use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::impl_asc_type_struct;
 
@@ -142,5 +144,13 @@ impl<C: AscType + AscIndexId, T: FromAscObj<C>> FromAscObj<Array<AscPtr<C>>> for
             .into_iter()
             .map(|x| asc_get(heap, x, depth))
             .collect()
+    }
+}
+
+impl<C: AscType + AscIndexId, T: ToAscObj<C>> ToAscObj<Array<AscPtr<C>>> for [T] {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Array<AscPtr<C>>, AscError> {
+        let content: Result<Vec<_>, _> = self.iter().map(|x| asc_new(heap, x)).collect();
+        let content = content?;
+        Array::new(&content, heap)
     }
 }
