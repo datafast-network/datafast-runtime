@@ -1,7 +1,10 @@
+use crate::asc::base::asc_get;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::AscType;
 use crate::asc::base::AscValue;
+use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
 use crate::impl_asc_type_struct;
@@ -126,4 +129,18 @@ impl AscIndexId for Array<f32> {
 
 impl AscIndexId for Array<f64> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayF64;
+}
+
+impl<C: AscType + AscIndexId, T: FromAscObj<C>> FromAscObj<Array<AscPtr<C>>> for Vec<T> {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        array: Array<AscPtr<C>>,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        array
+            .to_vec(heap)?
+            .into_iter()
+            .map(|x| asc_get(heap, x, depth))
+            .collect()
+    }
 }
