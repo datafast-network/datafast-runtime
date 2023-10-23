@@ -7,11 +7,12 @@ use crate::asc::{
 };
 
 pub fn log_log(log_level: i32, message: i32) -> Result<(), WasmError> {
-    /// How to access store / memory
-    /// memory.view()[ptr] -> real data
-    let data = data.to_be_bytes();
+    // How to access store / memory
+    // memory.view()[ptr] -> real data
+    let data = message.to_be_bytes();
     let asc_string = AscString::from_asc_bytes(&data).unwrap();
-
+    let string_msg = String::from_utf16(asc_string.content()).unwrap();
+    log::info!("{string_msg}");
     Ok(())
 }
 
