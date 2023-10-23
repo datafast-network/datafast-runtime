@@ -1,8 +1,6 @@
+use super::Env;
 use crate::asc::base::AscType;
 use crate::asc::native_types::string::AscString;
-
-use super::Env;
-
 use wasmer::AsStoreRef;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
@@ -12,7 +10,6 @@ pub fn log_log(
     log_level: i32,
     msg_ptr: i32,
 ) -> Result<(), RuntimeError> {
-    log::info!("{log_level}, ptr={msg_ptr}");
     let store_ref = fenv.as_store_ref();
     let env = fenv.data();
     let memory = &env.memory.clone().unwrap();
@@ -28,8 +25,14 @@ pub fn log_log(
     if string.contains('\u{0000}') {
         string = string.replace('\u{0000}', "");
     }
-
-    log::info!("Log message = {string}");
+    match log_level {
+        0 => eprintln!("CRITICAL!!!!!!: {string}"),
+        1 => log::error!("{string}"),
+        2 => log::warn!("{string}"),
+        3 => log::info!("{string}"),
+        4 => log::debug!("{string}"),
+        _ => return Err(RuntimeError::new("Invalid log level!!")),
+    }
 
     Ok(())
 }
