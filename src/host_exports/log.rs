@@ -25,6 +25,8 @@ pub fn log_log(
 
 #[cfg(test)]
 mod test {
+    use crate::asc::{base::AscType, native_types::string::AscString};
+
     use super::super::create_host_instance;
     use env_logger;
 
@@ -39,5 +41,19 @@ mod test {
         log::info!("-- calling");
         let ptr = f.call(&mut store, &[]).unwrap();
         log::info!("{:?}", ptr);
+
+        let memory = instance.exports.get_memory("memory").unwrap();
+        let view = memory.view(&store);
+        let guest_data = view.copy_to_vec().unwrap();
+        let find = guest_data.iter().find(|slot| **slot > 0);
+        log::info!("data = {:?}, length={}", find, guest_data.len());
+
+        // let mut buf = Vec::new();
+        // let buf = buf.as_mut_slice();
+        let mut buf = [0; 128];
+        view.read(14852, &mut buf).unwrap();
+        let asc_str = AscString::from_asc_bytes(&buf).unwrap();
+        let content = String::from_utf16(asc_str.content()).unwrap();
+        log::info!("{}", content);
     }
 }
