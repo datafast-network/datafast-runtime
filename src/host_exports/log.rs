@@ -16,21 +16,17 @@ pub fn log_log(
     let store_ref = fenv.as_store_ref();
     let env = fenv.data();
     let memory = &env.memory.clone().unwrap();
-
     let view = memory.view(&store_ref);
-    let data = view.copy_to_vec().unwrap();
-    let page_data = data.iter().find(|slot| **slot > 0);
-
-    assert!(page_data.is_some());
-
-    log::info!("data = {:?}, length={}", page_data, data.len());
 
     let mut buf = [0; 64];
     view.read(msg_ptr as u64, &mut buf).unwrap();
+
     let asc_string = AscString::from_asc_bytes(&buf).unwrap();
     let content = asc_string.content();
     let parsed_msg = String::from_utf16(content).unwrap();
+
     log::info!("Log message = {parsed_msg}");
+
     Ok(())
 }
 

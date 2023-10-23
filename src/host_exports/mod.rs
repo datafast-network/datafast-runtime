@@ -7,6 +7,7 @@ use wasmer::Instance;
 use wasmer::Memory;
 use wasmer::Module;
 use wasmer::Store;
+use wasmer::TypedFunction;
 
 use crate::conversion;
 use crate::global;
@@ -15,6 +16,7 @@ use crate::store;
 #[derive(Clone)]
 pub struct Env {
     pub memory: Option<Memory>,
+    pub alloc_guest_memory: Option<TypedFunction<i32, i32>>,
 }
 
 pub fn create_host_instance(
@@ -24,7 +26,13 @@ pub fn create_host_instance(
     let mut store = Store::default();
 
     let module = Module::new(&store, wasm_bytes)?;
-    let env = FunctionEnv::new(&mut store, Env { memory: None });
+    let env = FunctionEnv::new(
+        &mut store,
+        Env {
+            memory: None,
+            alloc_guest_memory: None,
+        },
+    );
 
     // Global
     let abort = Function::new(&mut store, global::ABORT_TYPE, global::abort);
@@ -94,10 +102,16 @@ pub fn create_host_instance(
     };
     let instance = Instance::new(&mut store, &module, &import_object)?;
 
-    // Bind guest memory ref to env
-    let mut env_mut = env.into_mut(&mut store); // change to a FunctionEnvMut
-    let (data_mut, _store_mut) = env_mut.data_and_store_mut(); // grab data and a new store_mut
+    // Bind guest memory ref & __alloc to env
+    let mut env_mut = env.into_mut(&mut store);
+    let (data_mut, mut store_mut) = env_mut.data_and_store_mut();
+
     data_mut.memory = Some(instance.exports.get_memory("memory")?.clone());
+    data_mut.alloc_guest_memory = instance
+        .exports
+        .get_typed_function(&mut store_mut, "__alloc")
+        // NOTE: depend on the mapping logic, this might or might not be exported
+        .map_or(None, Some);
 
     Ok((store, instance))
 }
