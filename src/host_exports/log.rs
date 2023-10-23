@@ -1,32 +1,41 @@
+use crate::asc::base::AscType;
+use crate::asc::native_types::string::AscString;
+
 use super::Env;
 
-use log::info;
 use wasmer::AsStoreRef;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
 
 pub fn log_log(
-    f_env: FunctionEnvMut<Env>,
+    fenv: FunctionEnvMut<Env>,
     log_level: i32,
     msg_ptr: i32,
 ) -> Result<(), RuntimeError> {
     log::info!("{log_level}, ptr={msg_ptr}");
-
-    let store_ref = f_env.as_store_ref();
-    let inner_env = f_env.data();
-    let memory = &inner_env.memory;
+    let store_ref = fenv.as_store_ref();
+    let env = fenv.data();
+    let memory = &env.memory.clone().unwrap();
 
     let view = memory.view(&store_ref);
     let data = view.copy_to_vec().unwrap();
-    let find = data.iter().find(|slot| **slot > 0);
-    info!("data = {:?}, length={}", find, data.len());
+    let page_data = data.iter().find(|slot| **slot > 0);
+
+    assert!(page_data.is_some());
+
+    log::info!("data = {:?}, length={}", page_data, data.len());
+
+    let mut buf = [0; 64];
+    view.read(msg_ptr as u64, &mut buf).unwrap();
+    let asc_string = AscString::from_asc_bytes(&buf).unwrap();
+    let content = asc_string.content();
+    let parsed_msg = String::from_utf16(content).unwrap();
+    log::info!("Log message = {parsed_msg}");
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
-    use crate::asc::{base::AscType, native_types::string::AscString};
-
     use super::super::create_host_instance;
     use env_logger;
 
@@ -39,21 +48,6 @@ mod test {
         .unwrap();
         let f = instance.exports.get_function("myown").unwrap();
         log::info!("-- calling");
-        let ptr = f.call(&mut store, &[]).unwrap();
-        log::info!("{:?}", ptr);
-
-        let memory = instance.exports.get_memory("memory").unwrap();
-        let view = memory.view(&store);
-        let guest_data = view.copy_to_vec().unwrap();
-        let find = guest_data.iter().find(|slot| **slot > 0);
-        log::info!("data = {:?}, length={}", find, guest_data.len());
-
-        // let mut buf = Vec::new();
-        // let buf = buf.as_mut_slice();
-        let mut buf = [0; 128];
-        view.read(14852, &mut buf).unwrap();
-        let asc_str = AscString::from_asc_bytes(&buf).unwrap();
-        let content = String::from_utf16(asc_str.content()).unwrap();
-        log::info!("{}", content);
+        f.call(&mut store, &[]).unwrap();
     }
 }
