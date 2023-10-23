@@ -18,14 +18,18 @@ pub fn log_log(
     let memory = &env.memory.clone().unwrap();
     let view = memory.view(&store_ref);
 
-    let mut buf = [0; 64];
+    let mut buf = [0u8; 1024];
     view.read(msg_ptr as u64, &mut buf).unwrap();
 
     let asc_string = AscString::from_asc_bytes(&buf).unwrap();
-    let content = asc_string.content();
-    let parsed_msg = String::from_utf16(content).unwrap();
+    let mut string = String::from_utf16(asc_string.content()).unwrap();
 
-    log::info!("Log message = {parsed_msg}");
+    // Strip null characters
+    if string.contains('\u{0000}') {
+        string = string.replace('\u{0000}', "");
+    }
+
+    log::info!("Log message = {string}");
 
     Ok(())
 }

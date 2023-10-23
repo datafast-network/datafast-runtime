@@ -125,6 +125,7 @@ impl FromAscObj<AscString> for String {
         if string.contains('\u{0000}') {
             string = string.replace('\u{0000}', "");
         }
+
         Ok(string)
     }
 }
