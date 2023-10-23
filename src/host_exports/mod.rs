@@ -1,30 +1,29 @@
-mod asc;
-mod bignumber;
-mod chain;
-mod conversion;
-mod errors;
-mod global;
-mod host_exports;
-mod store;
+pub mod log;
 
 use wasmer::imports;
 use wasmer::Function;
+use wasmer::FunctionEnv;
 use wasmer::Instance;
 use wasmer::Module;
 use wasmer::Store;
-use wasmer::TypedFunction;
 
-#[allow(dead_code)]
+use crate::conversion;
+use crate::global;
+use crate::store;
+
 struct Env {}
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let wasm_bytes = std::fs::read("./subgraph.wasm")?;
+pub fn create_host_instance(
+    wasm_path: &str,
+) -> Result<(Store, Instance), Box<dyn std::error::Error>> {
+    let wasm_bytes = std::fs::read(wasm_path)?;
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
 
     // Global
     let abort = Function::new(&mut store, global::ABORT_TYPE, global::abort);
 
+    let env = FunctionEnv::new(&mut store, Env {});
     // Conversion functions
     let big_int_to_hex = Function::new(
         &mut store,
@@ -85,19 +84,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "index" => {
             "store.set" => store_set,
             "store.get" => store_get,
+            "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log)
         }
     };
     let instance = Instance::new(&mut store, &module, &import_object)?;
 
-    let handle_gravatar: TypedFunction<i32, ()> = instance
-        .exports
-        .get_function("handleNewGravatar")?
-        .typed(&mut store)?;
-
-    println!("Calling `handle_gravatar` function...");
-    let result = handle_gravatar.call(&mut store, 1)?;
-
-    println!("Results of `handle_gravatar`: {:?}", result);
-
-    Ok(())
+    Ok((store, instance))
 }
