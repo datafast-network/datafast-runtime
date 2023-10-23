@@ -29,7 +29,7 @@ pub fn create_host_instance(
 ) -> Result<(Store, Instance), Box<dyn std::error::Error>> {
     let wasm_bytes = std::fs::read(wasm_path)?;
     let mut store = Store::default();
-    let memory = Memory::new(&mut store, MemoryType::new(1, None, false)).unwrap();
+    let memory = Memory::new(&mut store, MemoryType::new(1, Some(1), false)).unwrap();
     let module = Module::new(&store, wasm_bytes)?;
 
     // Global
@@ -99,7 +99,7 @@ pub fn create_host_instance(
         "index" => {
             "store.set" => store_set,
             "store.get" => store_get,
-            "log.log" => Function::new_with_env(&mut store, &env, &FunctionType::new(vec![Type::I32, Type::I32], vec![]), log::log_log)
+            "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log)
         }
     };
     let instance = Instance::new(&mut store, &module, &import_object)?;
