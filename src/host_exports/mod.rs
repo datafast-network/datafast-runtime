@@ -84,7 +84,7 @@ pub fn create_host_instance(
         "index" => {
             "store.set" => store_set,
             "store.get" => store_get,
-            "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log)
+            "log.log" => Function::new_typed(&mut store, log::log_log)
         }
     };
     let instance = Instance::new(&mut store, &module, &import_object)?;

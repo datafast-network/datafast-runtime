@@ -1,13 +1,17 @@
 use log;
 use wasmer::{FunctionEnvMut, FunctionType, Store, Type, WasmError};
 
-use crate::asc::{base::{FromAscObj, AscType}, native_types::string::AscString};
+use crate::asc::{
+    base::{AscType, FromAscObj},
+    native_types::string::AscString,
+};
 
 pub fn log_log(log_level: i32, message: i32) -> Result<(), WasmError> {
     /// How to access store / memory
     /// memory.view()[ptr] -> real data
     let data = data.to_be_bytes();
     let asc_string = AscString::from_asc_bytes(&data).unwrap();
+
     Ok(())
 }
 
