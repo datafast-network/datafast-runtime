@@ -50,16 +50,15 @@ pub fn log_log(
 
 #[cfg(test)]
 mod test {
-    use super::super::create_host_instance;
-    use env_logger;
+    use super::super::test::create_mock_host_instance;
     use std::env;
 
     #[test]
     fn test_log() {
-        env_logger::try_init().unwrap_or_default();
+        ::env_logger::try_init().unwrap_or_default();
 
         let test_wasm_file_path = env::var("TEST_WASM_FILE").expect("Test Wasm file not found");
-        let (mut store, instance) = create_host_instance(&test_wasm_file_path).unwrap();
+        let (mut store, instance) = create_mock_host_instance(&test_wasm_file_path).unwrap();
         let f = instance.exports.get_function("testLog").unwrap();
         log::info!("-- calling");
         f.call(&mut store, &[]).unwrap();
