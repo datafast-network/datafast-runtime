@@ -15,6 +15,7 @@ pub struct Env {
 
 #[cfg(test)]
 mod test {
+    use super::bigint;
     use super::log;
     use super::type_conversion;
     use super::Env;
@@ -23,18 +24,19 @@ mod test {
     use wasmer::imports;
     use wasmer::Function;
     use wasmer::FunctionEnv;
+    use wasmer::FunctionEnvMut;
     use wasmer::Instance;
     use wasmer::Module;
     use wasmer::Store;
 
     pub fn create_mock_host_instance(
         wasm_path: &str,
-    ) -> Result<(Store, Instance), Box<dyn std::error::Error>> {
+    ) -> Result<(Instance, FunctionEnvMut<Env>), Box<dyn std::error::Error>> {
         let wasm_bytes = std::fs::read(wasm_path)?;
         let mut store = Store::default();
 
         let module = Module::new(&store, wasm_bytes)?;
-        let env = FunctionEnv::new(
+        let fenv = FunctionEnv::new(
             &mut store,
             Env {
                 memory: None,
@@ -101,18 +103,19 @@ mod test {
                 "typeConversion.bigIntToString" => big_int_to_string,
             },
             "numbers" => {
-                "bigDecimal.toString" => big_decimal_to_string
+                "bigDecimal.toString" => big_decimal_to_string,
+                "bigInt.plus" => Function::new_typed_with_env(&mut store, &fenv, bigint::big_int_plus),
             },
             "index" => {
                 "store.set" => store_set,
                 "store.get" => store_get,
-                "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log),
+                "log.log" => Function::new_typed_with_env(&mut store, &fenv, log::log_log),
             }
         };
         let instance = Instance::new(&mut store, &module, &import_object)?;
 
         // Bind guest memory ref & __alloc to env
-        let mut env_mut = env.into_mut(&mut store);
+        let mut env_mut = fenv.into_mut(&mut store);
         let (data_mut, mut store_mut) = env_mut.data_and_store_mut();
 
         data_mut.memory = Some(instance.exports.get_memory("memory")?.clone());
@@ -127,6 +130,6 @@ mod test {
             // NOTE: depend on the mapping logic, this might or might not be exported
             .ok();
 
-        Ok((store, instance))
+        Ok((instance, data_mut))
     }
 }
