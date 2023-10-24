@@ -8,7 +8,11 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.75"
 bigdecimal = { version = "0.4.2", features = ["serde"] }
+env_logger = "0.10.0"
 ethabi = "18.0.0"
+hex = "0.4.3"
+lazy_static = "1.4.0"
+log = "0.4.20"
 num-bigint = "0.4.4"
 num-traits = "0.2.17"
 proc-macro2 = "1.0.69"
