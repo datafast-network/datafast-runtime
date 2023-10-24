@@ -1,5 +1,8 @@
-pub mod log;
+mod log;
 
+use crate::conversion;
+use crate::global;
+use crate::store;
 use wasmer::imports;
 use wasmer::Function;
 use wasmer::FunctionEnv;
@@ -8,10 +11,6 @@ use wasmer::Memory;
 use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
-
-use crate::conversion;
-use crate::global;
-use crate::store;
 
 #[derive(Clone)]
 pub struct Env {

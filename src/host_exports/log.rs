@@ -25,6 +25,7 @@ pub fn log_log(
     if string.contains('\u{0000}') {
         string = string.replace('\u{0000}', "");
     }
+
     match log_level {
         0 => eprintln!("CRITICAL!!!!!!: {string}"),
         1 => log::error!("{string}"),
