@@ -1,4 +1,7 @@
+mod asc;
+mod bigint;
 mod log;
+mod type_conversion;
 
 use wasmer::Memory;
 use wasmer::TypedFunction;
@@ -7,13 +10,14 @@ use wasmer::TypedFunction;
 pub struct Env {
     pub memory: Option<Memory>,
     pub alloc_guest_memory: Option<TypedFunction<i32, i32>>,
+    id_of_type: Option<TypedFunction<i32, i32>>,
 }
 
 #[cfg(test)]
 mod test {
     use super::log;
+    use super::type_conversion;
     use super::Env;
-    use crate::conversion;
     use crate::global;
     use crate::store;
     use wasmer::imports;
@@ -35,6 +39,7 @@ mod test {
             Env {
                 memory: None,
                 alloc_guest_memory: None,
+                id_of_type: None,
             },
         );
 
@@ -44,30 +49,30 @@ mod test {
         // Conversion functions
         let big_int_to_hex = Function::new(
             &mut store,
-            conversion::CONVERSION_TYPE,
+            type_conversion::CONVERSION_TYPE,
             // TODO: fix implementation
-            conversion::big_int_to_hex,
+            type_conversion::big_int_to_hex,
         );
 
         let big_decimal_to_string = Function::new(
             &mut store,
-            conversion::CONVERSION_TYPE,
+            type_conversion::CONVERSION_TYPE,
             // TODO: fix implementation
-            conversion::big_int_to_hex,
+            type_conversion::big_int_to_hex,
         );
 
         let bytes_to_hex = Function::new(
             &mut store,
-            conversion::CONVERSION_TYPE,
+            type_conversion::CONVERSION_TYPE,
             // TODO: fix implementation
-            conversion::bytes_to_hex,
+            type_conversion::bytes_to_hex,
         );
 
         let big_int_to_string = Function::new(
             &mut store,
-            conversion::CONVERSION_TYPE,
+            type_conversion::CONVERSION_TYPE,
             // TODO: fix implementation
-            conversion::big_int_to_string,
+            type_conversion::big_int_to_string,
         );
 
         // Store functions
@@ -114,6 +119,11 @@ mod test {
         data_mut.alloc_guest_memory = instance
             .exports
             .get_typed_function(&mut store_mut, "__alloc")
+            // NOTE: depend on the mapping logic, this might or might not be exported
+            .ok();
+        data_mut.id_of_type = instance
+            .exports
+            .get_typed_function(&mut store_mut, "id_of_type")
             // NOTE: depend on the mapping logic, this might or might not be exported
             .ok();
 
