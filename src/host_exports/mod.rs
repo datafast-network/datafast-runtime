@@ -18,9 +18,8 @@ pub struct Env {
     pub alloc_guest_memory: Option<TypedFunction<i32, i32>>,
 }
 
-pub fn create_host_instance(
-    wasm_path: &str,
-) -> Result<(Store, Instance), Box<dyn std::error::Error>> {
+/// NOTE: HostInstance created from a wasm file, probably good for testing only
+fn create_host_instance(wasm_path: &str) -> Result<(Store, Instance), Box<dyn std::error::Error>> {
     let wasm_bytes = std::fs::read(wasm_path)?;
     let mut store = Store::default();
 

@@ -10,12 +10,21 @@ pub fn log_log(
     log_level: i32,
     msg_ptr: i32,
 ) -> Result<(), RuntimeError> {
+    // NOTE: this implementation is very verbose, therefore only good for demonstration purpose
+    // and need refactoring in the future
+    // TODO: refactor to a more generic approach
+    // msg_ptr should become WasmPtr<String> or AscPtr<String>
     let store_ref = fenv.as_store_ref();
     let env = fenv.data();
+
     let memory = &env.memory.clone().unwrap();
     let view = memory.view(&store_ref);
 
-    let mut buf = [0u8; 1024];
+    let size = view.data_size();
+    let capacity = (size - msg_ptr as u64) as usize;
+
+    // NOTE: We accquire full data of the page's remaining (pointer location -> end of page)
+    let mut buf = vec![0; capacity];
     view.read(msg_ptr as u64, &mut buf).unwrap();
 
     let asc_string = AscString::from_asc_bytes(&buf).unwrap();
@@ -26,6 +35,7 @@ pub fn log_log(
         string = string.replace('\u{0000}', "");
     }
 
+    // TODO: we use simple logging for now, but a dedicated logger must be setup for each wasm instance
     match log_level {
         0 => eprintln!("CRITICAL!!!!!!: {string}"),
         1 => log::error!("{string}"),
@@ -42,15 +52,15 @@ pub fn log_log(
 mod test {
     use super::super::create_host_instance;
     use env_logger;
+    use std::env;
 
     #[test]
     fn test_log() {
         env_logger::try_init().unwrap_or_default();
-        let (mut store, instance) = create_host_instance(
-            "/Users/vutran/Works/hardbed/subgraph-wasm-runtime/src/host_exports/test_log.wasm",
-        )
-        .unwrap();
-        let f = instance.exports.get_function("myown").unwrap();
+
+        let test_wasm_file_path = env::var("TEST_WASM_FILE").expect("Test Wasm file not found");
+        let (mut store, instance) = create_host_instance(&test_wasm_file_path).unwrap();
+        let f = instance.exports.get_function("testLog").unwrap();
         log::info!("-- calling");
         f.call(&mut store, &[]).unwrap();
     }
