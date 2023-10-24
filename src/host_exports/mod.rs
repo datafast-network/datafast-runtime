@@ -110,7 +110,7 @@ pub fn create_host_instance(
         .exports
         .get_typed_function(&mut store_mut, "__alloc")
         // NOTE: depend on the mapping logic, this might or might not be exported
-        .map_or(None, Some);
+        .ok();
 
     Ok((store, instance))
 }
