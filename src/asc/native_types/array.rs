@@ -49,7 +49,7 @@ impl AscIndexId for Array<Uint8Array> {
 
 impl<T: AscValue> Array<T> {
     pub fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
-        let arr_buffer = ArrayBuffer::new(content)?;
+        let arr_buffer = ArrayBuffer::new(content, heap.api_version())?;
         let buffer = AscPtr::alloc_obj(arr_buffer, heap)?;
         let buffer_data_length = buffer.read_len(heap)?;
         Ok(Array {
