@@ -1,5 +1,5 @@
-mod v0_0_4;
-mod v0_0_5;
+pub mod v0_0_4;
+pub mod v0_0_5;
 
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;

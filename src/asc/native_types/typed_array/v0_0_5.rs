@@ -2,7 +2,8 @@ use crate::asc::base::AscHeap;
 use crate::asc::base::AscPtr;
 use crate::asc::base::AscValue;
 use crate::asc::errors::AscError;
-use crate::asc::native_types::array_buffer::ArrayBuffer;
+use crate::asc::native_types::array_buffer;
+use crate::asc::native_types::array_buffer::v0_0_5::ArrayBuffer;
 use crate::impl_asc_type_struct;
 use semver::Version;
 use std::marker::PhantomData;
@@ -35,7 +36,7 @@ impl_asc_type_struct!(
 
 impl<T: AscValue> TypedArray<T> {
     pub(crate) fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
-        let buffer = ArrayBuffer::new(content, heap.api_version())?;
+        let buffer = array_buffer::ArrayBuffer::new(content, heap.api_version())?;
         let byte_length = content.len() as u32;
         let ptr = AscPtr::alloc_obj(buffer, heap)?;
         Ok(TypedArray {
