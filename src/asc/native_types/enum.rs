@@ -19,8 +19,8 @@ impl AscType for EnumPayload {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        Ok(EnumPayload(u64::from_asc_bytes(asc_obj)?))
+    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError> {
+        Ok(EnumPayload(u64::from_asc_bytes(asc_obj, api_version)?))
     }
 }
 

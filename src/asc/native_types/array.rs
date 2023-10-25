@@ -82,9 +82,11 @@ impl<T: AscValue> Array<T> {
                 ))
             })?;
 
-        self.buffer
-            .read_ptr(heap)?
-            .get(buffer_data_start_with_offset, self.length as u32)
+        self.buffer.read_ptr(heap)?.get(
+            buffer_data_start_with_offset,
+            self.length as u32,
+            heap.api_version(),
+        )
     }
 }
 

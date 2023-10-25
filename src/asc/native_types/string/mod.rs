@@ -56,12 +56,8 @@ impl AscType for AscString {
         }
     }
 
-    fn asc_size<H: AscHeap + ?Sized>(
-        ptr: AscPtr<Self>,
-        heap: &H,
-        gas: &GasCounter,
-    ) -> Result<u32, AscError> {
-        v0_0_4::AscString::asc_size(AscPtr::new(ptr.wasm_ptr()), heap, gas)
+    fn asc_size<H: AscHeap + ?Sized>(ptr: AscPtr<Self>, heap: &H) -> Result<u32, AscError> {
+        v0_0_4::AscString::asc_size(AscPtr::new(ptr.wasm_ptr()), heap)
     }
 
     fn content_len(&self, asc_bytes: &[u8]) -> usize {

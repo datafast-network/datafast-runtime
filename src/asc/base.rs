@@ -32,6 +32,8 @@ pub trait AscHeap {
 
     fn read_u32(&self, offset: u32) -> Result<u32, AscError>;
 
+    fn api_version(&self) -> Version;
+
     fn asc_type_id(&mut self, type_id_index: IndexForAscTypeId) -> Result<u32, AscError>;
 }
 
@@ -111,7 +113,7 @@ impl<T> AscType for std::marker::PhantomData<T> {
         Ok(vec![])
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, AscError> {
         assert!(asc_obj.is_empty());
 
         Ok(Self)
@@ -127,11 +129,16 @@ impl<C: AscType> AscPtr<C> {
 
     /// Read from `self` into the Rust struct `C`.
     pub fn read_ptr<H: AscHeap + ?Sized>(self, heap: &H) -> Result<C, AscError> {
-        let len = self.read_len(heap)?;
+        let len = match heap.api_version() {
+            // TODO: The version check here conflicts with the comment on C::asc_size,
+            // which states "Only used for version <= 0.0.3."
+            version if version <= Version::new(0, 0, 4) => C::asc_size(self, heap),
+            _ => self.read_len(heap),
+        }?;
 
         let using_buffer = |buffer: &mut [MaybeUninit<u8>]| {
             let buffer = heap.read(self.0, buffer)?;
-            C::from_asc_bytes(buffer)
+            C::from_asc_bytes(buffer, &heap.api_version())
         };
 
         let len = len as usize;
@@ -275,8 +282,8 @@ impl<T> AscType for AscPtr<T> {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        let bytes = u32::from_asc_bytes(asc_obj)?;
+    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError> {
+        let bytes = u32::from_asc_bytes(asc_obj, api_version)?;
         Ok(AscPtr::new(bytes))
     }
 }
@@ -294,7 +301,7 @@ impl AscType for bool {
         Ok(vec![*self as u8])
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, AscError> {
         if asc_obj.len() != 1 {
             Err(AscError::IncorrectBool(asc_obj.len()))
         } else {

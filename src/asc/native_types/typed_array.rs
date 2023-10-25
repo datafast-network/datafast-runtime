@@ -108,6 +108,7 @@ impl<T: AscValue> TypedArray<T> {
         self.buffer.read_ptr(heap)?.get(
             data_start_with_offset,
             self.byte_length / size_of::<T>() as u32,
+            heap.api_version(),
         )
     }
 }

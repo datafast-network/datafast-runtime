@@ -1,5 +1,6 @@
 use crate::asc::base::AscValue;
 use crate::impl_asc_type_enum;
+use semver::Version;
 
 use super::r#enum::AscEnum;
 use super::string::AscString;
