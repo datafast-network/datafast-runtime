@@ -1,11 +1,14 @@
 use crate::asc::base::AscHeap;
+use crate::asc::base::AscPtr;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
 use crate::host_exports::Env;
 use semver::Version;
 use std::mem::MaybeUninit;
 use wasmer::AsStoreRef;
+use wasmer::FromToNativeWasmType;
 use wasmer::FunctionEnvMut;
+use wasmer::Value;
 
 impl AscHeap for FunctionEnvMut<'_, Env> {
     fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
@@ -108,5 +111,27 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
                     type_id_index, trap
                 ))
             })
+    }
+}
+
+unsafe impl<T> FromToNativeWasmType for AscPtr<T> {
+    type Native = u32;
+
+    #[inline]
+    fn from_native(n: Self::Native) -> Self {
+        AscPtr::<T>::new(n)
+    }
+    #[inline]
+    fn to_native(self) -> Self::Native {
+        self.wasm_ptr()
+    }
+}
+
+impl<T> From<Value> for AscPtr<T> {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::I32(n) => AscPtr::<T>::new(n as u32),
+            _ => panic!("Cannot convert {:?} to AscPtr", value),
+        }
     }
 }

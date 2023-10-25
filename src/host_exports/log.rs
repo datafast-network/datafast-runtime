@@ -2,17 +2,15 @@ use super::Env;
 use crate::asc::base::asc_get;
 use crate::asc::base::AscPtr;
 use crate::asc::native_types::string::AscString;
-use num_traits::abs;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
 
 pub fn log_log(
     fenv: FunctionEnvMut<Env>,
     log_level: i32,
-    msg_ptr: i32,
+    msg_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
-    let asc_msg = AscPtr::<AscString>::new(abs(msg_ptr) as u32);
-    let string: String = asc_get(&fenv, asc_msg, 0)
+    let string: String = asc_get(&fenv, msg_ptr, 0)
         .map_err(|e| RuntimeError::new(format!("Failed to get AscString from ptr: {}", e)))?;
     match log_level {
         0 => eprintln!("CRITICAL!!!!!!: {string}"),
