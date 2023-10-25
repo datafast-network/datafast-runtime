@@ -1,8 +1,6 @@
-mod asc;
-mod bigint;
 mod log;
-mod type_conversion;
 
+use semver::Version;
 use wasmer::Memory;
 use wasmer::TypedFunction;
 
@@ -10,38 +8,45 @@ use wasmer::TypedFunction;
 pub struct Env {
     pub memory: Option<Memory>,
     pub alloc_guest_memory: Option<TypedFunction<i32, i32>>,
-    id_of_type: Option<TypedFunction<i32, i32>>,
+    pub api_version: Version,
 }
 
 #[cfg(test)]
 mod test {
-    use super::bigint;
     use super::log;
-    use super::type_conversion;
     use super::Env;
+    use crate::conversion;
     use crate::global;
     use crate::store;
+    use semver::Version;
+    use std::env;
     use wasmer::imports;
     use wasmer::Function;
     use wasmer::FunctionEnv;
-    use wasmer::FunctionEnvMut;
     use wasmer::Instance;
     use wasmer::Module;
     use wasmer::Store;
 
     pub fn create_mock_host_instance(
         wasm_path: &str,
-    ) -> Result<(Instance, FunctionEnvMut<Env>), Box<dyn std::error::Error>> {
+    ) -> Result<(Store, Instance), Box<dyn std::error::Error>> {
         let wasm_bytes = std::fs::read(wasm_path)?;
         let mut store = Store::default();
 
         let module = Module::new(&store, wasm_bytes)?;
-        let fenv = FunctionEnv::new(
+        let api_version = Version::parse(
+            env::var("RUNTIME_API_VERSION")
+                .unwrap_or("0.0.5".to_string())
+                .as_str(),
+        )
+        .unwrap();
+        println!("Init WASM Instance with api-version={api_version}");
+        let env = FunctionEnv::new(
             &mut store,
             Env {
                 memory: None,
                 alloc_guest_memory: None,
-                id_of_type: None,
+                api_version,
             },
         );
 
@@ -51,30 +56,30 @@ mod test {
         // Conversion functions
         let big_int_to_hex = Function::new(
             &mut store,
-            type_conversion::CONVERSION_TYPE,
+            conversion::CONVERSION_TYPE,
             // TODO: fix implementation
-            type_conversion::big_int_to_hex,
+            conversion::big_int_to_hex,
         );
 
         let big_decimal_to_string = Function::new(
             &mut store,
-            type_conversion::CONVERSION_TYPE,
+            conversion::CONVERSION_TYPE,
             // TODO: fix implementation
-            type_conversion::big_int_to_hex,
+            conversion::big_int_to_hex,
         );
 
         let bytes_to_hex = Function::new(
             &mut store,
-            type_conversion::CONVERSION_TYPE,
+            conversion::CONVERSION_TYPE,
             // TODO: fix implementation
-            type_conversion::bytes_to_hex,
+            conversion::bytes_to_hex,
         );
 
         let big_int_to_string = Function::new(
             &mut store,
-            type_conversion::CONVERSION_TYPE,
+            conversion::CONVERSION_TYPE,
             // TODO: fix implementation
-            type_conversion::big_int_to_string,
+            conversion::big_int_to_string,
         );
 
         // Store functions
@@ -103,19 +108,18 @@ mod test {
                 "typeConversion.bigIntToString" => big_int_to_string,
             },
             "numbers" => {
-                "bigDecimal.toString" => big_decimal_to_string,
-                "bigInt.plus" => Function::new_typed_with_env(&mut store, &fenv, bigint::big_int_plus),
+                "bigDecimal.toString" => big_decimal_to_string
             },
             "index" => {
                 "store.set" => store_set,
                 "store.get" => store_get,
-                "log.log" => Function::new_typed_with_env(&mut store, &fenv, log::log_log),
+                "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log),
             }
         };
         let instance = Instance::new(&mut store, &module, &import_object)?;
 
         // Bind guest memory ref & __alloc to env
-        let mut env_mut = fenv.into_mut(&mut store);
+        let mut env_mut = env.into_mut(&mut store);
         let (data_mut, mut store_mut) = env_mut.data_and_store_mut();
 
         data_mut.memory = Some(instance.exports.get_memory("memory")?.clone());
@@ -124,12 +128,7 @@ mod test {
             .get_typed_function(&mut store_mut, "__alloc")
             // NOTE: depend on the mapping logic, this might or might not be exported
             .ok();
-        data_mut.id_of_type = instance
-            .exports
-            .get_typed_function(&mut store_mut, "id_of_type")
-            // NOTE: depend on the mapping logic, this might or might not be exported
-            .ok();
 
-        Ok((instance, data_mut))
+        Ok((store, instance))
     }
 }

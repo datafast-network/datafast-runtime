@@ -1,13 +1,10 @@
-use crate::asc::base::AscHeap;
-use crate::asc::base::AscIndexId;
 use crate::asc::base::AscType;
-use crate::asc::base::FromAscObj;
-use crate::asc::base::IndexForAscTypeId;
-use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
-
+use semver::Version;
 use std::mem::size_of_val;
 
+/// Asc std string: "Strings are encoded as UTF-16LE in AssemblyScript"
+/// See https://www.assemblyscript.org/memory.html#string-layout
 pub struct AscString {
     // Not included in memory layout
     // In number of UTF-16 code units (2 bytes each).
@@ -17,26 +14,16 @@ pub struct AscString {
     pub content: Box<[u16]>,
 }
 
-impl AscIndexId for AscString {
-    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::String;
-}
-
 impl AscString {
     pub fn new(content: &[u16]) -> Result<Self, AscError> {
-        if size_of_val(content) > u32::MAX as usize {
-            return Err(AscError::Plain(
-                "string cannot fit in WASM memory".to_string(),
-            ));
+        if size_of_val(content) > u32::max_value() as usize {
+            return Err(AscError::SizeNotFit);
         }
 
         Ok(AscString {
             byte_length: content.len() as u32,
             content: content.into(),
         })
-    }
-
-    pub fn content(&self) -> &[u16] {
-        &self.content
     }
 }
 
@@ -62,7 +49,7 @@ impl AscType for AscString {
     }
 
     /// The Rust representation of an Asc object as layed out in Asc memory.
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, AscError> {
         // UTF-16 (used in assemblyscript) always uses one
         // pair of bytes per code unit.
         // https://mathiasbynens.be/notes/javascript-encoding
@@ -91,41 +78,5 @@ impl AscType for AscString {
 
     fn content_len(&self, _asc_bytes: &[u8]) -> usize {
         self.byte_length as usize * 2 // without extra_capacity, and times 2 because the content is measured in u8s
-    }
-}
-
-impl ToAscObj<AscString> for str {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
-        Ok(AscString::new(&self.encode_utf16().collect::<Vec<_>>())?)
-    }
-}
-
-// impl ToAscObj<AscString> for &str {
-//     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
-//         Ok(AscString::new(&self.encode_utf16().collect::<Vec<_>>())?)
-//     }
-// }
-
-impl ToAscObj<AscString> for String {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
-        self.as_str().to_asc_obj(heap)
-    }
-}
-
-impl FromAscObj<AscString> for String {
-    fn from_asc_obj<H: AscHeap + ?Sized>(
-        asc_string: AscString,
-        _: &H,
-        _depth: usize,
-    ) -> Result<Self, AscError> {
-        let mut string =
-            String::from_utf16(asc_string.content()).map_err(|e| AscError::Plain(e.to_string()))?;
-
-        // Strip null characters since they are not accepted by Postgres.
-        if string.contains('\u{0000}') {
-            string = string.replace('\u{0000}', "");
-        }
-
-        Ok(string)
     }
 }

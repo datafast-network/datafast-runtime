@@ -1,10 +1,11 @@
-use crate::asc::base::AscIndexId;
 use crate::asc::base::AscType;
-use crate::asc::base::IndexForAscTypeId;
+use crate::asc::base::HEADER_SIZE;
 use crate::asc::errors::AscError;
-
+use semver::Version;
 use std::mem::size_of;
 
+/// Similar as JS ArrayBuffer, "a generic, fixed-length raw binary data buffer".
+/// See https://www.assemblyscript.org/memory.html#arraybuffer-layout
 pub struct ArrayBuffer {
     // Not included in memory layout
     pub byte_length: u32,
@@ -20,10 +21,8 @@ impl ArrayBuffer {
             content.extend(&asc_bytes);
         }
 
-        if content.len() > u32::MAX as usize {
-            return Err(AscError::Plain(
-                "slice cannot fit in WASM memory".to_string(),
-            ));
+        if content.len() > u32::max_value() as usize {
+            return Err(AscError::SizeNotFit);
         }
         Ok(ArrayBuffer {
             byte_length: content.len() as u32,
@@ -34,35 +33,39 @@ impl ArrayBuffer {
     /// Read `length` elements of type `T` starting at `byte_offset`.
     ///
     /// Panics if that tries to read beyond the length of `self.content`.
-    pub fn get<T: AscType>(&self, byte_offset: u32, length: u32) -> Result<Vec<T>, AscError> {
+    pub fn get<T: AscType>(
+        &self,
+        byte_offset: u32,
+        length: u32,
+        api_version: Version,
+    ) -> Result<Vec<T>, AscError> {
         let length = length as usize;
         let byte_offset = byte_offset as usize;
 
         self.content[byte_offset..]
             .chunks(size_of::<T>())
             .take(length)
-            .map(|asc_obj| T::from_asc_bytes(asc_obj))
+            .map(|asc_obj| T::from_asc_bytes(asc_obj, &api_version))
             .collect()
     }
 }
 
-impl AscIndexId for ArrayBuffer {
-    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayBuffer;
-}
-
 impl AscType for ArrayBuffer {
     fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
-        // let in_memory_byte_count = size_of::<Self>();
-        // let mut bytes = Vec::with_capacity(in_memory_byte_count);
-        //
-        // let mut offset = 0;
-        // // max field alignment will also be struct alignment which we need to pad the end
-        // let mut max_align = 0;
+        let mut asc_layout: Vec<u8> = Vec::new();
 
-        Ok(vec![])
+        asc_layout.extend(self.content.iter());
+
+        // Allocate extra capacity to next power of two, as required by asc.
+        let total_size = self.byte_length as usize + HEADER_SIZE;
+        let total_capacity = total_size.next_power_of_two();
+        let extra_capacity = total_capacity - total_size;
+        asc_layout.extend(std::iter::repeat(0).take(extra_capacity));
+
+        Ok(asc_layout)
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, AscError> {
         Ok(ArrayBuffer {
             byte_length: asc_obj.len() as u32,
             content: asc_obj.to_vec().into(),

@@ -1,18 +1,13 @@
-use crate::asc::base::asc_new;
-use crate::asc::base::AscHeap;
-use crate::asc::base::AscIndexId;
-use crate::asc::base::AscPtr;
-use crate::asc::base::AscType;
-use crate::asc::base::IndexForAscTypeId;
-use crate::asc::base::ToAscObj;
-use crate::asc::errors::AscError;
-use crate::impl_asc_type_struct;
-
 use super::array::Array;
 use super::json::JsonValueKind;
 use super::r#enum::AscEnum;
 use super::store::StoreValueKind;
 use super::string::AscString;
+use crate::asc::base::AscIndexId;
+use crate::asc::base::AscPtr;
+use crate::asc::base::IndexForAscTypeId;
+use crate::impl_asc_type_struct;
+use semver::Version;
 
 #[repr(C)]
 pub struct AscTypedMapEntry<K, V> {
@@ -63,18 +58,4 @@ impl AscIndexId for AscTypedMap<AscString, AscEnum<JsonValueKind>> {
 impl AscIndexId for AscTypedMap<AscString, AscTypedMap<AscString, AscEnum<JsonValueKind>>> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId =
         IndexForAscTypeId::TypedMapStringTypedMapStringJsonValue;
-}
-
-impl<K: AscType + AscIndexId, V: AscType + AscIndexId, T: ToAscObj<K>, U: ToAscObj<V>>
-    ToAscObj<AscTypedMapEntry<K, V>> for (T, U)
-{
-    fn to_asc_obj<H: AscHeap + ?Sized>(
-        &self,
-        heap: &mut H,
-    ) -> Result<AscTypedMapEntry<K, V>, AscError> {
-        Ok(AscTypedMapEntry {
-            key: asc_new(heap, &self.0)?,
-            value: asc_new(heap, &self.1)?,
-        })
-    }
 }
