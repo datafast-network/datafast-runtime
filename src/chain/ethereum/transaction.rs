@@ -1,17 +1,16 @@
 use super::asc::*;
-
-use ethabi::Bytes;
-use web3::types::Transaction;
-use web3::types::H160;
-use web3::types::H256;
-use web3::types::U128;
-use web3::types::U256;
-
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::native_types::Uint8Array;
 use crate::impl_asc_type_struct;
+use ethabi::Bytes;
+use semver::Version;
+use web3::types::Transaction;
+use web3::types::H160;
+use web3::types::H256;
+use web3::types::U128;
+use web3::types::U256;
 
 #[repr(C)]
 pub struct AscEthereumTransaction {

@@ -1,6 +1,6 @@
 mod asc;
 mod bignumber;
-// mod chain;
+mod chain;
 mod conversion;
 mod errors;
 mod global;

@@ -1,5 +1,4 @@
 use super::asc::*;
-
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
@@ -15,6 +14,7 @@ use crate::asc::native_types::AscWrapped;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
+use semver::Version;
 use web3::types::Log;
 use web3::types::H256;
 
@@ -49,8 +49,8 @@ impl AscType for AscLogParamArray {
     fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
         self.0.to_asc_bytes()
     }
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        Ok(Self(Array::from_asc_bytes(asc_obj)?))
+    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError> {
+        Ok(Self(Array::from_asc_bytes(asc_obj, api_version)?))
     }
 }
 
@@ -76,8 +76,8 @@ impl AscType for AscTopicArray {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        Ok(Self(Array::from_asc_bytes(asc_obj)?))
+    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError> {
+        Ok(Self(Array::from_asc_bytes(asc_obj, api_version)?))
     }
 }
 
@@ -136,8 +136,8 @@ impl AscType for AscLogArray {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        Ok(Self(Array::from_asc_bytes(asc_obj)?))
+    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError> {
+        Ok(Self(Array::from_asc_bytes(asc_obj, api_version)?))
     }
 }
 

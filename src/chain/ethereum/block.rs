@@ -1,14 +1,14 @@
 use super::asc::*;
+use crate::asc::base::AscIndexId;
+use crate::asc::base::AscPtr;
+use crate::asc::base::IndexForAscTypeId;
+use crate::impl_asc_type_struct;
+use semver::Version;
 use web3::types::Block;
 use web3::types::H160;
 use web3::types::H256;
 use web3::types::U256;
 use web3::types::U64;
-
-use crate::asc::base::AscIndexId;
-use crate::asc::base::AscPtr;
-use crate::asc::base::IndexForAscTypeId;
-use crate::impl_asc_type_struct;
 
 #[repr(C)]
 pub(crate) struct AscEthereumBlock {
