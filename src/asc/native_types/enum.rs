@@ -1,7 +1,6 @@
 use super::array::Array;
 use super::json::JsonValueKind;
 use super::store::StoreValueKind;
-
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
@@ -9,6 +8,7 @@ use crate::asc::base::AscValue;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
 use crate::impl_asc_type_struct;
+use semver::Version;
 
 #[repr(C)]
 #[derive(Copy, Clone, Default)]
@@ -19,8 +19,8 @@ impl AscType for EnumPayload {
         self.0.to_asc_bytes()
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
-        Ok(EnumPayload(u64::from_asc_bytes(asc_obj)?))
+    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError> {
+        Ok(EnumPayload(u64::from_asc_bytes(asc_obj, api_version)?))
     }
 }
 

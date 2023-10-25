@@ -1,7 +1,4 @@
 use super::asc::*;
-
-use web3::types::TransactionReceipt;
-
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
@@ -12,6 +9,8 @@ use crate::asc::errors::AscError;
 use crate::bignumber::bigint::BigInt;
 use crate::chain::ethereum::log::AscLogArray;
 use crate::impl_asc_type_struct;
+use semver::Version;
+use web3::types::TransactionReceipt;
 
 #[repr(C)]
 pub struct AscEthereumTransactionReceipt {

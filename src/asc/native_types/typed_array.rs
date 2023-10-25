@@ -7,6 +7,7 @@ use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::impl_asc_type_struct;
+use semver::Version;
 
 use super::array_buffer::ArrayBuffer;
 
@@ -107,6 +108,7 @@ impl<T: AscValue> TypedArray<T> {
         self.buffer.read_ptr(heap)?.get(
             data_start_with_offset,
             self.byte_length / size_of::<T>() as u32,
+            heap.api_version(),
         )
     }
 }

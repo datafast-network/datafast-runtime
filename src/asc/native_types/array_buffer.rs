@@ -2,7 +2,7 @@ use crate::asc::base::AscIndexId;
 use crate::asc::base::AscType;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
-
+use semver::Version;
 use std::mem::size_of;
 
 pub struct ArrayBuffer {
@@ -34,14 +34,19 @@ impl ArrayBuffer {
     /// Read `length` elements of type `T` starting at `byte_offset`.
     ///
     /// Panics if that tries to read beyond the length of `self.content`.
-    pub fn get<T: AscType>(&self, byte_offset: u32, length: u32) -> Result<Vec<T>, AscError> {
+    pub fn get<T: AscType>(
+        &self,
+        byte_offset: u32,
+        length: u32,
+        api_version: Version,
+    ) -> Result<Vec<T>, AscError> {
         let length = length as usize;
         let byte_offset = byte_offset as usize;
 
         self.content[byte_offset..]
             .chunks(size_of::<T>())
             .take(length)
-            .map(|asc_obj| T::from_asc_bytes(asc_obj))
+            .map(|asc_obj| T::from_asc_bytes(asc_obj, &api_version))
             .collect()
     }
 }
@@ -62,7 +67,7 @@ impl AscType for ArrayBuffer {
         Ok(vec![])
     }
 
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError> {
+    fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, AscError> {
         Ok(ArrayBuffer {
             byte_length: asc_obj.len() as u32,
             content: asc_obj.to_vec().into(),
