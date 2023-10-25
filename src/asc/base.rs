@@ -1,7 +1,7 @@
 use crate::impl_asc_type;
 
 use super::errors::AscError;
-
+use semver::Version;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
@@ -77,13 +77,21 @@ impl<C> AscPtr<C> {
 /// Special classes like `ArrayBuffer` use custom impls.
 ///
 /// See https://github.com/graphprotocol/graph-node/issues/607 for more considerations.
+/// A type that has a direct correspondence to an Asc type.
+///
+/// This can be derived for structs that are `#[repr(C)]`, contain no padding
+/// and whose fields are all `AscValue`. Enums can derive if they are `#[repr(u32)]`.
+///
+/// Special classes like `ArrayBuffer` use custom impls.
+///
+/// See https://github.com/graphprotocol/graph-node/issues/607 for more considerations.
 pub trait AscType: Sized {
     /// Transform the Rust representation of this instance into an sequence of
     /// bytes that is precisely the memory layout of a corresponding Asc instance.
     fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError>;
 
     /// The Rust representation of an Asc object as layed out in Asc memory.
-    fn from_asc_bytes(asc_obj: &[u8]) -> Result<Self, AscError>;
+    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError>;
 
     fn content_len(&self, asc_bytes: &[u8]) -> usize {
         asc_bytes.len()

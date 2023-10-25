@@ -2,7 +2,7 @@ use crate::asc::base::AscIndexId;
 use crate::asc::base::AscType;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
-
+use semver::Version;
 use std::mem::size_of;
 
 pub struct ArrayBuffer {

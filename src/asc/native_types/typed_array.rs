@@ -7,6 +7,7 @@ use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::impl_asc_type_struct;
+use semver::Version;
 
 use super::array_buffer::ArrayBuffer;
 
