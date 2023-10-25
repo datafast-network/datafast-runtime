@@ -2,8 +2,10 @@ mod v0_0_4;
 mod v0_0_5;
 
 use crate::asc::base::AscHeap;
+use crate::asc::base::AscIndexId;
 use crate::asc::base::AscType;
 use crate::asc::base::AscValue;
+use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
 use semver::Version;
 
@@ -54,3 +56,43 @@ impl<T> AscType for TypedArray<T> {
 }
 
 pub type Uint8Array = TypedArray<u8>;
+
+impl AscIndexId for TypedArray<i8> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Int8Array;
+}
+
+impl AscIndexId for TypedArray<i16> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Int16Array;
+}
+
+impl AscIndexId for TypedArray<i32> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Int32Array;
+}
+
+impl AscIndexId for TypedArray<i64> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Int64Array;
+}
+
+impl AscIndexId for TypedArray<u8> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Uint8Array;
+}
+
+impl AscIndexId for TypedArray<u16> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Uint16Array;
+}
+
+impl AscIndexId for TypedArray<u32> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Uint32Array;
+}
+
+impl AscIndexId for TypedArray<u64> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Uint64Array;
+}
+
+impl AscIndexId for TypedArray<f32> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Float32Array;
+}
+
+impl AscIndexId for TypedArray<f64> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::Float64Array;
+}

@@ -7,6 +7,7 @@ use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
 use crate::asc::base::AscValue;
 use crate::asc::base::IndexForAscTypeId;
+use crate::asc::bignumber::AscBigDecimal;
 use crate::asc::errors::AscError;
 use crate::asc::native_types::json::JsonValueKind;
 use crate::asc::native_types::r#enum::AscEnum;
@@ -136,6 +137,6 @@ impl AscIndexId for Array<f64> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayF64;
 }
 
-// impl AscIndexId for Array<AscPtr<AscBigDecimal>> {
-//     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayBigDecimal;
-// }
+impl AscIndexId for Array<AscPtr<AscBigDecimal>> {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayBigDecimal;
+}

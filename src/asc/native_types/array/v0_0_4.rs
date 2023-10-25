@@ -1,6 +1,5 @@
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscPtr;
-use crate::asc::base::AscType;
 use crate::asc::base::AscValue;
 use crate::asc::errors::AscError;
 use crate::asc::native_types::array_buffer;
