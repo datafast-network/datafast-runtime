@@ -147,6 +147,10 @@ mod test {
                 .ok(),
         };
 
+        if data_mut.memory_allocate.is_none() {
+            log::info!("MemoryAllocate function is not available in host-exports");
+        }
+
         data_mut.id_of_type = match api_version {
             version if version <= Version::new(0, 0, 4) => None,
             _ => instance
@@ -154,6 +158,10 @@ mod test {
                 .get_typed_function(&mut store_mut, "id_of_type")
                 .ok(),
         };
+
+        if data_mut.id_of_type.is_none() {
+            log::info!("id_of_type function is not available in host-exports");
+        }
 
         match data_mut.api_version.clone() {
             version if version <= Version::new(0, 0, 4) => {}
