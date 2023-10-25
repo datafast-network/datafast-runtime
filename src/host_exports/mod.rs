@@ -15,11 +15,12 @@ pub struct Env {
 #[cfg(test)]
 mod test {
     use super::bigint;
-    use super::log;
+    use super::log as host_log;
     use super::Env;
     use crate::conversion;
     use crate::global;
     use crate::store;
+    use log;
     use semver::Version;
     use std::env;
     use wasmer::imports;
@@ -28,6 +29,7 @@ mod test {
     use wasmer::Instance;
     use wasmer::Module;
     use wasmer::Store;
+    use wasmer::TypedFunction;
 
     pub fn create_mock_host_instance(
         wasm_path: &str,
@@ -42,7 +44,7 @@ mod test {
                 .as_str(),
         )
         .unwrap();
-        println!("Init WASM Instance with api-version={api_version}");
+        log::warn!("________________________ Init WASM Instance with api-version={api_version}");
         let env = FunctionEnv::new(
             &mut store,
             Env {
@@ -116,7 +118,7 @@ mod test {
             "index" => {
                 "store.set" => store_set,
                 "store.get" => store_get,
-                "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log),
+                "log.log" => Function::new_typed_with_env(&mut store, &env, host_log::log_log),
                 "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus)
             }
         };
@@ -127,11 +129,31 @@ mod test {
         let (data_mut, mut store_mut) = env_mut.data_and_store_mut();
 
         data_mut.memory = Some(instance.exports.get_memory("memory")?.clone());
-        data_mut.alloc_guest_memory = instance
+        let alloc_guest_memory: Option<TypedFunction<i32, i32>> = instance
             .exports
             .get_typed_function(&mut store_mut, "__alloc")
             // NOTE: depend on the mapping logic, this might or might not be exported
             .ok();
+
+        if let Some(guest_alloc) = alloc_guest_memory {
+            guest_alloc.call(&mut store_mut, 0).unwrap();
+            data_mut.alloc_guest_memory = Some(guest_alloc);
+        };
+
+        match data_mut.api_version.clone() {
+            version if version <= Version::new(0, 0, 4) => {}
+            _ => {
+                log::warn!("Try calling `_start` if possible");
+                instance
+                    .exports
+                    .get_function("_start")
+                    .map(|f| {
+                        log::warn!("Calling `_start`");
+                        f.call(&mut store_mut, &[]).unwrap();
+                    })
+                    .ok();
+            }
+        }
 
         Ok((store, instance))
     }
