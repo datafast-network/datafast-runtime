@@ -8,8 +8,11 @@ use wasmer::TypedFunction;
 #[derive(Clone)]
 pub struct Env {
     pub memory: Option<Memory>,
-    pub alloc_guest_memory: Option<TypedFunction<i32, i32>>,
+    pub memory_allocate: Option<TypedFunction<i32, i32>>,
     pub api_version: Version,
+    pub id_of_type: Option<TypedFunction<u32, u32>>,
+    pub arena_start_ptr: i32,
+    pub arena_free_size: i32,
 }
 
 #[cfg(test)]
@@ -29,7 +32,6 @@ mod test {
     use wasmer::Instance;
     use wasmer::Module;
     use wasmer::Store;
-    use wasmer::TypedFunction;
 
     pub fn create_mock_host_instance(
         wasm_path: &str,
@@ -44,13 +46,18 @@ mod test {
                 .as_str(),
         )
         .unwrap();
+
         log::warn!("________________________ Init WASM Instance with api-version={api_version}");
+
         let env = FunctionEnv::new(
             &mut store,
             Env {
                 memory: None,
-                alloc_guest_memory: None,
-                api_version,
+                memory_allocate: None,
+                id_of_type: None,
+                api_version: api_version.clone(),
+                arena_start_ptr: 0,
+                arena_free_size: 0,
             },
         );
 
@@ -129,15 +136,23 @@ mod test {
         let (data_mut, mut store_mut) = env_mut.data_and_store_mut();
 
         data_mut.memory = Some(instance.exports.get_memory("memory")?.clone());
-        let alloc_guest_memory: Option<TypedFunction<i32, i32>> = instance
-            .exports
-            .get_typed_function(&mut store_mut, "__alloc")
-            // NOTE: depend on the mapping logic, this might or might not be exported
-            .ok();
+        data_mut.memory_allocate = match api_version.clone() {
+            version if version <= Version::new(0, 0, 4) => instance
+                .exports
+                .get_typed_function(&mut store_mut, "memory.allocate")
+                .ok(),
+            _ => instance
+                .exports
+                .get_typed_function(&mut store_mut, "allocate")
+                .ok(),
+        };
 
-        if let Some(guest_alloc) = alloc_guest_memory {
-            guest_alloc.call(&mut store_mut, 0).unwrap();
-            data_mut.alloc_guest_memory = Some(guest_alloc);
+        data_mut.id_of_type = match api_version {
+            version if version <= Version::new(0, 0, 4) => None,
+            _ => instance
+                .exports
+                .get_typed_function(&mut store_mut, "id_of_type")
+                .ok(),
         };
 
         match data_mut.api_version.clone() {
