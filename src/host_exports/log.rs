@@ -16,6 +16,7 @@ pub fn log_log(
     // msg_ptr should become WasmPtr<String> or AscPtr<String>
     let store_ref = fenv.as_store_ref();
     let env = fenv.data();
+    let api_version = env.api_version.clone();
 
     let memory = &env.memory.clone().unwrap();
     let view = memory.view(&store_ref);
@@ -27,7 +28,7 @@ pub fn log_log(
     let mut buf = vec![0; capacity];
     view.read(msg_ptr as u64, &mut buf).unwrap();
 
-    let asc_string = AscString::from_asc_bytes(&buf).unwrap();
+    let asc_string = AscString::from_asc_bytes(&buf, &api_version).unwrap();
     let mut string = String::from_utf16(asc_string.content()).unwrap();
 
     // Strip null characters
@@ -58,6 +59,7 @@ mod test {
         ::env_logger::try_init().unwrap_or_default();
 
         let test_wasm_file_path = env::var("TEST_WASM_FILE").expect("Test Wasm file not found");
+        log::info!("Test Wasm path: {test_wasm_file_path}");
         let (mut store, instance) = create_mock_host_instance(&test_wasm_file_path).unwrap();
         let f = instance.exports.get_function("testLog").unwrap();
         log::info!("-- calling");

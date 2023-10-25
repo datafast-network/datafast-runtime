@@ -1,5 +1,6 @@
 mod log;
 
+use semver::Version;
 use wasmer::Memory;
 use wasmer::TypedFunction;
 
@@ -7,6 +8,7 @@ use wasmer::TypedFunction;
 pub struct Env {
     pub memory: Option<Memory>,
     pub alloc_guest_memory: Option<TypedFunction<i32, i32>>,
+    pub api_version: Version,
 }
 
 #[cfg(test)]
@@ -16,6 +18,8 @@ mod test {
     use crate::conversion;
     use crate::global;
     use crate::store;
+    use semver::Version;
+    use std::env;
     use wasmer::imports;
     use wasmer::Function;
     use wasmer::FunctionEnv;
@@ -30,11 +34,19 @@ mod test {
         let mut store = Store::default();
 
         let module = Module::new(&store, wasm_bytes)?;
+        let api_version = Version::parse(
+            env::var("RUNTIME_API_VERSION")
+                .unwrap_or("0.0.5".to_string())
+                .as_str(),
+        )
+        .unwrap();
+        println!("Init WASM Instance with api-version={api_version}");
         let env = FunctionEnv::new(
             &mut store,
             Env {
                 memory: None,
                 alloc_guest_memory: None,
+                api_version,
             },
         );
 
