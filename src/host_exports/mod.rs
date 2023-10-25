@@ -148,7 +148,7 @@ mod test {
         };
 
         if data_mut.memory_allocate.is_none() {
-            log::info!("MemoryAllocate function is not available in host-exports");
+            log::warn!("MemoryAllocate function is not available in host-exports");
         }
 
         data_mut.id_of_type = match api_version {
@@ -160,7 +160,7 @@ mod test {
         };
 
         if data_mut.id_of_type.is_none() {
-            log::info!("id_of_type function is not available in host-exports");
+            log::warn!("id_of_type function is not available in host-exports");
         }
 
         match data_mut.api_version.clone() {
@@ -171,7 +171,7 @@ mod test {
                     .exports
                     .get_function("_start")
                     .map(|f| {
-                        log::warn!("Calling `_start`");
+                        log::info!("Calling `_start`");
                         f.call(&mut store_mut, &[]).unwrap();
                     })
                     .ok();
