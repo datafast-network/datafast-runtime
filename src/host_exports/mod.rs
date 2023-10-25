@@ -1,3 +1,4 @@
+mod bigint;
 mod log;
 
 use semver::Version;
@@ -13,6 +14,7 @@ pub struct Env {
 
 #[cfg(test)]
 mod test {
+    use super::bigint;
     use super::log;
     use super::Env;
     use crate::conversion;
@@ -108,12 +110,14 @@ mod test {
                 "typeConversion.bigIntToString" => big_int_to_string,
             },
             "numbers" => {
-                "bigDecimal.toString" => big_decimal_to_string
+                "bigDecimal.toString" => big_decimal_to_string.clone(),
+                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus)
             },
             "index" => {
                 "store.set" => store_set,
                 "store.get" => store_get,
                 "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log),
+                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus)
             }
         };
         let instance = Instance::new(&mut store, &module, &import_object)?;
