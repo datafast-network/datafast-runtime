@@ -1,3 +1,4 @@
+mod asc;
 mod bigint;
 mod log;
 
@@ -10,6 +11,7 @@ pub struct Env {
     pub memory: Option<Memory>,
     pub alloc_guest_memory: Option<TypedFunction<i32, i32>>,
     pub api_version: Version,
+    pub id_of_type: Option<TypedFunction<i32, i32>>,
 }
 
 #[cfg(test)]
@@ -51,6 +53,7 @@ mod test {
                 memory: None,
                 alloc_guest_memory: None,
                 api_version,
+                id_of_type: None,
             },
         );
 
@@ -139,6 +142,12 @@ mod test {
             guest_alloc.call(&mut store_mut, 0).unwrap();
             data_mut.alloc_guest_memory = Some(guest_alloc);
         };
+
+        data_mut.id_of_type = instance
+            .exports
+            .get_typed_function(&store_mut, "id_of_type")
+            // NOTE: depend on the mapping logic, this might or might not be exported
+            .ok();
 
         match data_mut.api_version.clone() {
             version if version <= Version::new(0, 0, 4) => {}

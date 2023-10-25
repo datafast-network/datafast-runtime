@@ -3,6 +3,7 @@ use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
 use crate::host_exports::Env;
 use num_traits::abs;
+use semver::Version;
 use std::mem::MaybeUninit;
 use wasmer::AsStoreRef;
 use wasmer::FunctionEnvMut;
@@ -54,6 +55,10 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
             ))
         })?;
         Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn api_version(&self) -> Version {
+        self.data().api_version.clone()
     }
 
     fn asc_type_id(&mut self, type_id_index: IndexForAscTypeId) -> Result<u32, AscError> {
