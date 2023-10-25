@@ -1,7 +1,16 @@
+use crate::asc::base::AscHeap;
+use crate::asc::base::AscPtr;
+use crate::asc::base::AscValue;
+use crate::asc::errors::AscError;
+use crate::asc::native_types::array_buffer;
+use crate::asc::native_types::array_buffer::v0_0_4::ArrayBuffer;
+use crate::impl_asc_type_struct;
+use semver::Version;
+use std::marker::PhantomData;
+
 /// Growable array backed by an `ArrayBuffer`.
 /// See https://www.assemblyscript.org/memory.html#array-layout
 #[repr(C)]
-#[derive(AscType)]
 pub struct Array<T> {
     // #data -> Backing buffer reference
     buffer: AscPtr<ArrayBuffer>,
@@ -15,15 +24,20 @@ pub struct Array<T> {
     ty: PhantomData<T>,
 }
 
+impl_asc_type_struct!(
+  Array<T>;
+    buffer => AscPtr<ArrayBuffer>,
+    buffer_data_start => u32,
+    buffer_data_length => u32,
+    length => i32,
+    ty => PhantomData<T>
+);
+
 impl<T: AscValue> Array<T> {
-    pub fn new<H: AscHeap + ?Sized>(
-        content: &[T],
-        heap: &mut H,
-        gas: &GasCounter,
-    ) -> Result<Self, HostExportError> {
-        let arr_buffer = class::ArrayBuffer::new(content, heap.api_version())?;
-        let buffer = AscPtr::alloc_obj(arr_buffer, heap, gas)?;
-        let buffer_data_length = buffer.read_len(heap, gas)?;
+    pub fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
+        let arr_buffer = array_buffer::ArrayBuffer::new(content, heap.api_version())?;
+        let buffer = AscPtr::alloc_obj(arr_buffer, heap)?;
+        let buffer_data_length = buffer.read_len(heap)?;
         Ok(Array {
             buffer: AscPtr::new(buffer.wasm_ptr()),
             buffer_data_start: buffer.wasm_ptr(),
@@ -33,11 +47,7 @@ impl<T: AscValue> Array<T> {
         })
     }
 
-    pub(crate) fn to_vec<H: AscHeap + ?Sized>(
-        &self,
-        heap: &H,
-        gas: &GasCounter,
-    ) -> Result<Vec<T>, DeterministicHostError> {
+    pub(crate) fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
         // We're trying to read the pointer below, we should check it's
         // not null before using it.
         self.buffer.check_is_not_null()?;
@@ -52,13 +62,13 @@ impl<T: AscValue> Array<T> {
             .buffer_data_start
             .checked_sub(self.buffer.wasm_ptr())
             .ok_or_else(|| {
-                DeterministicHostError::from(anyhow::anyhow!(
+                AscError::Plain(format!(
                     "Subtract overflow on pointer: {}",
                     self.buffer_data_start
                 ))
             })?;
 
-        self.buffer.read_ptr(heap, gas)?.get(
+        self.buffer.read_ptr(heap)?.get(
             buffer_data_start_with_offset,
             self.length as u32,
             heap.api_version(),

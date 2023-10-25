@@ -52,3 +52,5 @@ impl<T> AscType for TypedArray<T> {
         }
     }
 }
+
+pub type Uint8Array = TypedArray<u8>;
