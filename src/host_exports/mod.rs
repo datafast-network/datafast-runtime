@@ -1,3 +1,4 @@
+mod asc;
 mod bigint;
 mod log;
 
@@ -139,11 +140,11 @@ mod test {
         data_mut.memory_allocate = match api_version.clone() {
             version if version <= Version::new(0, 0, 4) => instance
                 .exports
-                .get_typed_function(&mut store_mut, "memory.allocate")
+                .get_typed_function(&store_mut, "memory.allocate")
                 .ok(),
             _ => instance
                 .exports
-                .get_typed_function(&mut store_mut, "allocate")
+                .get_typed_function(&store_mut, "allocate")
                 .ok(),
         };
 
@@ -155,7 +156,7 @@ mod test {
             version if version <= Version::new(0, 0, 4) => None,
             _ => instance
                 .exports
-                .get_typed_function(&mut store_mut, "id_of_type")
+                .get_typed_function(&store_mut, "id_of_type")
                 .ok(),
         };
 
