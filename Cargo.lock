@@ -2033,6 +2033,7 @@ dependencies = [
  "num-traits",
  "proc-macro2",
  "quote",
+ "semver",
  "serde",
  "serde_json",
  "syn 2.0.38",
