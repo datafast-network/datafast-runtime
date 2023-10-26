@@ -18,6 +18,8 @@ use std::ops::BitOr;
 use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Rem;
+use std::ops::Shl;
+use std::ops::Shr;
 use std::ops::Sub;
 use std::str::FromStr;
 
@@ -175,10 +177,10 @@ impl BigInt {
         w3::U256::from_little_endian(&bytes)
     }
 
-    pub fn pow(self, exponent: u8) -> Result<BigInt, BigNumberErr> {
+    pub fn pow(self, exponent: u32) -> Result<BigInt, BigNumberErr> {
         use num_traits::pow::Pow;
 
-        BigInt::new(self.inner().pow(&exponent))
+        BigInt::new(self.inner().pow(exponent))
     }
 }
 
@@ -293,5 +295,21 @@ impl BitAnd for BigInt {
 
     fn bitand(self, other: Self) -> Self {
         BigInt::unchecked_new(self.inner().bitand(other.inner()))
+    }
+}
+
+impl Shl<u8> for BigInt {
+    type Output = Self;
+
+    fn shl(self, bits: u8) -> Self {
+        BigInt::unchecked_new(self.inner().shl(bits))
+    }
+}
+
+impl Shr<u8> for BigInt {
+    type Output = Self;
+
+    fn shr(self, bits: u8) -> Self {
+        BigInt::unchecked_new(self.inner().shr(bits))
     }
 }

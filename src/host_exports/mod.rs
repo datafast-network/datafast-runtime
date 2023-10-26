@@ -122,13 +122,36 @@ mod test {
             },
             "numbers" => {
                 "bigDecimal.toString" => big_decimal_to_string.clone(),
-                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus)
+                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus),
+                "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
+                "bigInt.times" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_times),
+                "bigInt.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_divided_by),
+                "bigInt.dividedByDecimal" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_divided_by_decimal),
+                "bigInt.pow" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_pow),
+                "bigInt.mod" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_mod),
+                "bigInt.fromString" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_from_string),
+                "bigInt.bitOr" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_or),
+                "bigInt.bitAnd" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_and),
+                "bigInt.leftShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_left_shift),
+                "bigInt.rightShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_right_shift),
             },
             "index" => {
                 "store.set" => store_set,
                 "store.get" => store_get,
                 "log.log" => Function::new_typed_with_env(&mut store, &env, host_log::log_log),
-                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus)
+                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus),
+                "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
+                "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
+                "bigInt.times" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_times),
+                "bigInt.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_divided_by),
+                "bigInt.dividedByDecimal" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_divided_by_decimal),
+                "bigInt.pow" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_pow),
+                "bigInt.mod" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_mod),
+                "bigInt.fromString" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_from_string),
+                "bigInt.bitOr" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_or),
+                "bigInt.bitAnd" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_and),
+                "bigInt.leftShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_left_shift),
+                "bigInt.rightShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_right_shift),
             }
         };
         let instance = Instance::new(&mut store, &module, &import_object)?;

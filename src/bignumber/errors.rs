@@ -17,3 +17,13 @@ pub enum BigNumberErr {
     #[error("Number too big")]
     NumberTooBig,
 }
+
+impl From<BigNumberErr> for wasmer::RuntimeError {
+    fn from(value: BigNumberErr) -> Self {
+        match value {
+            BigNumberErr::Parser => wasmer::RuntimeError::new("Parser Error"),
+            BigNumberErr::OutOfRange(_) => wasmer::RuntimeError::new("Out of range"),
+            BigNumberErr::NumberTooBig => wasmer::RuntimeError::new("Number too big"),
+        }
+    }
+}
