@@ -11,8 +11,14 @@ pub fn log_log(
     msg_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
     let string: String = asc_get(&fenv, msg_ptr, 0)?;
+
     match log_level {
-        0 => eprintln!("CRITICAL!!!!!!: {string}"),
+        0 => {
+            eprintln!("CRITICAL!!!!!!: {string}");
+            return Err(RuntimeError::new(
+                "Something bad happened, Terminating runtime!",
+            ));
+        }
         1 => log::error!("{string}"),
         2 => log::warn!("{string}"),
         3 => log::info!("{string}"),

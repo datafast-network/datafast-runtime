@@ -10,13 +10,15 @@ use wasmer::FromToNativeWasmType;
 use wasmer::FunctionEnvMut;
 use wasmer::Value;
 
+const MIN_ARENA_SIZE: i32 = 10_000;
+
 impl AscHeap for FunctionEnvMut<'_, Env> {
     fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
         let require_length = bytes.len() as u64;
-        let (fenv, mut store) = self.data_and_store_mut();
-        static MIN_ARENA_SIZE: i32 = 10_000;
+        let (env, mut store) = self.data_and_store_mut();
         let size = i32::try_from(bytes.len()).unwrap();
-        if size > fenv.arena_free_size {
+
+        if size > env.arena_free_size {
             // Allocate a new arena. Any free space left in the previous arena is left unused. This
             // causes at most half of memory to be wasted, which is acceptable.
             let arena_size = size.max(MIN_ARENA_SIZE);
@@ -24,14 +26,14 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
             // Unwrap: This may panic if more memory needs to be requested from the OS and that
             // fails. This error is not deterministic since it depends on the operating conditions
             // of the node.
-            if let Some(memory_allocate) = fenv.memory_allocate.as_ref() {
+            if let Some(memory_allocate) = env.memory_allocate.as_ref() {
                 let new_arena_ptr = memory_allocate.call(&mut store, arena_size).unwrap();
-                fenv.arena_start_ptr = new_arena_ptr;
+                env.arena_start_ptr = new_arena_ptr;
             }
 
-            fenv.arena_free_size = arena_size;
+            env.arena_free_size = arena_size;
 
-            match &fenv.api_version {
+            match &env.api_version {
                 version if *version <= Version::new(0, 0, 4) => {}
                 _ => {
                     // This arithmetic is done because when you call AssemblyScripts's `__alloc`
@@ -40,13 +42,13 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
                     // `mmInfo` has size of 4, and everything allocated on AssemblyScript memory
                     // should have alignment of 16, this means we need to do a 12 offset on these
                     // big chunks of untyped allocation.
-                    fenv.arena_start_ptr += 12;
-                    fenv.arena_free_size -= 12;
+                    env.arena_start_ptr += 12;
+                    env.arena_free_size -= 12;
                 }
             };
         };
 
-        let memory = fenv.memory.as_ref().unwrap();
+        let memory = env.memory.as_ref().unwrap();
         let view = memory.view(&store);
         let available_length = view.data_size();
 
@@ -56,13 +58,13 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         }
 
         // NOTE: write to page's footer
-        let ptr = fenv.arena_start_ptr as usize;
+        let ptr = env.arena_start_ptr as usize;
 
         view.write(ptr as u64, bytes).expect("Failed");
 
         // Unwrap: We have just allocated enough space for `bytes`.
-        fenv.arena_start_ptr += size;
-        fenv.arena_free_size -= size;
+        env.arena_start_ptr += size;
+        env.arena_free_size -= size;
 
         Ok(ptr as u32)
     }
@@ -73,9 +75,15 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         buffer: &'a mut [MaybeUninit<u8>],
     ) -> Result<&'a mut [u8], AscError> {
         let env = self.data();
-        let memory = &env.memory.clone().unwrap();
+
+        let memory = &env
+            .memory
+            .clone()
+            .expect("Memory must be initilized beforehand");
+
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);
+
         view.read_uninit(offset as u64, buffer)
             .map_err(|_| AscError::Plain(format!("Heap access out of bounds. Offset: {}", offset)))
     }
@@ -83,9 +91,15 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
     fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
         let mut bytes = [0; 4];
         let env = self.data();
-        let memory = &env.memory.clone().unwrap();
+
+        let memory = &env
+            .memory
+            .clone()
+            .expect("Memory must be initilized beforehand");
+
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);
+
         view.read(offset as u64, &mut bytes).map_err(|_| {
             AscError::Plain(format!(
                 "Heap access out of bounds. Offset: {} Size: {}",
@@ -105,10 +119,10 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
             .as_ref()
             .unwrap() // Unwrap ok because it's only called on correct apiVersion, look for AscPtr::generate_header
             .call(&mut store_ref, type_id_index as u32)
-            .map_err(|trap| {
+            .map_err(|err| {
                 AscError::Plain(format!(
                     "Failed to get Asc type id for index: {:?}. Trap: {}",
-                    type_id_index, trap
+                    type_id_index, err
                 ))
             })
     }
@@ -118,8 +132,8 @@ unsafe impl<T> FromToNativeWasmType for AscPtr<T> {
     type Native = u32;
 
     #[inline]
-    fn from_native(n: Self::Native) -> Self {
-        AscPtr::<T>::new(n)
+    fn from_native(native: Self::Native) -> Self {
+        AscPtr::<T>::new(native)
     }
     #[inline]
     fn to_native(self) -> Self::Native {
