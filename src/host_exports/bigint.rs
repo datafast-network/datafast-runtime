@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use super::Env;
 use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;
@@ -69,7 +70,7 @@ pub fn big_int_bit_or(
 ) -> Result<AscPtr<AscBigInt>, RuntimeError> {
     let x: BigInt = asc_get(&fenv, bigint_x_ptr, 0)?;
     let y: BigInt = asc_get(&fenv, bigint_y_ptr, 0)?;
-    if y == BigInt::from(0) {
+    if y == 0.into() {
         return Err(RuntimeError::new("Divide by zero error!"));
     }
     let result = x | y;
@@ -84,7 +85,7 @@ pub fn big_int_bit_and(
 ) -> Result<AscPtr<AscBigInt>, RuntimeError> {
     let x: BigInt = asc_get(&fenv, bigint_x_ptr, 0)?;
     let y: BigInt = asc_get(&fenv, bigint_y_ptr, 0)?;
-    if y == BigInt::from(0) {
+    if y == 0.into() {
         return Err(RuntimeError::new("Divide by zero error!"));
     }
     let result = x & y;
@@ -99,7 +100,7 @@ pub fn big_int_divided_by_decimal(
 ) -> Result<AscPtr<AscBigDecimal>, RuntimeError> {
     let x: BigDecimal = BigDecimal::new(asc_get(&fenv, bigint_x_ptr, 0)?, 0);
     let y: BigDecimal = asc_get(&fenv, bigint_y_ptr, 0)?;
-    if y == BigDecimal::from(0) {
+    if y == 0.into() {
         return Err(RuntimeError::new("Divide by zero error!"));
     }
     let result = x / y;
@@ -114,7 +115,7 @@ pub fn big_int_mod(
 ) -> Result<AscPtr<AscBigInt>, RuntimeError> {
     let x: BigInt = asc_get(&fenv, bigint_x_ptr, 0)?;
     let y: BigInt = asc_get(&fenv, bigint_y_ptr, 0)?;
-    if y == BigInt::from(0) {
+    if y == 0.into() {
         return Err(RuntimeError::new("Divide by zero error!"));
     }
     let result = x % y;

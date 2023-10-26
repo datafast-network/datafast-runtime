@@ -24,6 +24,8 @@ use crate::impl_asc_type_struct;
 
 pub type Uint8Array = TypedArray<u8>;
 
+pub type AscH160 = Uint8Array;
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct AscWrapped<V: AscValue> {

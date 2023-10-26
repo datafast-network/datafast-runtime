@@ -2,6 +2,7 @@ mod asc;
 mod big_decimal;
 mod bigint;
 mod log;
+mod types_conversion;
 
 use semver::Version;
 use wasmer::Memory;
@@ -23,8 +24,8 @@ mod test {
     use super::big_decimal;
     use super::bigint;
     use super::log as host_log;
+    use super::types_conversion;
     use super::Env;
-    use crate::conversion;
     use crate::global;
     use crate::store;
     use log;
@@ -69,33 +70,6 @@ mod test {
         let abort = Function::new(&mut store, global::ABORT_TYPE, global::abort);
 
         // Conversion functions
-        let big_int_to_hex = Function::new(
-            &mut store,
-            conversion::CONVERSION_TYPE,
-            // TODO: fix implementation
-            conversion::big_int_to_hex,
-        );
-
-        let big_decimal_to_string = Function::new(
-            &mut store,
-            conversion::CONVERSION_TYPE,
-            // TODO: fix implementation
-            conversion::big_int_to_hex,
-        );
-
-        let bytes_to_hex = Function::new(
-            &mut store,
-            conversion::CONVERSION_TYPE,
-            // TODO: fix implementation
-            conversion::bytes_to_hex,
-        );
-
-        let big_int_to_string = Function::new(
-            &mut store,
-            conversion::CONVERSION_TYPE,
-            // TODO: fix implementation
-            conversion::big_int_to_string,
-        );
 
         // Store functions
         let store_set = Function::new(
@@ -112,18 +86,19 @@ mod test {
             store::store_get,
         );
 
-        // Running cargo-run will immediately tell which functions are missing
         let import_object = imports! {
             "env" => {
                 "abort" => abort,
             },
             "conversion" => {
-                "typeConversion.bigIntToHex" => big_int_to_hex,
-                "typeConversion.bytesToHex" => bytes_to_hex,
-                "typeConversion.bigIntToString" => big_int_to_string,
+                "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
+                "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),
+                "typeConversion.bigIntToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::big_int_to_string),
+                "typeConversion.bigIntToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::big_int_to_hex),
+                "typeConversion.stringToH160" => Function::new_typed_with_env(&mut store, &env, types_conversion::string_to_h160),
+                "typeConversion.bytesToBase58" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_base58),
             },
             "numbers" => {
-                "bigDecimal.toString" => big_decimal_to_string.clone(),
                 "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus),
                 "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
                 "bigInt.times" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_times),
@@ -172,6 +147,7 @@ mod test {
                 "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
             }
         };
+        // Running cargo-run will immediately tell which functions are missing
 
         let instance = Instance::new(&mut store, &module, &import_object)?;
 
