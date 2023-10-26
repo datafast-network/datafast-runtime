@@ -18,6 +18,7 @@ pub struct Env {
 
 #[cfg(test)]
 mod test {
+    use super::asc::test::UnitTestHost;
     use super::bigint;
     use super::log as host_log;
     use super::Env;
@@ -36,7 +37,7 @@ mod test {
 
     pub fn create_mock_host_instance(
         wasm_path: &str,
-    ) -> Result<(Store, Instance), Box<dyn std::error::Error>> {
+    ) -> Result<UnitTestHost, Box<dyn std::error::Error>> {
         let wasm_bytes = std::fs::read(wasm_path)?;
         let mut store = Store::default();
 
@@ -48,7 +49,7 @@ mod test {
         )
         .unwrap();
 
-        log::warn!("________________________ Init WASM Instance with api-version={api_version}");
+        log::warn!("Init WASM Instance with api-version={api_version}");
 
         let env = FunctionEnv::new(
             &mut store,
@@ -152,7 +153,7 @@ mod test {
             log::warn!("MemoryAllocate function is not available in host-exports");
         }
 
-        data_mut.id_of_type = match api_version {
+        data_mut.id_of_type = match api_version.clone() {
             version if version <= Version::new(0, 0, 4) => None,
             _ => instance
                 .exports
@@ -179,6 +180,15 @@ mod test {
             }
         }
 
-        Ok((store, instance))
+        let memory = instance.exports.get_memory("memory")?.clone();
+        let id_of_type = data_mut.id_of_type.clone().unwrap();
+
+        Ok(UnitTestHost {
+            store,
+            instance,
+            api_version,
+            memory,
+            id_of_type,
+        })
     }
 }
