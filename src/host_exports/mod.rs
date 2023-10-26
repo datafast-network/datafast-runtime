@@ -18,7 +18,7 @@ pub struct Env {
 
 #[cfg(test)]
 mod test {
-    use super::asc::UnitTestHost;
+    use super::asc::test::UnitTestHost;
     use super::bigint;
     use super::log as host_log;
     use super::Env;
@@ -49,7 +49,7 @@ mod test {
         )
         .unwrap();
 
-        log::warn!(">> Init WASM Instance with api-version={api_version}");
+        log::warn!("Init WASM Instance with api-version={api_version}");
 
         let env = FunctionEnv::new(
             &mut store,
