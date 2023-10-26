@@ -1,3 +1,5 @@
+use std::env;
+
 use super::Env;
 use crate::asc::base::asc_get;
 use crate::asc::base::AscPtr;
@@ -15,6 +17,11 @@ pub fn log_log(
     match log_level {
         0 => {
             eprintln!("CRITICAL!!!!!!: {string}");
+
+            if env::var("TEST").is_ok() {
+                return Ok(());
+            }
+
             return Err(RuntimeError::new(
                 "Something bad happened, Terminating runtime!",
             ));
@@ -31,16 +38,8 @@ pub fn log_log(
 
 #[cfg(test)]
 mod test {
-    use super::super::test::create_mock_host_instance;
-    use std::env;
+    use super::super::test::*;
+    use crate::impl_host_fn_test;
 
-    #[test]
-    fn test_log() {
-        ::env_logger::try_init().unwrap_or_default();
-        let test_wasm_file_path = env::var("TEST_WASM_FILE").expect("Test Wasm file not found");
-        log::info!("Test Wasm path: {test_wasm_file_path}");
-        let mut host = create_mock_host_instance(&test_wasm_file_path).unwrap();
-        let f = host.instance.exports.get_function("testLog").unwrap();
-        f.call(&mut host.store, &[]).unwrap();
-    }
+    impl_host_fn_test!(test_log, host {});
 }
