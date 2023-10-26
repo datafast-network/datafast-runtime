@@ -49,7 +49,7 @@ mod test {
         )
         .unwrap();
 
-        log::warn!("________________________ Init WASM Instance with api-version={api_version}");
+        log::warn!(">> Init WASM Instance with api-version={api_version}");
 
         let env = FunctionEnv::new(
             &mut store,
@@ -153,7 +153,7 @@ mod test {
             log::warn!("MemoryAllocate function is not available in host-exports");
         }
 
-        data_mut.id_of_type = match api_version {
+        data_mut.id_of_type = match api_version.clone() {
             version if version <= Version::new(0, 0, 4) => None,
             _ => instance
                 .exports
@@ -180,14 +180,15 @@ mod test {
             }
         }
 
-        let unit_test_host = UnitTestHost {
+        let memory = instance.exports.get_memory("memory")?.clone();
+        let id_of_type = data_mut.id_of_type.clone().unwrap();
+
+        Ok(UnitTestHost {
             store,
             instance,
             api_version,
-            memory: data_mut.memory.clone().unwrap(),
-            id_of_type: data_mut.id_of_type.clone().unwrap(),
-        };
-
-        Ok(unit_test_host)
+            memory,
+            id_of_type,
+        })
     }
 }

@@ -41,7 +41,6 @@ mod test {
         log::info!("Test Wasm path: {test_wasm_file_path}");
         let mut host = create_mock_host_instance(&test_wasm_file_path).unwrap();
         let f = host.instance.exports.get_function("testLog").unwrap();
-        log::info!("-- calling");
         f.call(&mut host.store, &[]).unwrap();
     }
 }
