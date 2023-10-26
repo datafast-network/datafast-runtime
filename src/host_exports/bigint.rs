@@ -172,28 +172,16 @@ pub fn big_int_from_string(
 
 #[cfg(test)]
 mod tests {
-    use super::super::test::create_mock_host_instance;
+    use super::super::test::*;
     use crate::asc::base::asc_get;
     use crate::asc::base::AscPtr;
     use crate::asc::bignumber::AscBigInt;
     use crate::bignumber::bigint::BigInt;
-    use std::env;
+    use crate::host_fn_test;
 
-    #[test]
-    fn test_big_int_plus() {
-        env_logger::try_init().unwrap_or_default();
-        let test_wasm_file_path = env::var("TEST_WASM_FILE").expect("Test Wasm file not found");
-        log::info!("Test Wasm path: {test_wasm_file_path}");
-        let mut host = create_mock_host_instance(&test_wasm_file_path).unwrap();
-        let f = host
-            .instance
-            .exports
-            .get_function("testBigIntPlus")
-            .unwrap();
-        let result = f.call(&mut host.store, &[]).unwrap();
-        let ptr = result.first().unwrap().unwrap_i32();
+    host_fn_test!(test_big_int_plus, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr as u32);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "3000");
-    }
+    });
 }

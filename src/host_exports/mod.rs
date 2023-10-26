@@ -2,6 +2,7 @@ mod asc;
 mod big_decimal;
 mod bigint;
 mod log;
+mod macros;
 mod types_conversion;
 
 use semver::Version;
@@ -31,6 +32,7 @@ mod test {
     use log;
     use semver::Version;
     use std::env;
+    use std::path::PathBuf;
     use wasmer::imports;
     use wasmer::Function;
     use wasmer::FunctionEnv;
@@ -38,21 +40,18 @@ mod test {
     use wasmer::Module;
     use wasmer::Store;
 
-    pub fn create_mock_host_instance(
-        wasm_path: &str,
-    ) -> Result<UnitTestHost, Box<dyn std::error::Error>> {
-        let wasm_bytes = std::fs::read(wasm_path)?;
+    pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> UnitTestHost {
+        log::warn!(
+            r#"New host-instance to be created with:
+> api-version={api_version}
+> wasm-file-path={wasm_path}
+"#
+        );
+
+        let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
         let mut store = Store::default();
-
-        let module = Module::new(&store, wasm_bytes)?;
-        let api_version = Version::parse(
-            env::var("RUNTIME_API_VERSION")
-                .unwrap_or("0.0.5".to_string())
-                .as_str(),
-        )
-        .unwrap();
-
-        log::warn!("Init WASM Instance with api-version={api_version}");
+        let module =
+            Module::new(&store, wasm_bytes).expect("Bad wasm content, failed to create module");
 
         let env = FunctionEnv::new(
             &mut store,
@@ -86,6 +85,7 @@ mod test {
             store::store_get,
         );
 
+        // Running cargo-run will immediately tell which functions are missing
         let import_object = imports! {
             "env" => {
                 "abort" => abort,
@@ -147,6 +147,7 @@ mod test {
                 "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
             }
         };
+
         // Running cargo-run will immediately tell which functions are missing
 
         let instance = Instance::new(&mut store, &module, &import_object)?;
@@ -155,7 +156,14 @@ mod test {
         let mut env_mut = env.into_mut(&mut store);
         let (data_mut, mut store_mut) = env_mut.data_and_store_mut();
 
-        data_mut.memory = Some(instance.exports.get_memory("memory")?.clone());
+        data_mut.memory = Some(
+            instance
+                .exports
+                .get_memory("memory")
+                .expect("No global memory function")
+                .clone(),
+        );
+
         data_mut.memory_allocate = match api_version.clone() {
             version if version <= Version::new(0, 0, 4) => instance
                 .exports
@@ -198,15 +206,26 @@ mod test {
             }
         }
 
-        let memory = instance.exports.get_memory("memory")?.clone();
-        let id_of_type = data_mut.id_of_type.clone().unwrap();
+        let memory = instance.exports.get_memory("memory").unwrap().clone();
+        let id_of_type = data_mut.id_of_type.clone();
 
-        Ok(UnitTestHost {
+        UnitTestHost {
             store,
             instance,
             api_version,
             memory,
             id_of_type,
-        })
+        }
+    }
+
+    pub fn version_to_test_resource(version: &str) -> (Version, String) {
+        let version = Version::parse(version).expect("Bad api-version");
+        let mut project_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        project_path.push(format!(
+            "src/host_exports/test_{}.wasm",
+            version.to_string().replace(".", "_"),
+        ));
+        let wasm_path = project_path.into_os_string().into_string().unwrap();
+        (version, wasm_path)
     }
 }
