@@ -5,9 +5,14 @@ use crate::asc::errors::AscError;
 use crate::host_exports::Env;
 use semver::Version;
 use std::mem::MaybeUninit;
+use wasmer::AsStoreMut;
 use wasmer::AsStoreRef;
 use wasmer::FromToNativeWasmType;
 use wasmer::FunctionEnvMut;
+use wasmer::Instance;
+use wasmer::Memory;
+use wasmer::Store;
+use wasmer::TypedFunction;
 use wasmer::Value;
 
 const MIN_ARENA_SIZE: i32 = 10_000;
@@ -147,5 +152,60 @@ impl<T> From<Value> for AscPtr<T> {
             Value::I32(n) => AscPtr::<T>::new(n as u32),
             _ => panic!("Cannot convert {:?} to AscPtr", value),
         }
+    }
+}
+
+pub struct UnitTestHost {
+    pub store: Store,
+    pub instance: Instance,
+    pub memory: Memory,
+    pub api_version: Version,
+    pub id_of_type: TypedFunction<u32, u32>,
+}
+
+impl AscHeap for UnitTestHost {
+    fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
+        unimplemented!()
+    }
+
+    fn read<'a>(
+        &self,
+        offset: u32,
+        buffer: &'a mut [MaybeUninit<u8>],
+    ) -> Result<&'a mut [u8], AscError> {
+        let store_ref = self.store.as_store_ref();
+        let view = self.memory.view(&store_ref);
+
+        view.read_uninit(offset as u64, buffer)
+            .map_err(|_| AscError::Plain(format!("Heap access out of bounds. Offset: {}", offset)))
+    }
+
+    fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
+        let mut bytes = [0; 4];
+        let store_ref = self.store.as_store_ref();
+        let view = self.memory.view(&store_ref);
+
+        view.read(offset as u64, &mut bytes).map_err(|_| {
+            AscError::Plain(format!(
+                "Heap access out of bounds. Offset: {} Size: {}",
+                offset, 4
+            ))
+        })?;
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn api_version(&self) -> Version {
+        self.api_version.clone()
+    }
+
+    fn asc_type_id(&mut self, type_id_index: IndexForAscTypeId) -> Result<u32, AscError> {
+        self.id_of_type
+            .call(&mut self.store.as_store_mut(), type_id_index as u32)
+            .map_err(|err| {
+                AscError::Plain(format!(
+                    "Failed to get Asc type id for index: {:?}. Trap: {}",
+                    type_id_index, err
+                ))
+            })
     }
 }

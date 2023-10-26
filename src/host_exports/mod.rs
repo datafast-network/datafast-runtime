@@ -18,6 +18,7 @@ pub struct Env {
 
 #[cfg(test)]
 mod test {
+    use super::asc::UnitTestHost;
     use super::bigint;
     use super::log as host_log;
     use super::Env;
@@ -36,7 +37,7 @@ mod test {
 
     pub fn create_mock_host_instance(
         wasm_path: &str,
-    ) -> Result<(Store, Instance), Box<dyn std::error::Error>> {
+    ) -> Result<UnitTestHost, Box<dyn std::error::Error>> {
         let wasm_bytes = std::fs::read(wasm_path)?;
         let mut store = Store::default();
 
@@ -179,6 +180,14 @@ mod test {
             }
         }
 
-        Ok((store, instance))
+        let unit_test_host = UnitTestHost {
+            store,
+            instance,
+            api_version,
+            memory: data_mut.memory.clone().unwrap(),
+            id_of_type: data_mut.id_of_type.clone().unwrap(),
+        };
+
+        Ok(unit_test_host)
     }
 }
