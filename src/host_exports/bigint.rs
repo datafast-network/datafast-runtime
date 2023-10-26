@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use super::Env;
 use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;
@@ -8,6 +9,7 @@ use crate::asc::bignumber::AscBigInt;
 use crate::asc::native_types::string::AscString;
 use crate::bignumber::bigdecimal::BigDecimal;
 use crate::bignumber::bigint::BigInt;
+use std::ops::Rem;
 use std::str::FromStr;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
@@ -118,7 +120,8 @@ pub fn big_int_mod(
     if y == 0.into() {
         return Err(RuntimeError::new("Divide by zero error!"));
     }
-    let result = x % y;
+    // NOTE: 20 %-9 = 2 => Đéo hiểu tại sao = 2
+    let result = x.rem(y);
     let asc_pt = asc_new(&mut fenv, &result)?;
     Ok(asc_pt)
 }
@@ -175,13 +178,63 @@ mod tests {
     use super::super::test::*;
     use crate::asc::base::asc_get;
     use crate::asc::base::AscPtr;
+    use crate::asc::bignumber::AscBigDecimal;
     use crate::asc::bignumber::AscBigInt;
+    use crate::bignumber::bigdecimal::BigDecimal;
     use crate::bignumber::bigint::BigInt;
     use crate::host_fn_test;
 
     host_fn_test!(test_big_int_plus, host, ptr {
-        let asc_ptr = AscPtr::<AscBigInt>::new(ptr as u32);
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "3000");
+    });
+
+    host_fn_test!(test_big_int_minus, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "-1000");
+    });
+
+    host_fn_test!(test_big_int_times, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "2000000");
+    });
+
+    host_fn_test!(test_big_int_divided_by, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "6");
+    });
+
+    host_fn_test!(test_big_int_pow, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "100000000000000000001");
+    });
+
+    host_fn_test!(test_big_int_mod, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "9");
+    });
+
+    host_fn_test!(test_big_int_bit_or, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "2040");
+    });
+
+    host_fn_test!(test_big_int_bit_and, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "960");
+    });
+
+    host_fn_test!(test_big_int_divided_by_decimal, host, ptr {
+        let asc_ptr = AscPtr::<AscBigDecimal>::new(ptr);
+        let bigint_result: BigDecimal = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "0.5");
     });
 }

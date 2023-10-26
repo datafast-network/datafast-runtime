@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscPtr;
@@ -94,8 +95,9 @@ pub fn big_decimal_equals(
     fenv: FunctionEnvMut<Env>,
     big_decimal_x_ptr: AscPtr<AscBigDecimal>,
     big_decimal_y_ptr: AscPtr<AscBigDecimal>,
-) -> Result<bool, RuntimeError> {
+) -> Result<i32, RuntimeError> {
     let x: BigDecimal = asc_get(&fenv, big_decimal_x_ptr, 0)?;
     let y: BigDecimal = asc_get(&fenv, big_decimal_y_ptr, 0)?;
-    Ok(x == y)
+    let result = x == y;
+    Ok(result as i32)
 }

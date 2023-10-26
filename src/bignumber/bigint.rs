@@ -177,6 +177,7 @@ impl BigInt {
         w3::U256::from_little_endian(&bytes)
     }
 
+    /// Exponential a `BigInt` to a `u32` power.
     pub fn pow(self, exponent: u32) -> Result<BigInt, BigNumberErr> {
         use num_traits::pow::Pow;
 

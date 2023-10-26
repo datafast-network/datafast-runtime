@@ -157,25 +157,33 @@ impl<C: AscType> AscPtr<C> {
     where
         C: AscIndexId,
     {
-        let mut bytes = asc_obj.to_asc_bytes()?;
+        match heap.api_version() {
+            version if version <= Version::new(0, 0, 4) => {
+                let heap_ptr = heap.raw_new(&asc_obj.to_asc_bytes()?)?;
+                Ok(AscPtr::new(heap_ptr))
+            }
+            _ => {
+                let mut bytes = asc_obj.to_asc_bytes()?;
 
-        let aligned_len = padding_to_16(bytes.len());
-        // Since AssemblyScript keeps all allocated objects with a 16 byte alignment,
-        // we need to do the same when we allocate ourselves.
-        bytes.extend(std::iter::repeat(0).take(aligned_len));
+                let aligned_len = padding_to_16(bytes.len());
+                // Since AssemblyScript keeps all allocated objects with a 16 byte alignment,
+                // we need to do the same when we allocate ourselves.
+                bytes.extend(std::iter::repeat(0).take(aligned_len));
 
-        let header = Self::generate_header(
-            heap,
-            C::INDEX_ASC_TYPE_ID,
-            asc_obj.content_len(&bytes),
-            bytes.len(),
-        )?;
-        let header_len = header.len() as u32;
+                let header = Self::generate_header(
+                    heap,
+                    C::INDEX_ASC_TYPE_ID,
+                    asc_obj.content_len(&bytes),
+                    bytes.len(),
+                )?;
+                let header_len = header.len() as u32;
 
-        let heap_ptr = heap.raw_new(&[header, bytes].concat())?;
+                let heap_ptr = heap.raw_new(&[header, bytes].concat())?;
 
-        // Use header length as offset. so the AscPtr points directly at the content.
-        Ok(AscPtr::new(heap_ptr + header_len))
+                // Use header length as offset. so the AscPtr points directly at the content.
+                Ok(AscPtr::new(heap_ptr + header_len))
+            }
+        }
     }
 
     /// Helper used by arrays and strings to read their length.
