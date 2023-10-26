@@ -29,7 +29,6 @@ mod test {
     use super::Env;
     use crate::global;
     use crate::store;
-    use log;
     use semver::Version;
     use std::env;
     use std::path::PathBuf;
@@ -150,7 +149,8 @@ mod test {
 
         // Running cargo-run will immediately tell which functions are missing
 
-        let instance = Instance::new(&mut store, &module, &import_object)?;
+        let instance = Instance::new(&mut store, &module, &import_object)
+            .expect("Failed to instantiate wasm module");
 
         // Bind guest memory ref & __alloc to env
         let mut env_mut = env.into_mut(&mut store);
