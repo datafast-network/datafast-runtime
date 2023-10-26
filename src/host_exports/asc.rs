@@ -169,7 +169,7 @@ pub mod test {
         pub instance: Instance,
         pub memory: Memory,
         pub api_version: Version,
-        pub id_of_type: TypedFunction<u32, u32>,
+        pub id_of_type: Option<TypedFunction<u32, u32>>,
     }
 
     impl AscHeap for UnitTestHost {
@@ -209,7 +209,14 @@ pub mod test {
         }
 
         fn asc_type_id(&mut self, type_id_index: IndexForAscTypeId) -> Result<u32, AscError> {
+            if self.id_of_type.is_none() {
+                log::warn!("id_of_type is not available. skipping");
+                return Ok(0);
+            }
+
             self.id_of_type
+                .as_ref()
+                .unwrap()
                 .call(&mut self.store.as_store_mut(), type_id_index as u32)
                 .map_err(|err| {
                     AscError::Plain(format!(
