@@ -1,4 +1,5 @@
 mod asc;
+mod big_decimal;
 mod bigint;
 mod log;
 
@@ -19,6 +20,7 @@ pub struct Env {
 #[cfg(test)]
 mod test {
     use super::asc::test::UnitTestHost;
+    use super::big_decimal;
     use super::bigint;
     use super::log as host_log;
     use super::Env;
@@ -134,6 +136,14 @@ mod test {
                 "bigInt.bitAnd" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_and),
                 "bigInt.leftShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_left_shift),
                 "bigInt.rightShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_right_shift),
+                //Big Decimal
+                "bigDecimal.fromString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_from_string),
+                "bigDecimal.toString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_to_string),
+                "bigDecimal.plus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_plus),
+                "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_minus),
+                "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_times),
+                "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_divided_by),
+                "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
             },
             "index" => {
                 "store.set" => store_set,
@@ -152,8 +162,17 @@ mod test {
                 "bigInt.bitAnd" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_and),
                 "bigInt.leftShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_left_shift),
                 "bigInt.rightShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_right_shift),
+                //Big Decimal
+                "bigDecimal.fromString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_from_string),
+                "bigDecimal.toString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_to_string),
+                "bigDecimal.plus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_plus),
+                "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_minus),
+                "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_times),
+                "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_divided_by),
+                "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
             }
         };
+
         let instance = Instance::new(&mut store, &module, &import_object)?;
 
         // Bind guest memory ref & __alloc to env
