@@ -26,9 +26,9 @@ mod tests {
     use crate::asc::base::AscPtr;
     use crate::asc::bignumber::AscBigInt;
     use crate::bignumber::bigint::BigInt;
-    use crate::impl_host_fn_test;
+    use crate::host_fn_test;
 
-    impl_host_fn_test!(test_big_int_plus, host, ptr {
+    host_fn_test!(test_big_int_plus, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr as u32);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "3000");

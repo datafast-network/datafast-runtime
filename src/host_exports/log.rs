@@ -18,7 +18,8 @@ pub fn log_log(
         0 => {
             eprintln!("CRITICAL!!!!!!: {string}");
 
-            if env::var("TEST").is_ok() {
+            if env::var("SUBGRAPH_WASM_RUNTIME_TEST").is_ok() {
+                // NOTE: if testing, just don't throw anything
                 return Ok(());
             }
 
@@ -39,7 +40,7 @@ pub fn log_log(
 #[cfg(test)]
 mod test {
     use super::super::test::*;
-    use crate::impl_host_fn_test;
+    use crate::host_fn_test;
 
-    impl_host_fn_test!(test_log, host {});
+    host_fn_test!(test_log, host {});
 }
