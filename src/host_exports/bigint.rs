@@ -12,18 +12,14 @@ pub fn big_int_plus(
     bigint_x_ptr: AscPtr<AscBigInt>,
     bigint_y_ptr: AscPtr<AscBigInt>,
 ) -> Result<AscPtr<AscBigInt>, RuntimeError> {
-    let bigint_x: BigInt = asc_get(&fenv, bigint_x_ptr, 0)
-        .map_err(|e| RuntimeError::new(format!("Failed to get AscBigInt from ptr: {}", e)))?;
-
-    let bigint_y: BigInt = asc_get(&fenv, bigint_y_ptr, 0)
-        .map_err(|e| RuntimeError::new(format!("Failed to get AscBigInt from ptr: {}", e)))?;
+    let bigint_x: BigInt = asc_get(&fenv, bigint_x_ptr, 0)?;
+    let bigint_y: BigInt = asc_get(&fenv, bigint_y_ptr, 0)?;
 
     log::info!("bigint_x: {bigint_x}");
     log::info!("bigint_y: {bigint_y}");
 
     let result = bigint_x + bigint_y;
-    let asc_pt = asc_new(&mut fenv, &result)
-        .map_err(|e| RuntimeError::new(format!("Failed to alloc AscBigInt: {}", e)))?;
+    let asc_pt = asc_new(&mut fenv, &result)?;
 
     log::info!("result: {result}");
     log::info!("asc_pt: {}", asc_pt.wasm_ptr());

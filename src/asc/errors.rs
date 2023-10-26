@@ -1,5 +1,7 @@
 use crate::bignumber::errors as BNErr;
+use log::error;
 use std::fmt;
+use wasmer::RuntimeError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AscError {
@@ -48,6 +50,12 @@ impl fmt::Display for DeterministicHostError {
 impl From<anyhow::Error> for DeterministicHostError {
     fn from(e: anyhow::Error) -> DeterministicHostError {
         DeterministicHostError::Other(e)
+    }
+}
+
+impl From<AscError> for RuntimeError {
+    fn from(err: AscError) -> Self {
+        RuntimeError::new(err.to_string())
     }
 }
 

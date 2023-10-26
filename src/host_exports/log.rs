@@ -10,8 +10,7 @@ pub fn log_log(
     log_level: i32,
     msg_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
-    let string: String = asc_get(&fenv, msg_ptr, 0)
-        .map_err(|e| RuntimeError::new(format!("Failed to get AscString from ptr: {}", e)))?;
+    let string: String = asc_get(&fenv, msg_ptr, 0)?;
     match log_level {
         0 => eprintln!("CRITICAL!!!!!!: {string}"),
         1 => log::error!("{string}"),
