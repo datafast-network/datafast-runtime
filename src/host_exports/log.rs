@@ -37,17 +37,10 @@ pub fn log_log(
     Ok(())
 }
 
-pub fn log_dkm(fenv: FunctionEnvMut<Env>, name: AscPtr<AscString>) -> Result<(), RuntimeError> {
-    let string: String = asc_get(&fenv, name, 0)?;
-    log::error!("DKM {string}");
-    Ok(())
-}
 #[cfg(test)]
 mod test {
     use super::super::test::*;
     use crate::host_fn_test;
 
     host_fn_test!(test_log, host {});
-
-    host_fn_test!(test_dkm, host {});
 }

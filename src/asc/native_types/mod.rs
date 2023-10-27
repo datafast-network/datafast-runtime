@@ -55,6 +55,13 @@ impl<T: AscValue> ToAscObj<AscWrapped<T>> for AscWrapped<T> {
     }
 }
 
+pub struct Bytes<'a>(pub &'a Vec<u8>);
+
+impl ToAscObj<Uint8Array> for Bytes<'_> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, AscError> {
+        self.0.to_asc_obj(heap)
+    }
+}
 #[repr(C)]
 pub struct AscResult<V: AscValue, E: AscValue> {
     pub value: AscPtr<AscWrapped<V>>,

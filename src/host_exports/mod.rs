@@ -119,9 +119,6 @@ mod test {
                 "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_divided_by),
                 "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
             },
-            "test" => {
-                "dkm.dkm" => Function::new_typed_with_env(&mut store, &env, host_log::log_dkm),
-            },
             "index" => { //index for subgraph version <= 4
                 "store.set" => store_set,
                 "store.get" => store_get,
