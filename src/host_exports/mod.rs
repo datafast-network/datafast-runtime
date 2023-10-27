@@ -67,10 +67,7 @@ mod test {
         // Running cargo-run will immediately tell which functions are missing
         let import_object = imports! {
             "env" => {
-                "abort" => Function::new_typed(&mut store, |x: i32, y: i32, z: i32, g: i32| {
-                    log::info!("Shit");
-                    Ok::<(), RuntimeError>(())
-                }),
+                "abort" => Function::new_typed(&mut store, |_: i32, _: i32, _: i32, _: i32| unimplemented!()),
             },
             "conversion" => {
                 "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
@@ -155,7 +152,7 @@ mod test {
                 .clone(),
         );
 
-        let memory_allocate = match api_version.clone() {
+        data_mut.memory_allocate = match api_version.clone() {
             version if version <= Version::new(0, 0, 4) => instance
                 .exports
                 .get_typed_function(&store_mut, "memory.allocate")
@@ -165,8 +162,6 @@ mod test {
                 .get_typed_function(&store_mut, "allocate")
                 .ok(),
         };
-
-        data_mut.memory_allocate = memory_allocate.clone();
 
         if data_mut.memory_allocate.is_none() {
             log::warn!("MemoryAllocate function is not available in host-exports");
@@ -203,6 +198,7 @@ mod test {
         let id_of_type = data_mut.id_of_type.clone();
         let arena_free_size = data_mut.arena_free_size;
         let arena_start_ptr = data_mut.arena_start_ptr;
+        let memory_allocate = data_mut.memory_allocate.clone();
 
         UnitTestHost {
             store,
