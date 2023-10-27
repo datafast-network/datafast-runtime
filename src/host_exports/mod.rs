@@ -1,5 +1,5 @@
 mod asc;
-mod big_decimal;
+mod bigdecimal;
 mod bigint;
 mod log;
 mod macros;
@@ -22,7 +22,7 @@ pub struct Env {
 #[cfg(test)]
 mod test {
     use super::asc::test::UnitTestHost;
-    use super::big_decimal;
+    use super::bigdecimal;
     use super::bigint;
     use super::log as host_log;
     use super::types_conversion;
@@ -89,13 +89,13 @@ mod test {
                 "bigInt.leftShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_left_shift),
                 "bigInt.rightShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_right_shift),
                 //Big Decimal
-                "bigDecimal.fromString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_from_string),
-                "bigDecimal.toString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_to_string),
-                "bigDecimal.plus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_plus),
-                "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_minus),
-                "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_times),
-                "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_divided_by),
-                "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
+                "bigDecimal.fromString" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_from_string),
+                "bigDecimal.toString" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_to_string),
+                "bigDecimal.plus" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_plus),
+                "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_minus),
+                "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_times),
+                "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_divided_by),
+                "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
             },
             "index" => { //index for subgraph version <= 4
                 "store.set" => Function::new_typed(&mut store, || unimplemented!()),
@@ -124,13 +124,13 @@ mod test {
                 "bigInt.leftShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_left_shift),
                 "bigInt.rightShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_right_shift),
                 //Big Decimal
-                "bigDecimal.fromString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_from_string),
-                "bigDecimal.toString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_to_string),
-                "bigDecimal.plus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_plus),
-                "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_minus),
-                "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_times),
-                "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_divided_by),
-                "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
+                "bigDecimal.fromString" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_from_string),
+                "bigDecimal.toString" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_to_string),
+                "bigDecimal.plus" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_plus),
+                "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_minus),
+                "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_times),
+                "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_divided_by),
+                "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
             }
         };
 
