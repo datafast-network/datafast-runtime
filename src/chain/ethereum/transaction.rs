@@ -1,8 +1,13 @@
 use super::asc::*;
+use crate::asc::base::asc_new;
+use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::IndexForAscTypeId;
+use crate::asc::base::ToAscObj;
+use crate::asc::errors::AscError;
 use crate::asc::native_types::Uint8Array;
+use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
 use ethabi::Bytes;
 use semver::Version;
@@ -42,32 +47,7 @@ impl_asc_type_struct!(
     nonce => AscPtr<AscBigInt>
 );
 
-/*
-/// Convert to Asc Transaction from Query Store
-impl ToAscObj<AscEthereumTransaction> for EthereumTransactionData {
-    fn to_asc_obj<H: AscHeap + ?Sized>(
-        &self,
-        heap: &mut H,
-        gas: &GasCounter,
-    ) -> Result<AscEthereumTransaction, HostExportError> {
-        Ok(AscEthereumTransaction {
-            hash: asc_new(heap, &self.hash)?,
-            index: asc_new(heap, &BigInt::from_unsigned_u128(self.index))?,
-            from: asc_new(heap, &self.from)?,
-            to: self
-                .to
-                .map(|to| asc_new(heap, &to))
-                .unwrap_or(Ok(AscPtr::null()))?,
-            value: asc_new(heap, &BigInt::from_unsigned_u256(&self.value))?,
-            gas_limit: asc_new(heap, &BigInt::from_unsigned_u256(&self.gas_limit))?,
-            gas_price: asc_new(heap, &BigInt::from_unsigned_u256(&self.gas_price))?,
-            input: asc_new(heap, &*self.input)?,
-            nonce: asc_new(heap, &BigInt::from_unsigned_u256(&self.nonce))?,
-        })
-    }
-}*/
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct EthereumTransactionData {
     pub hash: H256,
     pub index: U128,
@@ -96,5 +76,27 @@ impl From<&'_ Transaction> for EthereumTransactionData {
             input: tx.input.0.clone(),
             nonce: tx.nonce,
         }
+    }
+}
+
+impl ToAscObj<AscEthereumTransaction> for EthereumTransactionData {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscEthereumTransaction, AscError> {
+        Ok(AscEthereumTransaction {
+            hash: asc_new(heap, &self.hash)?,
+            index: asc_new(heap, &BigInt::from_unsigned_u128(self.index))?,
+            from: asc_new(heap, &self.from)?,
+            to: self
+                .to
+                .map(|to| asc_new(heap, &to))
+                .unwrap_or(Ok(AscPtr::null()))?,
+            value: asc_new(heap, &BigInt::from_unsigned_u256(&self.value))?,
+            gas_limit: asc_new(heap, &BigInt::from_unsigned_u256(&self.gas_limit))?,
+            gas_price: asc_new(heap, &BigInt::from_unsigned_u256(&self.gas_price))?,
+            input: asc_new(heap, &*self.input)?,
+            nonce: asc_new(heap, &BigInt::from_unsigned_u256(&self.nonce))?,
+        })
     }
 }

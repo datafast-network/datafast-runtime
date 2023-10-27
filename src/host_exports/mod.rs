@@ -1,6 +1,7 @@
 mod asc;
 mod bigdecimal;
 mod bigint;
+mod chain;
 mod log;
 mod macros;
 mod types_conversion;
@@ -65,7 +66,7 @@ mod test {
         // Running cargo-run will immediately tell which functions are missing
         let import_object = imports! {
             "env" => {
-                "abort" => Function::new_typed(&mut store, || unimplemented!()),
+                "abort" => Function::new_typed(&mut store, |_: i32, _: i32, _: i32, _: i32| unimplemented!()),
             },
             "conversion" => {
                 "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
@@ -98,8 +99,8 @@ mod test {
                 "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
             },
             "index" => { //index for subgraph version <= 4
-                "store.set" => Function::new_typed(&mut store, || unimplemented!()),
-                "store.get" => Function::new_typed(&mut store, || unimplemented!()),
+                "store.set" => Function::new_typed(&mut store, || todo!("Store set")),
+                "store.get" => Function::new_typed(&mut store, || todo!("Store get")),
                 //Convert
                 "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
                 "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),
@@ -194,13 +195,19 @@ mod test {
 
         let memory = instance.exports.get_memory("memory").unwrap().clone();
         let id_of_type = data_mut.id_of_type.clone();
+        let arena_free_size = data_mut.arena_free_size;
+        let arena_start_ptr = data_mut.arena_start_ptr;
+        let memory_allocate = data_mut.memory_allocate.clone();
 
         UnitTestHost {
             store,
             instance,
             api_version,
             memory,
+            memory_allocate,
             id_of_type,
+            arena_start_ptr,
+            arena_free_size,
         }
     }
 
