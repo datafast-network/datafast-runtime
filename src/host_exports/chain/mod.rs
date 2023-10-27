@@ -14,11 +14,12 @@ mod test {
         host,
         _void
         {
-            let mut block = EthereumBlockData::default();
-            block.number = U64::from_str_radix("153453", 10).unwrap();
-            block.hash =
-                H256::from_str("0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440")
-                .unwrap();
+            let mut block = EthereumBlockData {
+                number: U64::from_str_radix("153453", 10).unwrap(),
+                hash: H256::from_str("0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440")
+                .unwrap(),
+                ..Default::default()
+            };
             let asc_block = asc_new(&mut host, &mut block).unwrap();
             let ptr = asc_block.wasm_ptr() as i32;
             [Value::I32(ptr)]
