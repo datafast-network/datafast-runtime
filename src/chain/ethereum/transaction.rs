@@ -47,7 +47,7 @@ impl_asc_type_struct!(
     nonce => AscPtr<AscBigInt>
 );
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct EthereumTransactionData {
     pub hash: H256,
     pub index: U128,

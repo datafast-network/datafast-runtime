@@ -46,7 +46,7 @@ impl AscIndexId for AscEthereumEvent<AscEthereumTransaction, AscEthereumBlock> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::EthereumEvent;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct EthereumEventData {
     pub address: Address,
     pub log_index: U256,
