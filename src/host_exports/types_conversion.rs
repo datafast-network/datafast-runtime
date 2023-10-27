@@ -12,10 +12,7 @@ use anyhow::Context;
 use std::str::FromStr;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
-use wasmer::Type;
 use web3::types::H160;
-
-pub const CONVERSION_TYPE: ([Type; 1], [Type; 1]) = ([Type::I32], [Type::I32]);
 
 fn convert_bytes_to_string(bytes: Vec<u8>) -> String {
     let s = String::from_utf8_lossy(&bytes);

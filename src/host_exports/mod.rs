@@ -36,7 +36,6 @@ mod test {
     use wasmer::FunctionEnv;
     use wasmer::Instance;
     use wasmer::Module;
-    use wasmer::RuntimeError;
     use wasmer::Store;
 
     pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> UnitTestHost {
