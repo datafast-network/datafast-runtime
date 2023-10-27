@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use super::Env;
 use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;

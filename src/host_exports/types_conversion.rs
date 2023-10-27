@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscPtr;
