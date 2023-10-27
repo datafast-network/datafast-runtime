@@ -75,10 +75,9 @@ macro_rules! host_fn_test {
             use std::env;
 
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
-
             env_logger::try_init().unwrap_or_default();
-            let (version, wasm_path) = version_to_test_resource(version);
 
+            let (version, wasm_path) = version_to_test_resource(version);
             let mut $host = mock_host_instance(version, &wasm_path);
 
             let args = $construct_args;

@@ -98,7 +98,6 @@ impl<'a, T> From<&'a Block<T>> for EthereumBlockData {
     }
 }
 
-/// Convert bblock data from query store to Asc Block
 impl ToAscObj<AscEthereumBlock> for EthereumBlockData {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscEthereumBlock, AscError> {
         Ok(AscEthereumBlock {
