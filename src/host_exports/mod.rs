@@ -157,7 +157,6 @@ mod test {
         };
 
         // Running cargo-run will immediately tell which functions are missing
-
         let instance = Instance::new(&mut store, &module, &import_object)
             .expect("Failed to instantiate wasm module");
 
@@ -232,7 +231,7 @@ mod test {
         let mut project_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         project_path.push(format!(
             "src/host_exports/test_{}.wasm",
-            version.to_string().replace(".", "_"),
+            version.to_string().replace('.', "_"),
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
         (version, wasm_path)
