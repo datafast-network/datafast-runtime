@@ -1,7 +1,9 @@
 mod asc;
+mod big_decimal;
 mod bigint;
 mod log;
 mod macros;
+mod types_conversion;
 
 use semver::Version;
 use wasmer::Memory;
@@ -20,13 +22,13 @@ pub struct Env {
 #[cfg(test)]
 mod test {
     use super::asc::test::UnitTestHost;
+    use super::big_decimal;
     use super::bigint;
     use super::log as host_log;
+    use super::types_conversion;
     use super::Env;
-    use crate::conversion;
     use crate::global;
     use crate::store;
-    use log;
     use semver::Version;
     use std::env;
     use std::path::PathBuf;
@@ -40,9 +42,9 @@ mod test {
     pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> UnitTestHost {
         log::warn!(
             r#"New host-instance to be created with:
-> api-version={api_version}
-> wasm-file-path={wasm_path}
-"#
+                > api-version={api_version}
+                > wasm-file-path={wasm_path}
+            "#
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
@@ -66,33 +68,6 @@ mod test {
         let abort = Function::new(&mut store, global::ABORT_TYPE, global::abort);
 
         // Conversion functions
-        let big_int_to_hex = Function::new(
-            &mut store,
-            conversion::CONVERSION_TYPE,
-            // TODO: fix implementation
-            conversion::big_int_to_hex,
-        );
-
-        let big_decimal_to_string = Function::new(
-            &mut store,
-            conversion::CONVERSION_TYPE,
-            // TODO: fix implementation
-            conversion::big_int_to_hex,
-        );
-
-        let bytes_to_hex = Function::new(
-            &mut store,
-            conversion::CONVERSION_TYPE,
-            // TODO: fix implementation
-            conversion::bytes_to_hex,
-        );
-
-        let big_int_to_string = Function::new(
-            &mut store,
-            conversion::CONVERSION_TYPE,
-            // TODO: fix implementation
-            conversion::big_int_to_string,
-        );
 
         // Store functions
         let store_set = Function::new(
@@ -115,24 +90,75 @@ mod test {
                 "abort" => abort,
             },
             "conversion" => {
-                "typeConversion.bigIntToHex" => big_int_to_hex,
-                "typeConversion.bytesToHex" => bytes_to_hex,
-                "typeConversion.bigIntToString" => big_int_to_string,
+                "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
+                "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),
+                "typeConversion.bigIntToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::big_int_to_string),
+                "typeConversion.bigIntToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::big_int_to_hex),
+                "typeConversion.stringToH160" => Function::new_typed_with_env(&mut store, &env, types_conversion::string_to_h160),
+                "typeConversion.bytesToBase58" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_base58),
             },
             "numbers" => {
-                "bigDecimal.toString" => big_decimal_to_string.clone(),
-                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus)
+                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus),
+                "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
+                "bigInt.times" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_times),
+                "bigInt.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_divided_by),
+                "bigInt.dividedByDecimal" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_divided_by_decimal),
+                "bigInt.pow" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_pow),
+                "bigInt.mod" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_mod),
+                "bigInt.fromString" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_from_string),
+                "bigInt.bitOr" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_or),
+                "bigInt.bitAnd" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_and),
+                "bigInt.leftShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_left_shift),
+                "bigInt.rightShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_right_shift),
+                //Big Decimal
+                "bigDecimal.fromString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_from_string),
+                "bigDecimal.toString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_to_string),
+                "bigDecimal.plus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_plus),
+                "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_minus),
+                "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_times),
+                "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_divided_by),
+                "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
             },
-            "index" => {
+            "index" => { //index for subgraph version <= 4
                 "store.set" => store_set,
                 "store.get" => store_get,
+                //Convert
+                "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
+                "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),
+                "typeConversion.bigIntToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::big_int_to_string),
+                "typeConversion.bigIntToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::big_int_to_hex),
+                "typeConversion.stringToH160" => Function::new_typed_with_env(&mut store, &env, types_conversion::string_to_h160),
+                "typeConversion.bytesToBase58" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_base58),
+                //Log
                 "log.log" => Function::new_typed_with_env(&mut store, &env, host_log::log_log),
-                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus)
+                // BigInt
+                "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus),
+                "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
+                "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
+                "bigInt.times" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_times),
+                "bigInt.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_divided_by),
+                "bigInt.dividedByDecimal" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_divided_by_decimal),
+                "bigInt.pow" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_pow),
+                "bigInt.mod" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_mod),
+                "bigInt.fromString" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_from_string),
+                "bigInt.bitOr" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_or),
+                "bigInt.bitAnd" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_bit_and),
+                "bigInt.leftShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_left_shift),
+                "bigInt.rightShift" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_right_shift),
+                //Big Decimal
+                "bigDecimal.fromString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_from_string),
+                "bigDecimal.toString" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_to_string),
+                "bigDecimal.plus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_plus),
+                "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_minus),
+                "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_times),
+                "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_divided_by),
+                "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
             }
         };
 
-        let instance =
-            Instance::new(&mut store, &module, &import_object).expect("Failed to create Instance");
+        // Running cargo-run will immediately tell which functions are missing
+        let instance = Instance::new(&mut store, &module, &import_object)
+            .expect("Failed to instantiate wasm module");
 
         // Bind guest memory ref & __alloc to env
         let mut env_mut = env.into_mut(&mut store);
@@ -205,7 +231,7 @@ mod test {
         let mut project_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         project_path.push(format!(
             "src/host_exports/test_{}.wasm",
-            version.to_string().replace(".", "_"),
+            version.to_string().replace('.', "_"),
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
         (version, wasm_path)

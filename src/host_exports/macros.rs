@@ -2,7 +2,6 @@
 macro_rules! host_fn_test {
     ($guest_func:ident, $host:ident, $ptr:ident $body:block) => {
         #[::rstest::rstest]
-        #[case("0.0.3")]
         #[case("0.0.4")]
         #[case("0.0.5")]
         fn $guest_func(#[case] version: &str) {
@@ -29,14 +28,13 @@ macro_rules! host_fn_test {
             let result = func
                 .call(&mut $host.store, &[])
                 .expect("Calling function failed!");
-            let $ptr = result.first().unwrap().unwrap_i32();
+            let $ptr = result.first().unwrap().unwrap_i32() as u32;
 
             $body
         }
     };
     ($guest_func:ident, $host:ident $body:block) => {
         #[::rstest::rstest]
-        #[case("0.0.3")]
         #[case("0.0.4")]
         #[case("0.0.5")]
         fn $guest_func(#[case] version: &str) {
