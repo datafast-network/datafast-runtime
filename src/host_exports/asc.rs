@@ -152,6 +152,7 @@ impl<T> From<Value> for AscPtr<T> {
 
 #[cfg(test)]
 pub mod test {
+    use super::MIN_ARENA_SIZE;
     use crate::asc::base::AscHeap;
     use crate::asc::base::IndexForAscTypeId;
     use crate::asc::errors::AscError;
@@ -170,11 +171,64 @@ pub mod test {
         pub memory: Memory,
         pub api_version: Version,
         pub id_of_type: Option<TypedFunction<u32, u32>>,
+        pub memory_allocate: Option<TypedFunction<i32, i32>>,
+        pub arena_start_ptr: i32,
+        pub arena_free_size: i32,
     }
 
     impl AscHeap for UnitTestHost {
-        fn raw_new(&mut self, _bytes: &[u8]) -> Result<u32, AscError> {
-            unimplemented!()
+        fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
+            let require_length = bytes.len() as u64;
+            let size = i32::try_from(bytes.len()).unwrap();
+
+            if size > self.arena_free_size {
+                // Allocate a new arena. Any free space left in the previous arena is left unused. This
+                // causes at most half of memory to be wasted, which is acceptable.
+                let arena_size = size.max(MIN_ARENA_SIZE);
+
+                // Unwrap: This may panic if more memory needs to be requested from the OS and that
+                // fails. This error is not deterministic since it depends on the operating conditions
+                // of the node.
+                if let Some(memory_allocate) = self.memory_allocate.clone() {
+                    let new_arena_ptr = memory_allocate.call(&mut self.store, arena_size).unwrap();
+                    self.arena_start_ptr = new_arena_ptr;
+                }
+
+                self.arena_free_size = arena_size;
+
+                match &self.api_version {
+                    version if *version <= Version::new(0, 0, 4) => {}
+                    _ => {
+                        // This arithmetic is done because when you call AssemblyScripts's `__alloc`
+                        // function, it isn't typed and it just returns `mmInfo` on it's header,
+                        // differently from allocating on regular types (`__new` for example).
+                        // `mmInfo` has size of 4, and everything allocated on AssemblyScript memory
+                        // should have alignment of 16, this means we need to do a 12 offset on these
+                        // big chunks of untyped allocation.
+                        self.arena_start_ptr += 12;
+                        self.arena_free_size -= 12;
+                    }
+                };
+            };
+
+            let view = self.memory.view(&self.store);
+            let available_length = view.data_size();
+
+            // For now, not allow increase memory size
+            if available_length < require_length {
+                return Err(AscError::SizeNotFit);
+            }
+
+            // NOTE: write to page's footer
+            let ptr = self.arena_start_ptr as usize;
+
+            view.write(ptr as u64, bytes).expect("Failed");
+
+            // Unwrap: We have just allocated enough space for `bytes`.
+            self.arena_start_ptr += size;
+            self.arena_free_size -= size;
+
+            Ok(ptr as u32)
         }
 
         fn read<'a>(

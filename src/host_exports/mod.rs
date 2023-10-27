@@ -1,6 +1,7 @@
 mod asc;
 mod bigdecimal;
 mod bigint;
+mod chain;
 mod log;
 mod macros;
 mod types_conversion;
@@ -35,6 +36,7 @@ mod test {
     use wasmer::FunctionEnv;
     use wasmer::Instance;
     use wasmer::Module;
+    use wasmer::RuntimeError;
     use wasmer::Store;
 
     pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> UnitTestHost {
@@ -65,7 +67,10 @@ mod test {
         // Running cargo-run will immediately tell which functions are missing
         let import_object = imports! {
             "env" => {
-                "abort" => Function::new_typed(&mut store, || unimplemented!()),
+                "abort" => Function::new_typed(&mut store, |x: i32, y: i32, z: i32, g: i32| {
+                    log::info!("Shit");
+                    Ok::<(), RuntimeError>(())
+                }),
             },
             "conversion" => {
                 "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
@@ -98,8 +103,8 @@ mod test {
                 "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
             },
             "index" => { //index for subgraph version <= 4
-                "store.set" => Function::new_typed(&mut store, || unimplemented!()),
-                "store.get" => Function::new_typed(&mut store, || unimplemented!()),
+                "store.set" => Function::new_typed(&mut store, || todo!("Store set")),
+                "store.get" => Function::new_typed(&mut store, || todo!("Store get")),
                 //Convert
                 "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
                 "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),
@@ -150,7 +155,7 @@ mod test {
                 .clone(),
         );
 
-        data_mut.memory_allocate = match api_version.clone() {
+        let memory_allocate = match api_version.clone() {
             version if version <= Version::new(0, 0, 4) => instance
                 .exports
                 .get_typed_function(&store_mut, "memory.allocate")
@@ -160,6 +165,8 @@ mod test {
                 .get_typed_function(&store_mut, "allocate")
                 .ok(),
         };
+
+        data_mut.memory_allocate = memory_allocate.clone();
 
         if data_mut.memory_allocate.is_none() {
             log::warn!("MemoryAllocate function is not available in host-exports");
@@ -194,13 +201,18 @@ mod test {
 
         let memory = instance.exports.get_memory("memory").unwrap().clone();
         let id_of_type = data_mut.id_of_type.clone();
+        let arena_free_size = data_mut.arena_free_size;
+        let arena_start_ptr = data_mut.arena_start_ptr;
 
         UnitTestHost {
             store,
             instance,
             api_version,
             memory,
+            memory_allocate,
             id_of_type,
+            arena_start_ptr,
+            arena_free_size,
         }
     }
 

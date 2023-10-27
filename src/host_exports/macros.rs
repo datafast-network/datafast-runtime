@@ -33,6 +33,7 @@ macro_rules! host_fn_test {
             $body
         }
     };
+
     ($guest_func:ident, $host:ident $body:block) => {
         #[::rstest::rstest]
         #[case("0.0.4")]

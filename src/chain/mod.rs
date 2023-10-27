@@ -1,1 +1,1 @@
-mod ethereum;
+pub mod ethereum;
