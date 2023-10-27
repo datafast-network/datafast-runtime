@@ -215,7 +215,7 @@ mod test {
         let version = Version::parse(version).expect("Bad api-version");
         let mut project_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         project_path.push(format!(
-            "src/host_exports/test_{}.wasm",
+            "../subgraph-testing/wasm/test_{}.wasm",
             version.to_string().replace('.', "_"),
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
