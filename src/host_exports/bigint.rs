@@ -237,4 +237,16 @@ mod tests {
         let bigint_result: BigDecimal = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "0.5");
     });
+
+    host_fn_test!(test_big_int_left_shift, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "1024000");
+    });
+
+    host_fn_test!(test_big_int_right_shift, host, ptr {
+        let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(bigint_result.to_string(), "0");
+    });
 }
