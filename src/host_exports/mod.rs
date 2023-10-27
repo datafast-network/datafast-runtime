@@ -27,8 +27,6 @@ mod test {
     use super::log as host_log;
     use super::types_conversion;
     use super::Env;
-    use crate::global;
-    use crate::store;
     use semver::Version;
     use std::env;
     use std::path::PathBuf;
@@ -64,30 +62,10 @@ mod test {
             },
         );
 
-        // Global
-        let abort = Function::new(&mut store, global::ABORT_TYPE, global::abort);
-
-        // Conversion functions
-
-        // Store functions
-        let store_set = Function::new(
-            &mut store,
-            store::STORE_SET_TYPE,
-            // TODO: fix implementation
-            store::store_set,
-        );
-
-        let store_get = Function::new(
-            &mut store,
-            store::STORE_GET_TYPE,
-            // TODO: fix implementation
-            store::store_get,
-        );
-
         // Running cargo-run will immediately tell which functions are missing
         let import_object = imports! {
             "env" => {
-                "abort" => abort,
+                "abort" => Function::new_typed(&mut store, || unimplemented!()),
             },
             "conversion" => {
                 "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
@@ -120,8 +98,8 @@ mod test {
                 "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, big_decimal::big_decimal_equals),
             },
             "index" => { //index for subgraph version <= 4
-                "store.set" => store_set,
-                "store.get" => store_get,
+                "store.set" => Function::new_typed(&mut store, || unimplemented!()),
+                "store.get" => Function::new_typed(&mut store, || unimplemented!()),
                 //Convert
                 "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
                 "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),
