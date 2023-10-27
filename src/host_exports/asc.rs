@@ -5,9 +5,12 @@ use crate::asc::errors::AscError;
 use crate::host_exports::Env;
 use semver::Version;
 use std::mem::MaybeUninit;
+use wasmer::AsStoreMut;
 use wasmer::AsStoreRef;
 use wasmer::FromToNativeWasmType;
 use wasmer::FunctionEnvMut;
+use wasmer::NativeWasmTypeInto;
+use wasmer::Type;
 use wasmer::Value;
 
 const MIN_ARENA_SIZE: i32 = 10_000;

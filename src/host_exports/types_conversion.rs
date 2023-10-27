@@ -110,3 +110,22 @@ pub fn bytes_to_base58(
     let result = asc_new(&mut fenv, &bs58::encode(bytes).into_string())?;
     Ok(result)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::test::*;
+    use super::*;
+    use crate::host_fn_test;
+
+    host_fn_test!(test_bytes_to_hex, host, ptr {
+        let asc_ptr = AscPtr::<AscString>::new(ptr);
+        let string_result: String = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(string_result, "0x616263");
+    });
+
+    host_fn_test!(test_bytes_to_string, host, ptr {
+        let asc_ptr = AscPtr::<AscString>::new(ptr);
+        let string_result: String = asc_get(&host, asc_ptr, 0).unwrap();
+        assert_eq!(string_result, "abc");
+    });
+}
