@@ -2,6 +2,7 @@ mod asc;
 mod bigdecimal;
 mod bigint;
 mod chain;
+mod global;
 mod log;
 mod macros;
 mod types_conversion;
@@ -25,6 +26,7 @@ mod test {
     use super::asc::test::UnitTestHost;
     use super::bigdecimal;
     use super::bigint;
+    use super::global;
     use super::log as host_log;
     use super::types_conversion;
     use super::Env;
@@ -66,7 +68,7 @@ mod test {
         // Running cargo-run will immediately tell which functions are missing
         let import_object = imports! {
             "env" => {
-                "abort" => Function::new_typed(&mut store, |_: i32, _: i32, _: i32, _: i32| unimplemented!()),
+                "abort" => Function::new_typed_with_env(&mut store, &env, global::abort)
             },
             "conversion" => {
                 "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
