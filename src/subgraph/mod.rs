@@ -1,3 +1,4 @@
+use kanal::Receiver;
 use std::collections::HashMap;
 use thiserror::Error;
 use wasmer::AsStoreMut;
@@ -19,11 +20,7 @@ pub enum SubgraphErr {
     AscError(#[from] AscError),
 }
 
-pub trait ChainData: FromToNativeWasmType {
-    fn block() -> Vec<u8>;
-    fn transaction() -> Vec<u8>;
-    fn event() -> Vec<u8>;
-}
+pub trait ChainData: FromToNativeWasmType {}
 
 pub struct Handler<T: ChainData> {
     name: String,
@@ -48,6 +45,12 @@ pub struct SubgraphSource<T: ChainData> {
     pub store: Store,
 }
 
+pub struct SubgraphTransportMessage<T> {
+    pub source: String,
+    pub handler: String,
+    pub data: T,
+}
+
 pub struct Subgraph<T: ChainData> {
     pub sources: HashMap<String, SubgraphSource<T>>,
     pub id: String,
@@ -60,4 +63,23 @@ impl<T: ChainData> Subgraph<T> {
         let handler = source.handlers.get(func).expect("Bad handler name");
         handler.inner.call(&mut store, args).map(Ok)?
     }
+
+    pub fn run_with_receiver(
+        mut self,
+        recv: Receiver<SubgraphTransportMessage<T>>,
+    ) -> Result<(), SubgraphErr> {
+        while let Ok(msg) = recv.recv() {
+            self.invoke(&msg.source, &msg.handler, msg.data)?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    /* test flow
+    - create multi source
+    - bind to a single subgraph
+    - invoke all handlers of sources
+    */
 }
