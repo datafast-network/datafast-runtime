@@ -34,7 +34,7 @@ impl<T: AscValue> Array<T> {
         })
     }
 
-    pub(crate) fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
+    pub fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
         self.buffer
             .read_ptr(heap)?
             .get(0, self.length, heap.api_version())

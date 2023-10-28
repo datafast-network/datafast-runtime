@@ -31,7 +31,7 @@ impl_asc_type_struct!(
 );
 
 impl<T: AscValue> TypedArray<T> {
-    pub(crate) fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
+    pub fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
         let buffer = array_buffer::ArrayBuffer::new(content, heap.api_version())?;
         let buffer_byte_length = if let array_buffer::ArrayBuffer::ApiVersion0_0_4(ref a) = buffer {
             a.byte_length
@@ -47,7 +47,7 @@ impl<T: AscValue> TypedArray<T> {
         })
     }
 
-    pub(crate) fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
+    pub fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
         self.buffer.read_ptr(heap)?.get(
             self.byte_offset,
             self.byte_length / size_of::<T>() as u32,

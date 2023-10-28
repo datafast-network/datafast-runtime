@@ -28,7 +28,7 @@ impl ToAscObj<AscLogParam> for ethabi::LogParam {
 }
 
 #[repr(C)]
-pub(crate) struct AscLogParam {
+pub struct AscLogParam {
     pub name: AscPtr<AscString>,
     pub value: AscPtr<AscEnum<EthereumValueKind>>,
 }

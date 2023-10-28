@@ -35,7 +35,7 @@ impl_asc_type_struct!(
 );
 
 impl<T: AscValue> TypedArray<T> {
-    pub(crate) fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
+    pub fn new<H: AscHeap + ?Sized>(content: &[T], heap: &mut H) -> Result<Self, AscError> {
         let buffer = array_buffer::ArrayBuffer::new(content, heap.api_version())?;
         let byte_length = content.len() as u32;
         let ptr = AscPtr::alloc_obj(buffer, heap)?;
@@ -47,7 +47,7 @@ impl<T: AscValue> TypedArray<T> {
         })
     }
 
-    pub(crate) fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
+    pub fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
         // We're trying to read the pointer below, we should check it's
         // not null before using it.
         self.buffer.check_is_not_null()?;
