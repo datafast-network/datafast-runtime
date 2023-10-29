@@ -54,12 +54,14 @@ pub struct SubgraphSource {
 
 impl SubgraphSource {
     pub fn invoke(&mut self, func: &str, data: SubgraphData) -> Result<(), SubgraphErr> {
+        log::info!("Source={} is invoking function{func}", self.id);
         let handler = self.handlers.get(func).expect("Bad handler name");
 
         match data {
             SubgraphData::Block(mut inner) => {
                 let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
                 let ptr = asc_data.wasm_ptr() as i32;
+                log::info!("Calling block handler");
                 handler
                     .inner
                     .call(&mut self.host.store, &[Value::I32(ptr)])?;
@@ -68,6 +70,7 @@ impl SubgraphSource {
             SubgraphData::Transaction(mut inner) => {
                 let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
                 let ptr = asc_data.wasm_ptr() as i32;
+                log::info!("Calling tx handler");
                 handler
                     .inner
                     .call(&mut self.host.store, &[Value::I32(ptr)])?;
@@ -76,6 +79,7 @@ impl SubgraphSource {
             SubgraphData::Log(mut inner) => {
                 let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
                 let ptr = asc_data.wasm_ptr() as i32;
+                log::info!("Calling log handler");
                 handler
                     .inner
                     .call(&mut self.host.store, &[Value::I32(ptr)])?;
@@ -84,6 +88,7 @@ impl SubgraphSource {
             SubgraphData::Event(mut inner) => {
                 let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
                 let ptr = asc_data.wasm_ptr() as i32;
+                log::info!("Calling event handler");
                 handler
                     .inner
                     .call(&mut self.host.store, &[Value::I32(ptr)])?;
@@ -112,7 +117,9 @@ impl Subgraph {
         func: &str,
         data: SubgraphData,
     ) -> Result<(), SubgraphErr> {
+        log::info!("Invoking export-function: source={source_id}, func={func}");
         let source = self.sources.get_mut(source_id).expect("Bad source id");
+        log::info!("---------- Source found");
         source.invoke(func, data)
     }
 
@@ -196,6 +203,15 @@ mod test {
             data: crate::subgraph::SubgraphData::Block(EthereumBlockData::default()),
         };
 
+        let msg2 = SubgraphTransportMessage {
+            source: "TestDatasource1".to_string(),
+            handler: "testHandleEvent".to_string(),
+            data: crate::subgraph::SubgraphData::Block(EthereumBlockData::default()),
+        };
+
         sender.send(msg1).unwrap();
+        log::info!("Send block-msg");
+        sender.send(msg2).unwrap();
+        log::info!("Send event-msg");
     }
 }
