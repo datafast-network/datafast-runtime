@@ -196,11 +196,10 @@ mod test {
             sources: HashMap::new(),
         };
 
-        let subgraph_sources = vec![("TestDataSource1", "datasource")];
+        let subgraph_sources = vec!["TestDataSource1"];
 
-        for (source_name, wasm_file_name) in subgraph_sources {
-            std::env::set_var("TEST_WASM_FILE_NAME", wasm_file_name);
-            let (version, wasm_path) = version_to_test_resource(version);
+        for source_name in subgraph_sources {
+            let (version, wasm_path) = version_to_test_resource(version, "datasource");
 
             let id = source_name.to_string();
             let host = mock_host_instance(version.clone(), &wasm_path);
