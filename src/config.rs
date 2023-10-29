@@ -4,18 +4,20 @@ use figment::providers::Toml;
 use figment::Figment;
 use serde::Deserialize;
 
+use crate::errors::SwrError;
+
 #[derive(Deserialize)]
 pub struct Config {
+    pub subgraph_id: String,
     pub manifest: String,
 }
 
 impl Config {
-    pub fn load() -> Self {
-        let config: Config = Figment::new()
+    pub fn load() -> Result<Self, SwrError> {
+        Figment::new()
             .merge(Toml::file("config.toml"))
             .merge(Env::prefixed("SWR_"))
             .extract()
-            .expect("Failed to init config");
-        return config;
+            .map_err(|_| SwrError::ConfigLoadFail)
     }
 }

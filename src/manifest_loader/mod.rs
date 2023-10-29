@@ -1,6 +1,5 @@
 use crate::config::Config;
 use crate::errors::ManifestLoaderError;
-use async_trait::async_trait;
 use semver::Version;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -18,22 +17,31 @@ pub struct DataSource {
     pub entities: HashSet<String>,
 }
 
-#[async_trait]
-pub trait ManifestLoader: Sized + Send {
-    async fn new(cfg: &Config) -> Result<Self, ManifestLoaderError>;
+#[derive(Debug)]
+pub struct ManifestLoader {
+    pub datasources: Vec<DataSource>,
+}
 
-    fn datasources(&self) -> Vec<DataSource>;
+impl ManifestLoader {
+    pub async fn new(cfg: &Config) -> Result<Self, ManifestLoaderError> {
+        todo!()
+    }
 
-    fn get_datasource_by_id(
+    pub fn get_datasource_by_id(
         &self,
         source_id: impl ToString,
     ) -> Result<DataSource, ManifestLoaderError> {
-        self.datasources()
-            .into_iter()
+        self.datasources
+            .iter()
             .find(|source| source.name == source_id.to_string())
             .ok_or_else(|| ManifestLoaderError::InvalidDataSource(source_id.to_string()))
             .map(|s| s.to_owned())
     }
 
-    async fn load_wasm(&self) -> Result<Vec<u8>, ManifestLoaderError>;
+    pub async fn load_wasm(
+        &self,
+        source_id: impl ToString,
+    ) -> Result<Vec<u8>, ManifestLoaderError> {
+        todo!()
+    }
 }
