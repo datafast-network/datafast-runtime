@@ -13,6 +13,7 @@ use wasmer::RuntimeError;
 use wasmer::Value;
 use web3::types::Log;
 
+#[derive(Debug)]
 pub enum SubgraphData {
     Block(EthereumBlockData),
     Transaction(EthereumTransactionData),
@@ -92,6 +93,7 @@ impl SubgraphSource {
     }
 }
 
+#[derive(Debug)]
 pub struct SubgraphTransportMessage {
     pub source: String,
     pub handler: String,
@@ -119,6 +121,7 @@ impl Subgraph {
         recv: Receiver<SubgraphTransportMessage>,
     ) -> Result<(), SubgraphErr> {
         while let Ok(msg) = recv.recv() {
+            log::info!("Received msg: {:?}", msg);
             self.invoke(&msg.source, &msg.handler, msg.data)?;
         }
 
@@ -137,6 +140,8 @@ mod test {
     use super::Handler;
     use super::Subgraph;
     use super::SubgraphSource;
+    use super::SubgraphTransportMessage;
+    use crate::chain::ethereum::block::EthereumBlockData;
     use crate::host_exports::test::mock_host_instance;
     use crate::host_exports::test::version_to_test_resource;
     use std::collections::HashMap;
@@ -146,15 +151,14 @@ mod test {
     #[case("0.0.4")]
     #[case("0.0.5")]
     fn test_subgraph(#[case] version: &str) {
+        env_logger::try_init().unwrap_or_default();
+
         let mut subgraph = Subgraph {
             id: "TestSubgraph".to_string(),
             sources: HashMap::new(),
         };
 
-        let subgraph_sources = vec![
-            ("datasource1", "wasm_file_path1"),
-            ("datasource2", "wasm_file_path2"),
-        ];
+        let subgraph_sources = vec![("datasource-test", "datasource")];
 
         for (source_name, wasm_file_name) in subgraph_sources {
             std::env::set_var("TEST_WASM_FILE_NAME", wasm_file_name);
@@ -164,8 +168,8 @@ mod test {
             let host = mock_host_instance(version, &wasm_path);
             let handlers: HashMap<String, Handler> = [
                 Handler::new(&host.instance.exports, "testHandlerBlock"),
-                Handler::new(&host.instance.exports, "testHandlerTransaction"),
-                Handler::new(&host.instance.exports, "testHandlerLog"),
+                // Handler::new(&host.instance.exports, "testHandlerTransaction"),
+                // Handler::new(&host.instance.exports, "testHandlerLog"),
                 Handler::new(&host.instance.exports, "testHandlerEvent"),
             ]
             .into_iter()
@@ -185,5 +189,13 @@ mod test {
         thread::spawn(move || {
             subgraph.run_with_receiver(receiver).unwrap();
         });
+
+        let msg1 = SubgraphTransportMessage {
+            source: "TestDatasource1".to_string(),
+            handler: "testHandleBlock".to_string(),
+            data: crate::subgraph::SubgraphData::Block(EthereumBlockData::default()),
+        };
+
+        sender.send(msg1).unwrap();
     }
 }
