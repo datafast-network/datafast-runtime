@@ -1,16 +1,24 @@
+use crate::asc::base::asc_new;
+use crate::asc::errors::AscError;
+use crate::chain::ethereum::block::EthereumBlockData;
+use crate::chain::ethereum::event::EthereumEventData;
+use crate::chain::ethereum::transaction::EthereumTransactionData;
+use crate::host_exports::AscHost;
 use kanal::Receiver;
 use std::collections::HashMap;
 use thiserror::Error;
-use wasmer::AsStoreMut;
-use wasmer::AsStoreRef;
 use wasmer::Exports;
-use wasmer::FromToNativeWasmType;
-use wasmer::Instance;
+use wasmer::Function;
 use wasmer::RuntimeError;
-use wasmer::Store;
-use wasmer::TypedFunction;
+use wasmer::Value;
+use web3::types::Log;
 
-use crate::asc::errors::AscError;
+pub enum SubgraphData {
+    Block(EthereumBlockData),
+    Transaction(EthereumTransactionData),
+    Event(EthereumEventData),
+    Log(Log),
+}
 
 #[derive(Debug, Error)]
 pub enum SubgraphErr {
@@ -20,57 +28,94 @@ pub enum SubgraphErr {
     AscError(#[from] AscError),
 }
 
-pub trait ChainData: FromToNativeWasmType {}
-
-pub struct Handler<T: ChainData> {
+pub struct Handler {
     name: String,
-    inner: TypedFunction<T, ()>,
+    inner: Function,
 }
 
-impl<T: ChainData> Handler<T> {
-    pub fn new<S: AsStoreRef>(store: S, instance_exports: &Exports, func_name: &str) -> Self {
+impl Handler {
+    pub fn new(instance_exports: &Exports, func_name: &str) -> Self {
         Self {
             name: func_name.to_string(),
             inner: instance_exports
-                .get_typed_function(&store, func_name)
-                .expect("No function with such name exists"),
+                .get_function(&func_name)
+                .expect("No function with such name exists")
+                .to_owned(),
         }
     }
 }
 
-pub struct SubgraphSource<T: ChainData> {
+pub struct SubgraphSource {
     pub id: String,
-    pub wasm_instance: Instance,
-    pub handlers: HashMap<String, Handler<T>>,
-    pub store: Store,
+    pub handlers: HashMap<String, Handler>,
 }
 
-pub struct SubgraphTransportMessage<T> {
+pub struct SubgraphTransportMessage {
     pub source: String,
     pub handler: String,
-    pub data: T,
+    pub data: SubgraphData,
 }
 
-pub struct Subgraph<T: ChainData> {
-    pub sources: HashMap<String, SubgraphSource<T>>,
+pub struct Subgraph {
+    pub sources: HashMap<String, SubgraphSource>,
     pub id: String,
+    pub host: AscHost,
 }
 
-impl<T: ChainData> Subgraph<T> {
-    pub fn invoke(&mut self, source_id: &str, func: &str, args: T) -> Result<(), SubgraphErr> {
-        let source = self.sources.get_mut(source_id).expect("Bad source id");
-        let mut store = source.store.as_store_mut();
+impl Subgraph {
+    pub fn invoke(
+        &mut self,
+        source_id: &str,
+        func: &str,
+        data: SubgraphData,
+    ) -> Result<(), SubgraphErr> {
+        let source = self.sources.get(source_id).expect("Bad source id");
         let handler = source.handlers.get(func).expect("Bad handler name");
-        handler.inner.call(&mut store, args).map(Ok)?
+
+        match data {
+            SubgraphData::Block(mut inner) => {
+                let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
+                let ptr = asc_data.wasm_ptr() as i32;
+                handler
+                    .inner
+                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
+                Ok(())
+            }
+            SubgraphData::Transaction(mut inner) => {
+                let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
+                let ptr = asc_data.wasm_ptr() as i32;
+                handler
+                    .inner
+                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
+                Ok(())
+            }
+            SubgraphData::Log(mut inner) => {
+                let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
+                let ptr = asc_data.wasm_ptr() as i32;
+                handler
+                    .inner
+                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
+                Ok(())
+            }
+            SubgraphData::Event(mut inner) => {
+                let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
+                let ptr = asc_data.wasm_ptr() as i32;
+                handler
+                    .inner
+                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
+                Ok(())
+            }
+        }
     }
 
     pub fn run_with_receiver(
         mut self,
-        recv: Receiver<SubgraphTransportMessage<T>>,
+        recv: Receiver<SubgraphTransportMessage>,
     ) -> Result<(), SubgraphErr> {
         while let Ok(msg) = recv.recv() {
             self.invoke(&msg.source, &msg.handler, msg.data)?;
         }
+
         Ok(())
     }
 }

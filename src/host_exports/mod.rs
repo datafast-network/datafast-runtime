@@ -11,6 +11,8 @@ use semver::Version;
 use wasmer::Memory;
 use wasmer::TypedFunction;
 
+pub use asc::AscHost;
+
 #[derive(Clone)]
 pub struct Env {
     pub memory: Option<Memory>,
