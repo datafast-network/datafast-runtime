@@ -218,8 +218,10 @@ pub mod test {
     pub fn version_to_test_resource(version: &str) -> (Version, String) {
         let version = Version::parse(version).expect("Bad api-version");
         let mut project_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let test_wasm_file_name = env::var("TEST_WASM_FILE_NAME").unwrap_or("test".to_string());
         project_path.push(format!(
-            "../subgraph-testing/wasm/test_{}.wasm",
+            "../subgraph-testing/wasm/{}_{}.wasm",
+            test_wasm_file_name,
             version.to_string().replace('.', "_"),
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
