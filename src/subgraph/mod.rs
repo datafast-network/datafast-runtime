@@ -28,7 +28,7 @@ pub enum SubgraphErr {
     #[error(transparent)]
     AscError(#[from] AscError),
     #[error("Something wrong: {0}")]
-    Undeterministic(String),
+    Plain(String),
 }
 
 pub struct Handler {
@@ -60,7 +60,7 @@ impl SubgraphSource {
         let handler = self
             .handlers
             .get(func)
-            .ok_or_else(|| SubgraphErr::Undeterministic("Bad handler name".to_string()))?;
+            .ok_or_else(|| SubgraphErr::Plain("Bad handler name".to_string()))?;
 
         match data {
             SubgraphData::Block(mut inner) => {
@@ -132,7 +132,7 @@ impl Subgraph {
         let source = self
             .sources
             .get_mut(source_id)
-            .ok_or_else(|| SubgraphErr::Undeterministic("Bad source id".to_string()))?;
+            .ok_or_else(|| SubgraphErr::Plain("Bad source id".to_string()))?;
         source.invoke(func, data)
     }
 
@@ -171,14 +171,18 @@ mod test {
     use super::SubgraphTransportMessage;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
+    use crate::chain::ethereum::transaction::EthereumTransactionData;
     use crate::host_exports::test::mock_host_instance;
     use crate::host_exports::test::version_to_test_resource;
+    use ethabi::ethereum_types::H160;
+    use ethabi::ethereum_types::U256;
     use std::collections::HashMap;
+    use std::str::FromStr;
     use std::thread;
 
     #[::rstest::rstest]
     #[case("0.0.4")]
-    // #[case("0.0.5")]
+    #[case("0.0.5")]
     fn test_subgraph(#[case] version: &str) {
         env_logger::try_init().unwrap_or_default();
 
@@ -194,16 +198,24 @@ mod test {
             let (version, wasm_path) = version_to_test_resource(version);
 
             let id = source_name.to_string();
-            let host = mock_host_instance(version, &wasm_path);
-            let handlers: HashMap<String, Handler> = [
+            let host = mock_host_instance(version.clone(), &wasm_path);
+            let mut handlers: HashMap<String, Handler> = [
                 Handler::new(&host.instance.exports, "testHandlerBlock"),
-                // Handler::new(&host.instance.exports, "testHandlerTransaction"),
-                // Handler::new(&host.instance.exports, "testHandlerLog"),
                 Handler::new(&host.instance.exports, "testHandlerEvent"),
+                // Do not add these entry to subgraph.yaml, and everything can run just fine
+                Handler::new(&host.instance.exports, "testHandlerTransaction"),
             ]
             .into_iter()
             .map(|h| (h.name.to_owned(), h))
             .collect();
+
+            if version.patch == 5 {
+                // NOTE: v0_0_4 does not support Log type
+                handlers.insert(
+                    "testHandlerLog".to_string(),
+                    Handler::new(&host.instance.exports, "testHandlerLog"),
+                );
+            }
 
             subgraph.sources.insert(
                 source_name.to_string(),
@@ -221,13 +233,19 @@ mod test {
             }
         });
 
-        let msg1 = SubgraphTransportMessage {
+        // Test sending block data
+        let block_data_msg = SubgraphTransportMessage {
             source: "TestDataSource1".to_string(),
             handler: "testHandlerBlock".to_string(),
             data: crate::subgraph::SubgraphData::Block(EthereumBlockData::default()),
         };
+        log::info!("------- Send block to blockHandler of Subgraph");
+        sender
+            .send(SubgraphOperationMessage::Job(block_data_msg))
+            .expect("Failed to send block_data_msg");
 
-        let msg2 = SubgraphTransportMessage {
+        // Test sending event data
+        let event_data_msg = SubgraphTransportMessage {
             source: "TestDataSource1".to_string(),
             handler: "testHandlerEvent".to_string(),
             data: crate::subgraph::SubgraphData::Event(EthereumEventData {
@@ -238,17 +256,28 @@ mod test {
                 ..Default::default()
             }),
         };
-
-        log::info!("------- Send block to blockHandler of Subgraph");
-        sender
-            .send(SubgraphOperationMessage::Job(msg1))
-            .expect("Failed to send msg1");
-
         log::info!("------- Send event to eventHandler of Subgraph");
         sender
-            .send(SubgraphOperationMessage::Job(msg2))
-            .expect("Failed to send msg2");
+            .send(SubgraphOperationMessage::Job(event_data_msg))
+            .expect("Failed to send event_data_msg");
 
+        // Test sending tx data
+        let transaction_data_msg = SubgraphTransportMessage {
+            source: "TestDataSource1".to_string(),
+            handler: "testHandlerTransaction".to_string(),
+            data: crate::subgraph::SubgraphData::Transaction(EthereumTransactionData {
+                from: H160::from_str("0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326").unwrap(),
+                to: Some(H160::from_str("0x388C818CA8B9251b393131C08a736A67ccB19297").unwrap()),
+                value: U256::from(10000),
+                ..Default::default()
+            }),
+        };
+        log::info!("------- Send transaction to transactionHandler of Subgraph");
+        sender
+            .send(SubgraphOperationMessage::Job(transaction_data_msg))
+            .expect("Failed to send transaction_data_msg");
+
+        // Shutting down subgraph
         log::info!("------- Send request to close subgraph");
         sender.send(SubgraphOperationMessage::Finish).unwrap();
 
