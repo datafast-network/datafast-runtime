@@ -27,6 +27,10 @@ pub enum SubgraphErr {
     RuntimeError(#[from] RuntimeError),
     #[error(transparent)]
     AscError(#[from] AscError),
+    #[error("Invalid datasource_id: {0}")]
+    InvalidSourceID(String),
+    #[error("Invalid handler_name: {0}")]
+    InvalidHandlerName(String),
     #[error("Something wrong: {0}")]
     Plain(String),
 }
@@ -37,14 +41,15 @@ pub struct Handler {
 }
 
 impl Handler {
-    pub fn new(instance_exports: &Exports, func_name: &str) -> Self {
-        Self {
+    pub fn new(instance_exports: &Exports, func_name: &str) -> Result<Self, SubgraphErr> {
+        let this = Self {
             name: func_name.to_string(),
             inner: instance_exports
                 .get_function(&func_name)
-                .expect("No function with such name exists")
+                .map_err(|_| SubgraphErr::InvalidHandlerName(func_name.to_owned()))?
                 .to_owned(),
-        }
+        };
+        Ok(this)
     }
 }
 
@@ -132,7 +137,7 @@ impl Subgraph {
         let source = self
             .sources
             .get_mut(source_id)
-            .ok_or_else(|| SubgraphErr::Plain("Bad source id".to_string()))?;
+            .ok_or_else(|| SubgraphErr::InvalidSourceID(source_id.to_owned()))?;
         source.invoke(func, data)
     }
 
@@ -200,10 +205,10 @@ mod test {
             let id = source_name.to_string();
             let host = mock_host_instance(version.clone(), &wasm_path);
             let mut handlers: HashMap<String, Handler> = [
-                Handler::new(&host.instance.exports, "testHandlerBlock"),
-                Handler::new(&host.instance.exports, "testHandlerEvent"),
+                Handler::new(&host.instance.exports, "testHandlerBlock").unwrap(),
+                Handler::new(&host.instance.exports, "testHandlerEvent").unwrap(),
                 // Do not add these entry to subgraph.yaml, and everything can run just fine
-                Handler::new(&host.instance.exports, "testHandlerTransaction"),
+                Handler::new(&host.instance.exports, "testHandlerTransaction").unwrap(),
             ]
             .into_iter()
             .map(|h| (h.name.to_owned(), h))
@@ -213,7 +218,7 @@ mod test {
                 // NOTE: v0_0_4 does not support Log type
                 handlers.insert(
                     "testHandlerLog".to_string(),
-                    Handler::new(&host.instance.exports, "testHandlerLog"),
+                    Handler::new(&host.instance.exports, "testHandlerLog").unwrap(),
                 );
             }
 
