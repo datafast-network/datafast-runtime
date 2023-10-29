@@ -134,14 +134,13 @@ mod test {
     - invoke all handlers of sources
     */
 
-    use std::collections::HashMap;
-
-    use crate::host_exports::test::mock_host_instance;
-    use crate::host_exports::test::version_to_test_resource;
-
     use super::Handler;
     use super::Subgraph;
     use super::SubgraphSource;
+    use crate::host_exports::test::mock_host_instance;
+    use crate::host_exports::test::version_to_test_resource;
+    use std::collections::HashMap;
+    use std::thread;
 
     #[::rstest::rstest]
     #[case("0.0.4")]
@@ -164,9 +163,10 @@ mod test {
             let id = source_name.to_string();
             let host = mock_host_instance(version, &wasm_path);
             let handlers: HashMap<String, Handler> = [
-                Handler::new(&host.instance.exports, "testS1Handler1"),
-                Handler::new(&host.instance.exports, "testS2Handler2"),
-                Handler::new(&host.instance.exports, "testS3Handler3"),
+                Handler::new(&host.instance.exports, "testHandlerBlock"),
+                Handler::new(&host.instance.exports, "testHandlerTransaction"),
+                Handler::new(&host.instance.exports, "testHandlerLog"),
+                Handler::new(&host.instance.exports, "testHandlerEvent"),
             ]
             .into_iter()
             .map(|h| (h.name.to_owned(), h))
@@ -179,5 +179,11 @@ mod test {
         }
 
         log::info!("Finished setup");
+
+        let (sender, receiver) = kanal::bounded(1);
+
+        thread::spawn(move || {
+            subgraph.run_with_receiver(receiver).unwrap();
+        });
     }
 }
