@@ -13,6 +13,7 @@ bs58 = "0.5.0"
 convert_case = "0.6.0"
 env_logger = "0.10.0"
 ethabi = "18.0.0"
+figment = { version = "0.10.11", features = ["env", "json", "toml", "yaml"] }
 hex = "0.4.3"
 kanal = "0.1.0-pre8"
 lazy_static = "1.4.0"
