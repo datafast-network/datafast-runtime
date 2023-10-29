@@ -23,7 +23,7 @@ pub struct Env {
 
 #[cfg(test)]
 mod test {
-    use super::asc::test::UnitTestHost;
+    use super::asc::AscHost;
     use super::bigdecimal;
     use super::bigint;
     use super::global;
@@ -40,7 +40,7 @@ mod test {
     use wasmer::Module;
     use wasmer::Store;
 
-    pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> UnitTestHost {
+    pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> AscHost {
         log::warn!(
             r#"New host-instance to be created with:
                 > api-version={api_version}
@@ -201,7 +201,7 @@ mod test {
         let arena_start_ptr = data_mut.arena_start_ptr;
         let memory_allocate = data_mut.memory_allocate.clone();
 
-        UnitTestHost {
+        AscHost {
             store,
             instance,
             api_version,
