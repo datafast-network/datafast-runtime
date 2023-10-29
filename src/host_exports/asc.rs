@@ -5,9 +5,14 @@ use crate::asc::errors::AscError;
 use crate::host_exports::Env;
 use semver::Version;
 use std::mem::MaybeUninit;
+use wasmer::AsStoreMut;
 use wasmer::AsStoreRef;
 use wasmer::FromToNativeWasmType;
 use wasmer::FunctionEnvMut;
+use wasmer::Instance;
+use wasmer::Memory;
+use wasmer::Store;
+use wasmer::TypedFunction;
 use wasmer::Value;
 
 const MIN_ARENA_SIZE: i32 = 10_000;
@@ -128,6 +133,109 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
     }
 }
 
+/// NOTE: This is not correct!
+/// We basically just duplicate the impl AscHeap for FunctionEnvMut code above, which is kinda wrong
+/// We should find a way to unify them
+pub struct AscHost {
+    pub store: Store,
+    pub instance: Instance,
+    pub memory: Memory,
+    pub api_version: Version,
+    pub id_of_type: Option<TypedFunction<u32, u32>>,
+    pub memory_allocate: Option<TypedFunction<i32, i32>>,
+    pub arena_start_ptr: i32,
+    pub arena_free_size: i32,
+}
+
+impl AscHeap for AscHost {
+    fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
+        let require_length = bytes.len() as u64;
+        let size = i32::try_from(bytes.len()).unwrap();
+
+        if size > self.arena_free_size {
+            let arena_size = size.max(MIN_ARENA_SIZE);
+
+            if let Some(memory_allocate) = self.memory_allocate.clone() {
+                let new_arena_ptr = memory_allocate.call(&mut self.store, arena_size).unwrap();
+                self.arena_start_ptr = new_arena_ptr;
+            }
+
+            self.arena_free_size = arena_size;
+
+            match &self.api_version {
+                version if *version <= Version::new(0, 0, 4) => {}
+                _ => {
+                    self.arena_start_ptr += 12;
+                    self.arena_free_size -= 12;
+                }
+            };
+        };
+
+        let view = self.memory.view(&self.store);
+        let available_length = view.data_size();
+
+        if available_length < require_length {
+            return Err(AscError::SizeNotFit);
+        }
+
+        let ptr = self.arena_start_ptr as usize;
+        view.write(ptr as u64, bytes).expect("Failed");
+
+        self.arena_start_ptr += size;
+        self.arena_free_size -= size;
+
+        Ok(ptr as u32)
+    }
+
+    fn read<'a>(
+        &self,
+        offset: u32,
+        buffer: &'a mut [MaybeUninit<u8>],
+    ) -> Result<&'a mut [u8], AscError> {
+        let store_ref = self.store.as_store_ref();
+        let view = self.memory.view(&store_ref);
+
+        view.read_uninit(offset as u64, buffer)
+            .map_err(|_| AscError::Plain(format!("Heap access out of bounds. Offset: {}", offset)))
+    }
+
+    fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
+        let mut bytes = [0; 4];
+        let store_ref = self.store.as_store_ref();
+        let view = self.memory.view(&store_ref);
+
+        view.read(offset as u64, &mut bytes).map_err(|_| {
+            AscError::Plain(format!(
+                "Heap access out of bounds. Offset: {} Size: {}",
+                offset, 4
+            ))
+        })?;
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn api_version(&self) -> Version {
+        self.api_version.clone()
+    }
+
+    fn asc_type_id(&mut self, type_id_index: IndexForAscTypeId) -> Result<u32, AscError> {
+        if self.id_of_type.is_none() {
+            log::warn!("id_of_type is not available. skipping");
+            return Ok(0);
+        }
+
+        self.id_of_type
+            .as_ref()
+            .unwrap()
+            .call(&mut self.store.as_store_mut(), type_id_index as u32)
+            .map_err(|err| {
+                AscError::Plain(format!(
+                    "Failed to get Asc type id for index: {:?}. Trap: {}",
+                    type_id_index, err
+                ))
+            })
+    }
+}
+
 unsafe impl<T> FromToNativeWasmType for AscPtr<T> {
     type Native = u32;
 
@@ -146,123 +254,6 @@ impl<T> From<Value> for AscPtr<T> {
         match value {
             Value::I32(n) => AscPtr::<T>::new(n as u32),
             _ => panic!("Cannot convert {:?} to AscPtr", value),
-        }
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use super::MIN_ARENA_SIZE;
-    use crate::asc::base::AscHeap;
-    use crate::asc::base::IndexForAscTypeId;
-    use crate::asc::errors::AscError;
-    use semver::Version;
-    use std::mem::MaybeUninit;
-    use wasmer::AsStoreMut;
-    use wasmer::AsStoreRef;
-    use wasmer::Instance;
-    use wasmer::Memory;
-    use wasmer::Store;
-    use wasmer::TypedFunction;
-
-    pub struct UnitTestHost {
-        pub store: Store,
-        pub instance: Instance,
-        pub memory: Memory,
-        pub api_version: Version,
-        pub id_of_type: Option<TypedFunction<u32, u32>>,
-        pub memory_allocate: Option<TypedFunction<i32, i32>>,
-        pub arena_start_ptr: i32,
-        pub arena_free_size: i32,
-    }
-
-    impl AscHeap for UnitTestHost {
-        fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
-            let require_length = bytes.len() as u64;
-            let size = i32::try_from(bytes.len()).unwrap();
-
-            if size > self.arena_free_size {
-                let arena_size = size.max(MIN_ARENA_SIZE);
-
-                if let Some(memory_allocate) = self.memory_allocate.clone() {
-                    let new_arena_ptr = memory_allocate.call(&mut self.store, arena_size).unwrap();
-                    self.arena_start_ptr = new_arena_ptr;
-                }
-
-                self.arena_free_size = arena_size;
-
-                match &self.api_version {
-                    version if *version <= Version::new(0, 0, 4) => {}
-                    _ => {
-                        self.arena_start_ptr += 12;
-                        self.arena_free_size -= 12;
-                    }
-                };
-            };
-
-            let view = self.memory.view(&self.store);
-            let available_length = view.data_size();
-
-            if available_length < require_length {
-                return Err(AscError::SizeNotFit);
-            }
-
-            let ptr = self.arena_start_ptr as usize;
-            view.write(ptr as u64, bytes).expect("Failed");
-
-            self.arena_start_ptr += size;
-            self.arena_free_size -= size;
-
-            Ok(ptr as u32)
-        }
-
-        fn read<'a>(
-            &self,
-            offset: u32,
-            buffer: &'a mut [MaybeUninit<u8>],
-        ) -> Result<&'a mut [u8], AscError> {
-            let store_ref = self.store.as_store_ref();
-            let view = self.memory.view(&store_ref);
-
-            view.read_uninit(offset as u64, buffer).map_err(|_| {
-                AscError::Plain(format!("Heap access out of bounds. Offset: {}", offset))
-            })
-        }
-
-        fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
-            let mut bytes = [0; 4];
-            let store_ref = self.store.as_store_ref();
-            let view = self.memory.view(&store_ref);
-
-            view.read(offset as u64, &mut bytes).map_err(|_| {
-                AscError::Plain(format!(
-                    "Heap access out of bounds. Offset: {} Size: {}",
-                    offset, 4
-                ))
-            })?;
-            Ok(u32::from_le_bytes(bytes))
-        }
-
-        fn api_version(&self) -> Version {
-            self.api_version.clone()
-        }
-
-        fn asc_type_id(&mut self, type_id_index: IndexForAscTypeId) -> Result<u32, AscError> {
-            if self.id_of_type.is_none() {
-                log::warn!("id_of_type is not available. skipping");
-                return Ok(0);
-            }
-
-            self.id_of_type
-                .as_ref()
-                .unwrap()
-                .call(&mut self.store.as_store_mut(), type_id_index as u32)
-                .map_err(|err| {
-                    AscError::Plain(format!(
-                        "Failed to get Asc type id for index: {:?}. Trap: {}",
-                        type_id_index, err
-                    ))
-                })
         }
     }
 }

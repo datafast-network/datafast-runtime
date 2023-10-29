@@ -34,7 +34,7 @@ impl<T: AscValue> Array<T> {
         }
     }
 
-    pub(crate) fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
+    pub fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
         match self {
             Self::ApiVersion0_0_4(a) => a.to_vec(heap),
             Self::ApiVersion0_0_5(a) => a.to_vec(heap),

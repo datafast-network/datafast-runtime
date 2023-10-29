@@ -15,7 +15,7 @@ pub enum ArrayBuffer {
 }
 
 impl ArrayBuffer {
-    pub(crate) fn new<T: AscType>(values: &[T], api_version: Version) -> Result<Self, AscError> {
+    pub fn new<T: AscType>(values: &[T], api_version: Version) -> Result<Self, AscError> {
         match api_version {
             version if version <= Version::new(0, 0, 4) => {
                 Ok(Self::ApiVersion0_0_4(v0_0_4::ArrayBuffer::new(values)?))

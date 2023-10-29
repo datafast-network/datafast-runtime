@@ -36,7 +36,7 @@ impl Default for JsonValueKind {
 impl AscValue for JsonValueKind {}
 
 impl JsonValueKind {
-    pub(crate) fn get_kind(token: &serde_json::Value) -> Self {
+    pub fn get_kind(token: &serde_json::Value) -> Self {
         use serde_json::Value;
 
         match token {

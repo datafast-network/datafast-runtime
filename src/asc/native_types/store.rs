@@ -31,7 +31,7 @@ impl_asc_type_enum!(
 
 // TODO: determine store data type and impl this
 // impl StoreValueKind {
-//     pub(crate) fn get_kind(value: &store::Value) -> StoreValueKind {
+//     pub fn get_kind(value: &store::Value) -> StoreValueKind {
 //         use self::store::Value;
 
 //         match value {

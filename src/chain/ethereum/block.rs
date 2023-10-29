@@ -16,7 +16,7 @@ use web3::types::U256;
 use web3::types::U64;
 
 #[repr(C)]
-pub(crate) struct AscEthereumBlock {
+pub struct AscEthereumBlock {
     pub hash: AscPtr<AscH256>,
     pub parent_hash: AscPtr<AscH256>,
     pub uncles_hash: AscPtr<AscH256>,

@@ -47,7 +47,7 @@ impl<T: AscValue> Array<T> {
         })
     }
 
-    pub(crate) fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
+    pub fn to_vec<H: AscHeap + ?Sized>(&self, heap: &H) -> Result<Vec<T>, AscError> {
         // We're trying to read the pointer below, we should check it's
         // not null before using it.
         self.buffer.check_is_not_null()?;

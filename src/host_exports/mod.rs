@@ -11,6 +11,8 @@ use semver::Version;
 use wasmer::Memory;
 use wasmer::TypedFunction;
 
+pub use asc::AscHost;
+
 #[derive(Clone)]
 pub struct Env {
     pub memory: Option<Memory>,
@@ -22,8 +24,8 @@ pub struct Env {
 }
 
 #[cfg(test)]
-mod test {
-    use super::asc::test::UnitTestHost;
+pub mod test {
+    use super::asc::AscHost;
     use super::bigdecimal;
     use super::bigint;
     use super::global;
@@ -40,7 +42,7 @@ mod test {
     use wasmer::Module;
     use wasmer::Store;
 
-    pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> UnitTestHost {
+    pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> AscHost {
         log::warn!(
             r#"New host-instance to be created with:
                 > api-version={api_version}
@@ -201,7 +203,7 @@ mod test {
         let arena_start_ptr = data_mut.arena_start_ptr;
         let memory_allocate = data_mut.memory_allocate.clone();
 
-        UnitTestHost {
+        AscHost {
             store,
             instance,
             api_version,
@@ -216,8 +218,10 @@ mod test {
     pub fn version_to_test_resource(version: &str) -> (Version, String) {
         let version = Version::parse(version).expect("Bad api-version");
         let mut project_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let test_wasm_file_name = env::var("TEST_WASM_FILE_NAME").unwrap_or("test".to_string());
         project_path.push(format!(
-            "../subgraph-testing/wasm/test_{}.wasm",
+            "../subgraph-testing/wasm/{}_{}.wasm",
+            test_wasm_file_name,
             version.to_string().replace('.', "_"),
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
