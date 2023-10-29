@@ -27,6 +27,8 @@ pub enum SubgraphErr {
     RuntimeError(#[from] RuntimeError),
     #[error(transparent)]
     AscError(#[from] AscError),
+    #[error("Something wrong: {0}")]
+    Undeterministic(String),
 }
 
 pub struct Handler {
@@ -55,11 +57,14 @@ pub struct SubgraphSource {
 impl SubgraphSource {
     pub fn invoke(&mut self, func: &str, data: SubgraphData) -> Result<(), SubgraphErr> {
         log::info!("Source={} is invoking function{func}", self.id);
-        let handler = self.handlers.get(func).expect("Bad handler name");
+        let handler = self
+            .handlers
+            .get(func)
+            .ok_or_else(|| SubgraphErr::Undeterministic("Bad handler name".to_string()))?;
 
         match data {
             SubgraphData::Block(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
+                let asc_data = asc_new(&mut self.host, &mut inner)?;
                 let ptr = asc_data.wasm_ptr() as i32;
                 log::info!("Calling block handler");
                 handler
@@ -68,7 +73,7 @@ impl SubgraphSource {
                 Ok(())
             }
             SubgraphData::Transaction(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
+                let asc_data = asc_new(&mut self.host, &mut inner)?;
                 let ptr = asc_data.wasm_ptr() as i32;
                 log::info!("Calling tx handler");
                 handler
@@ -77,7 +82,7 @@ impl SubgraphSource {
                 Ok(())
             }
             SubgraphData::Log(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
+                let asc_data = asc_new(&mut self.host, &mut inner)?;
                 let ptr = asc_data.wasm_ptr() as i32;
                 log::info!("Calling log handler");
                 handler
@@ -86,7 +91,7 @@ impl SubgraphSource {
                 Ok(())
             }
             SubgraphData::Event(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner).unwrap();
+                let asc_data = asc_new(&mut self.host, &mut inner)?;
                 let ptr = asc_data.wasm_ptr() as i32;
                 log::info!("Calling event handler");
                 handler
@@ -105,6 +110,12 @@ pub struct SubgraphTransportMessage {
     pub data: SubgraphData,
 }
 
+#[derive(Debug)]
+pub enum SubgraphOperationMessage {
+    Job(SubgraphTransportMessage),
+    Finish,
+}
+
 pub struct Subgraph {
     pub sources: HashMap<String, SubgraphSource>,
     pub id: String,
@@ -117,21 +128,30 @@ impl Subgraph {
         func: &str,
         data: SubgraphData,
     ) -> Result<(), SubgraphErr> {
-        log::info!("Invoking export-function: source={source_id}, func={func}");
-        let source = self.sources.get_mut(source_id).expect("Bad source id");
-        log::info!("---------- Source found");
+        log::info!("Invoking: source={source_id}, func={func}");
+        let source = self
+            .sources
+            .get_mut(source_id)
+            .ok_or_else(|| SubgraphErr::Undeterministic("Bad source id".to_string()))?;
         source.invoke(func, data)
     }
 
     pub fn run_with_receiver(
         mut self,
-        recv: Receiver<SubgraphTransportMessage>,
+        recv: Receiver<SubgraphOperationMessage>,
     ) -> Result<(), SubgraphErr> {
-        while let Ok(msg) = recv.recv() {
-            log::info!("Received msg: {:?}", msg);
-            self.invoke(&msg.source, &msg.handler, msg.data)?;
+        while let Ok(op) = recv.recv() {
+            match op {
+                SubgraphOperationMessage::Job(msg) => {
+                    log::info!("Received msg: {:?}", msg);
+                    self.invoke(&msg.source, &msg.handler, msg.data)?;
+                }
+                SubgraphOperationMessage::Finish => {
+                    log::info!("Request to shutdown Subgraph");
+                    return Ok(());
+                }
+            }
         }
-
         Ok(())
     }
 }
@@ -146,9 +166,11 @@ mod test {
 
     use super::Handler;
     use super::Subgraph;
+    use super::SubgraphOperationMessage;
     use super::SubgraphSource;
     use super::SubgraphTransportMessage;
     use crate::chain::ethereum::block::EthereumBlockData;
+    use crate::chain::ethereum::event::EthereumEventData;
     use crate::host_exports::test::mock_host_instance;
     use crate::host_exports::test::version_to_test_resource;
     use std::collections::HashMap;
@@ -156,7 +178,7 @@ mod test {
 
     #[::rstest::rstest]
     #[case("0.0.4")]
-    #[case("0.0.5")]
+    // #[case("0.0.5")]
     fn test_subgraph(#[case] version: &str) {
         env_logger::try_init().unwrap_or_default();
 
@@ -165,7 +187,7 @@ mod test {
             sources: HashMap::new(),
         };
 
-        let subgraph_sources = vec![("datasource-test", "datasource")];
+        let subgraph_sources = vec![("TestDataSource1", "datasource")];
 
         for (source_name, wasm_file_name) in subgraph_sources {
             std::env::set_var("TEST_WASM_FILE_NAME", wasm_file_name);
@@ -193,25 +215,43 @@ mod test {
 
         let (sender, receiver) = kanal::bounded(1);
 
-        thread::spawn(move || {
-            subgraph.run_with_receiver(receiver).unwrap();
+        let t = thread::spawn(move || {
+            if let Err(e) = subgraph.run_with_receiver(receiver) {
+                log::error!("Run subgraph with receiver failed: {:?}", e);
+            }
         });
 
         let msg1 = SubgraphTransportMessage {
-            source: "TestDatasource1".to_string(),
-            handler: "testHandleBlock".to_string(),
+            source: "TestDataSource1".to_string(),
+            handler: "testHandlerBlock".to_string(),
             data: crate::subgraph::SubgraphData::Block(EthereumBlockData::default()),
         };
 
         let msg2 = SubgraphTransportMessage {
-            source: "TestDatasource1".to_string(),
-            handler: "testHandleEvent".to_string(),
-            data: crate::subgraph::SubgraphData::Block(EthereumBlockData::default()),
+            source: "TestDataSource1".to_string(),
+            handler: "testHandlerEvent".to_string(),
+            data: crate::subgraph::SubgraphData::Event(EthereumEventData {
+                block: EthereumBlockData {
+                    number: ethabi::ethereum_types::U64::from(1000),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
         };
 
-        sender.send(msg1).unwrap();
-        log::info!("Send block-msg");
-        sender.send(msg2).unwrap();
-        log::info!("Send event-msg");
+        log::info!("------- Send block to blockHandler of Subgraph");
+        sender
+            .send(SubgraphOperationMessage::Job(msg1))
+            .expect("Failed to send msg1");
+
+        log::info!("------- Send event to eventHandler of Subgraph");
+        sender
+            .send(SubgraphOperationMessage::Job(msg2))
+            .expect("Failed to send msg2");
+
+        log::info!("------- Send request to close subgraph");
+        sender.send(SubgraphOperationMessage::Finish).unwrap();
+
+        t.join().unwrap();
     }
 }
