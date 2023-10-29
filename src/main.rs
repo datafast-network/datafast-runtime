@@ -1,6 +1,7 @@
 mod asc;
 mod bignumber;
 mod chain;
+mod core;
 mod errors;
 mod host_exports;
 mod subgraph;
