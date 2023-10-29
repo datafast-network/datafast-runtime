@@ -24,7 +24,7 @@ pub struct Env {
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use super::asc::AscHost;
     use super::bigdecimal;
     use super::bigint;
