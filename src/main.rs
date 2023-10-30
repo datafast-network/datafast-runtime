@@ -4,6 +4,7 @@ mod chain;
 mod config;
 mod core;
 mod errors;
+mod from_to;
 mod host_exports;
 mod manifest_loader;
 mod subgraph;
@@ -13,9 +14,7 @@ use errors::SwrError;
 use host_exports::create_wasm_host_instance;
 use kanal;
 use manifest_loader::ManifestLoader;
-use std::collections::HashMap;
 use std::sync::Arc;
-use subgraph::Handler;
 use subgraph::Subgraph;
 use subgraph::SubgraphOperationMessage;
 use subgraph::SubgraphSource;
@@ -39,32 +38,8 @@ async fn main() -> Result<(), SwrError> {
     for source in manifest.datasources {
         // Creating host instance
         let wasm_bytes = manifest.load_wasm(source.name).await?;
-        let mut host = create_wasm_host_instance(source.version, wasm_bytes)?;
-
-        let mut handlers = HashMap::new();
-
-        for (event_name, handler_name) in source.event_handlers.iter() {
-            let handler = Handler::new(&host.instance.exports, handler_name)?;
-            handlers.insert(event_name.to_owned(), handler);
-        }
-
-        // FIXME: Saving the 2 following set of handlers might lead to Naming-collision
-        for handler_name in source.block_handlers.iter() {
-            let handler = Handler::new(&host.instance.exports, handler_name)?;
-            handlers.insert(handler_name.to_owned(), handler);
-        }
-
-        for (_, handler_name) in source.tx_handlers.iter() {
-            let handler = Handler::new(&host.instance.exports, handler_name)?;
-            handlers.insert(handler_name.to_owned(), handler);
-        }
-
-        let subgraph_source = SubgraphSource {
-            id: source.name.to_owned(),
-            handlers,
-            host,
-        };
-
+        let host = create_wasm_host_instance(source.version, wasm_bytes)?;
+        let subgraph_source = SubgraphSource::try_from((host, source))?;
         subgraph.add_source(subgraph_source);
     }
 
