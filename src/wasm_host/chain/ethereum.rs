@@ -7,7 +7,7 @@ mod test {
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::chain::ethereum::transaction::EthereumTransactionData;
-    use crate::host_exports::test::*;
+    use crate::wasm_host::test::*;
     use crate::host_fn_test;
     use ethabi::ethereum_types::H256;
     use ethabi::ethereum_types::U64;

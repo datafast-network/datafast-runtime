@@ -5,18 +5,18 @@ mod config;
 mod core;
 mod errors;
 mod from_to;
-mod host_exports;
 mod internal_messages;
 mod manifest_loader;
 mod subgraph;
+mod wasm_host;
 
 use config::Config;
 use errors::SwrError;
-use host_exports::create_wasm_host_instance;
 use kanal;
 use manifest_loader::ManifestLoader;
 use subgraph::Subgraph;
 use subgraph::SubgraphSource;
+use wasm_host::create_wasm_host_instance;
 
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {

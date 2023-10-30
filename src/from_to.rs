@@ -1,5 +1,5 @@
 use crate::errors::SwrError;
-use crate::host_exports::AscHost;
+use crate::wasm_host::AscHost;
 use crate::manifest_loader::DataSource;
 use crate::subgraph::Handler;
 use crate::subgraph::SubgraphSource;

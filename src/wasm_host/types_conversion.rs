@@ -7,7 +7,7 @@ use crate::asc::native_types::string::AscString;
 use crate::asc::native_types::AscH160;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
-use crate::host_exports::Env;
+use crate::wasm_host::Env;
 use anyhow::Context;
 use std::str::FromStr;
 use wasmer::FunctionEnvMut;
