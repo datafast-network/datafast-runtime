@@ -17,7 +17,7 @@ pub struct DataSource {
     pub entities: HashSet<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ManifestLoader {
     pub datasources: Vec<DataSource>,
 }
@@ -40,7 +40,7 @@ impl ManifestLoader {
 
     pub async fn load_wasm(
         &self,
-        source_id: impl ToString,
+        ref source_id: impl ToString,
     ) -> Result<Vec<u8>, ManifestLoaderError> {
         todo!()
     }

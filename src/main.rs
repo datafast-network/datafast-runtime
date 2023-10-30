@@ -35,11 +35,11 @@ async fn main() -> Result<(), SwrError> {
     // But for now, for the sake of simplicity, pass subgraph-id to Config
     let mut subgraph = Subgraph::new_empty(&config.subgraph_id);
 
-    for source in manifest.datasources {
+    for source in manifest.datasources.iter() {
         // Creating host instance
-        let wasm_bytes = manifest.load_wasm(source.name).await?;
-        let host = create_wasm_host_instance(source.version, wasm_bytes)?;
-        let subgraph_source = SubgraphSource::try_from((host, source))?;
+        let wasm_bytes = manifest.load_wasm(&source.name).await?;
+        let host = create_wasm_host_instance(source.version.to_owned(), wasm_bytes)?;
+        let subgraph_source = SubgraphSource::try_from((host, source.to_owned()))?;
         subgraph.add_source(subgraph_source);
     }
 

@@ -15,7 +15,6 @@ use wasmer::FunctionEnv;
 use wasmer::Instance;
 use wasmer::Memory;
 use wasmer::Module;
-use wasmer::RuntimeError;
 use wasmer::Store;
 use wasmer::TypedFunction;
 
@@ -96,7 +95,7 @@ pub fn create_wasm_host_instance(
             "typeConversion.stringToH160" => Function::new_typed_with_env(&mut store, &env, types_conversion::string_to_h160),
             "typeConversion.bytesToBase58" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_base58),
             //Log
-            "log.log" => Function::new_typed_with_env(&mut store, &env, host_log::log_log),
+            "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log),
             // BigInt
             "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus),
             "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
