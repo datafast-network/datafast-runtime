@@ -1,15 +1,15 @@
 use crate::asc::base::asc_new;
-use crate::asc::errors::AscError;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
+use crate::errors::SubgraphError;
 use crate::host_exports::AscHost;
+use kanal::AsyncReceiver;
+use kanal::AsyncSender;
 use kanal::Receiver;
 use std::collections::HashMap;
-use thiserror::Error;
 use wasmer::Exports;
 use wasmer::Function;
-use wasmer::RuntimeError;
 use wasmer::Value;
 use web3::types::Log;
 
@@ -21,32 +21,18 @@ pub enum SubgraphData {
     Log(Log),
 }
 
-#[derive(Debug, Error)]
-pub enum SubgraphErr {
-    #[error(transparent)]
-    RuntimeError(#[from] RuntimeError),
-    #[error(transparent)]
-    AscError(#[from] AscError),
-    #[error("Invalid datasource_id: {0}")]
-    InvalidSourceID(String),
-    #[error("Invalid handler_name: {0}")]
-    InvalidHandlerName(String),
-    #[error("Something wrong: {0}")]
-    Plain(String),
-}
-
 pub struct Handler {
     name: String,
     inner: Function,
 }
 
 impl Handler {
-    pub fn new(instance_exports: &Exports, func_name: &str) -> Result<Self, SubgraphErr> {
+    pub fn new(instance_exports: &Exports, func_name: &str) -> Result<Self, SubgraphError> {
         let this = Self {
             name: func_name.to_string(),
             inner: instance_exports
                 .get_function(&func_name)
-                .map_err(|_| SubgraphErr::InvalidHandlerName(func_name.to_owned()))?
+                .map_err(|_| SubgraphError::InvalidHandlerName(func_name.to_owned()))?
                 .to_owned(),
         };
         Ok(this)
@@ -60,12 +46,12 @@ pub struct SubgraphSource {
 }
 
 impl SubgraphSource {
-    pub fn invoke(&mut self, func: &str, data: SubgraphData) -> Result<(), SubgraphErr> {
+    pub fn invoke(&mut self, func: &str, data: SubgraphData) -> Result<(), SubgraphError> {
         log::info!("Source={} is invoking function{func}", self.id);
         let handler = self
             .handlers
             .get(func)
-            .ok_or_else(|| SubgraphErr::Plain("Bad handler name".to_string()))?;
+            .ok_or_else(|| SubgraphError::Plain("Bad handler name".to_string()))?;
 
         match data {
             SubgraphData::Block(mut inner) => {
@@ -121,30 +107,44 @@ pub enum SubgraphOperationMessage {
     Finish,
 }
 
-pub struct Subgraph {
+pub struct Subgraph<T: ToString> {
     pub sources: HashMap<String, SubgraphSource>,
-    pub id: String,
+    pub id: T,
+    pub name: String,
 }
 
-impl Subgraph {
+// NOTE: using IPFS might lead to subgraph-id using a hex/hash
+impl<T: ToString> Subgraph<T> {
+    pub fn new_empty(name: &str, id: T) -> Self {
+        Self {
+            sources: HashMap::new(),
+            name: name.to_owned(),
+            id,
+        }
+    }
+
+    pub fn add_source(&mut self, source: SubgraphSource) -> bool {
+        self.sources.insert(source.id.clone(), source).is_some()
+    }
+
     pub fn invoke(
         &mut self,
         source_id: &str,
         func: &str,
         data: SubgraphData,
-    ) -> Result<(), SubgraphErr> {
+    ) -> Result<(), SubgraphError> {
         log::info!("Invoking: source={source_id}, func={func}");
         let source = self
             .sources
             .get_mut(source_id)
-            .ok_or_else(|| SubgraphErr::InvalidSourceID(source_id.to_owned()))?;
+            .ok_or_else(|| SubgraphError::InvalidSourceID(source_id.to_owned()))?;
         source.invoke(func, data)
     }
 
     pub fn run_with_receiver(
         mut self,
         recv: Receiver<SubgraphOperationMessage>,
-    ) -> Result<(), SubgraphErr> {
+    ) -> Result<(), SubgraphError> {
         while let Ok(op) = recv.recv() {
             match op {
                 SubgraphOperationMessage::Job(msg) => {
@@ -157,6 +157,32 @@ impl Subgraph {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    pub async fn run_async(
+        mut self,
+        recv: AsyncReceiver<SubgraphOperationMessage>,
+        // NOTE: temporarily store sender use String , but eventually we will have a static type for store-sender message type
+        // We need to pass store_sender down to AscHost and bind it to our FunctionEnvMut
+        // But AscHost does not accept async-code, so we need to use another blocking-channel
+        // to pass data to the async store_sender
+        _store_sender: AsyncSender<String>,
+    ) -> Result<(), SubgraphError> {
+        while let Ok(op) = recv.recv().await {
+            match op {
+                SubgraphOperationMessage::Job(msg) => {
+                    log::info!("Received msg: {:?}", msg);
+                    self.invoke(&msg.source, &msg.handler, msg.data)?;
+                }
+                SubgraphOperationMessage::Finish => {
+                    log::info!("Request to shutdown Subgraph");
+                    return Ok(());
+                }
+            }
+        }
+
         Ok(())
     }
 }
