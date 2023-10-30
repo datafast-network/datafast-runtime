@@ -41,13 +41,18 @@ sequenceDiagram
 ## Host Imports Functions
 
 ### Testing everything
-1. Build the test suits first with (Subgraph-testing repo)[https://github.com/hardbed/subgraph-testing]
+1. Clone both this reop & [subgraph-testing](https://github.com/hardbed/subgraph-testing) repo and put them under the same directory
+```shell
+any-parent-dir $: git clone github.com/hardbed/subgraph-testing
+any-parent-dir $: git clone github.com/hardbed/subgraph-wasm-runtime
+```
 
+2. Build the test suits first with [subgraph-testing](https://github.com/hardbed/subgraph-testing)
 ```shell
 subgraph-testing $: pnpm build-test
 ```
 
-2. In the project repo, run test
+3. In this repo, run test
 ```shell
 subgraph-wasm-runtime $: RUST_LOG=info cargo test
 ```
