@@ -6,6 +6,7 @@ mod core;
 mod errors;
 mod from_to;
 mod host_exports;
+mod internal_messages;
 mod manifest_loader;
 mod subgraph;
 
@@ -15,14 +16,7 @@ use host_exports::create_wasm_host_instance;
 use kanal;
 use manifest_loader::ManifestLoader;
 use subgraph::Subgraph;
-use subgraph::SubgraphOperationMessage;
 use subgraph::SubgraphSource;
-
-/*
-The goal design is, the runtime must be very easy to use, very easy to pull a demo
-Example usage:
-$ swr --manifest ~/my-subgraph-repo --subscribe nats://localhost:9000/blocks --store mystore://localhost:12345/namespace
-*/
 
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {
@@ -58,8 +52,7 @@ async fn main() -> Result<(), SwrError> {
 
     // 6. Creating message transport channel
     // Receving one mmessage at a time
-    let (subgraph_msg_sender, subgraph_receiver) =
-        kanal::bounded_async::<SubgraphOperationMessage>(1);
+    let (subgraph_msg_sender, subgraph_receiver) = kanal::bounded_async(1);
     let (store_sender, store_receiver) = kanal::bounded_async(1);
 
     // 7. Start 3 threads:

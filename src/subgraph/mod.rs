@@ -1,9 +1,8 @@
 use crate::asc::base::asc_new;
-use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::event::EthereumEventData;
-use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::errors::SubgraphError;
 use crate::host_exports::AscHost;
+use crate::internal_messages::SubgraphData;
+use crate::internal_messages::SubgraphOperationMessage;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 use kanal::Receiver;
@@ -11,15 +10,6 @@ use std::collections::HashMap;
 use wasmer::Exports;
 use wasmer::Function;
 use wasmer::Value;
-use web3::types::Log;
-
-#[derive(Debug)]
-pub enum SubgraphData {
-    Block(EthereumBlockData),
-    Transaction(EthereumTransactionData),
-    Event(EthereumEventData),
-    Log(Log),
-}
 
 pub struct Handler {
     name: String,
@@ -92,19 +82,6 @@ impl SubgraphSource {
             }
         }
     }
-}
-
-#[derive(Debug)]
-pub struct SubgraphTransportMessage {
-    pub source: String,
-    pub handler: String,
-    pub data: SubgraphData,
-}
-
-#[derive(Debug)]
-pub enum SubgraphOperationMessage {
-    Job(SubgraphTransportMessage),
-    Finish,
 }
 
 pub struct Subgraph<T: ToString> {
@@ -195,16 +172,14 @@ mod test {
     - invoke all handlers of sources
     */
 
-    use super::Handler;
-    use super::Subgraph;
-    use super::SubgraphOperationMessage;
-    use super::SubgraphSource;
-    use super::SubgraphTransportMessage;
+    use super::*;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::chain::ethereum::transaction::EthereumTransactionData;
     use crate::host_exports::test::mock_host_instance;
     use crate::host_exports::test::version_to_test_resource;
+    use crate::internal_messages::SubgraphOperationMessage;
+    use crate::internal_messages::SubgraphTransportMessage;
     use ethabi::ethereum_types::H160;
     use ethabi::ethereum_types::U256;
     use std::collections::HashMap;
@@ -219,6 +194,7 @@ mod test {
 
         let mut subgraph = Subgraph {
             id: "TestSubgraph".to_string(),
+            name: "TestSubgraph".to_string(),
             sources: HashMap::new(),
         };
 
