@@ -4,6 +4,8 @@ use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::errors::SubgraphError;
 use crate::host_exports::AscHost;
+use kanal::AsyncReceiver;
+use kanal::AsyncSender;
 use kanal::Receiver;
 use std::collections::HashMap;
 use wasmer::Exports;
@@ -105,16 +107,19 @@ pub enum SubgraphOperationMessage {
     Finish,
 }
 
-pub struct Subgraph {
+pub struct Subgraph<T: ToString> {
     pub sources: HashMap<String, SubgraphSource>,
-    pub id: String,
+    pub id: T,
+    pub name: String,
 }
 
-impl Subgraph {
-    pub fn new_empty(id: &str) -> Self {
+// NOTE: using IPFS might lead to subgraph-id using a hex/hash
+impl<T: ToString> Subgraph<T> {
+    pub fn new_empty(name: &str, id: T) -> Self {
         Self {
             sources: HashMap::new(),
-            id: id.to_owned(),
+            name: name.to_owned(),
+            id,
         }
     }
 
@@ -141,6 +146,31 @@ impl Subgraph {
         recv: Receiver<SubgraphOperationMessage>,
     ) -> Result<(), SubgraphError> {
         while let Ok(op) = recv.recv() {
+            match op {
+                SubgraphOperationMessage::Job(msg) => {
+                    log::info!("Received msg: {:?}", msg);
+                    self.invoke(&msg.source, &msg.handler, msg.data)?;
+                }
+                SubgraphOperationMessage::Finish => {
+                    log::info!("Request to shutdown Subgraph");
+                    return Ok(());
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn run_async(
+        mut self,
+        recv: AsyncReceiver<SubgraphOperationMessage>,
+        // NOTE: temporarily store sender use String , but eventually we will have a static type for store-sender message type
+        // We need to pass store_sender down to AscHost and bind it to our FunctionEnvMut
+        // But AscHost does not accept async-code, so we need to use another blocking-channel
+        // to pass data to the async store_sender
+        _store_sender: AsyncSender<String>,
+    ) -> Result<(), SubgraphError> {
+        while let Ok(op) = recv.recv().await {
             match op {
                 SubgraphOperationMessage::Job(msg) => {
                     log::info!("Received msg: {:?}", msg);

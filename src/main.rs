@@ -14,7 +14,6 @@ use errors::SwrError;
 use host_exports::create_wasm_host_instance;
 use kanal;
 use manifest_loader::ManifestLoader;
-use std::sync::Arc;
 use subgraph::Subgraph;
 use subgraph::SubgraphOperationMessage;
 use subgraph::SubgraphSource;
@@ -38,14 +37,19 @@ async fn main() -> Result<(), SwrError> {
 
     // 4. Create a subgraph-instance first
     // NOTE: normally subgraph does not have a name. It generally is derived from the hash of the whole manifest set.
-    // But for now, for the sake of simplicity, pass subgraph-id to Config
-    let mut subgraph = Subgraph::new_empty(&config.subgraph_id);
+    // when using ManifestLoader to load bundle from IPFS, we might actually grab subgraph-hex-id
+    // but since it is not implemented yet, use config's subgraph_name for id as well
+    // This value is not critical, basically it is meant to help with metrics (prometheus) later
+    let subgraph_id = config
+        .subgraph_id
+        .clone()
+        .unwrap_or(config.subgraph_name.clone());
+    let mut subgraph = Subgraph::new_empty(&config.subgraph_name, &subgraph_id);
 
     for source in manifest.datasources.iter() {
-        // Creating host instance
         let wasm_bytes = manifest.load_wasm(&source.name).await?;
-        let host = create_wasm_host_instance(source.version.to_owned(), wasm_bytes)?;
-        let subgraph_source = SubgraphSource::try_from((host, source.to_owned()))?;
+        let wasm_host = create_wasm_host_instance(source.version.to_owned(), wasm_bytes)?;
+        let subgraph_source = SubgraphSource::try_from((wasm_host, source.to_owned()))?;
         subgraph.add_source(subgraph_source);
     }
 
@@ -53,13 +57,29 @@ async fn main() -> Result<(), SwrError> {
 
     // 6. Creating message transport channel
     // Receving one mmessage at a time
-    let (sender, receiver) = kanal::bounded::<SubgraphOperationMessage>(1);
-    let sender = Arc::new(sender);
+    let (_subgraph_msg_sender, subgraph_receiver) =
+        kanal::bounded_async::<SubgraphOperationMessage>(1);
+    let (store_sender, _store_receiver) = kanal::bounded_async(1);
 
     // 7. Start threads for subgraph-source and invoke
     // - One thread for Input-Data(Block/Event/Log/Tx) Subscriber
     // - One thread for SubgraphWasmInstance
+    let swr_run = subgraph.run_async(subgraph_receiver, store_sender);
     // - One thread for DatabaseWorker
 
-    Ok(())
+    // Run until all threads stop
+    ::tokio::select! {
+        result = swr_run => {
+            match result {
+                Ok(()) => {
+                    ::log::info!("SubgraphWasmHost stopped successfully");
+                    Ok(())
+                },
+                Err(e) => {
+                    ::log::error!("SubgraphWasmHost stopped unexpectedly: {:?}", e);
+                    return Err(SwrError::from(e));
+                },
+            }
+        }
+    }
 }

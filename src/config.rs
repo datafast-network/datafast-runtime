@@ -8,7 +8,8 @@ use crate::errors::SwrError;
 
 #[derive(Deserialize)]
 pub struct Config {
-    pub subgraph_id: String,
+    pub subgraph_name: String,
+    pub subgraph_id: Option<String>,
     pub manifest: String,
 }
 
