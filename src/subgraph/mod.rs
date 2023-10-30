@@ -1,8 +1,8 @@
 use crate::asc::base::asc_new;
 use crate::errors::SubgraphError;
-use crate::host_exports::AscHost;
 use crate::internal_messages::SubgraphData;
 use crate::internal_messages::SubgraphOperationMessage;
+use crate::wasm_host::AscHost;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 use kanal::Receiver;
@@ -176,10 +176,10 @@ mod test {
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::chain::ethereum::transaction::EthereumTransactionData;
-    use crate::host_exports::test::mock_host_instance;
-    use crate::host_exports::test::version_to_test_resource;
+    use crate::internal_messages::SubgraphJob;
     use crate::internal_messages::SubgraphOperationMessage;
-    use crate::internal_messages::SubgraphTransportMessage;
+    use crate::wasm_host::test::mock_host_instance;
+    use crate::wasm_host::test::version_to_test_resource;
     use ethabi::ethereum_types::H160;
     use ethabi::ethereum_types::U256;
     use std::collections::HashMap;
@@ -240,7 +240,7 @@ mod test {
         });
 
         // Test sending block data
-        let block_data_msg = SubgraphTransportMessage {
+        let block_data_msg = SubgraphJob {
             source: "TestDataSource1".to_string(),
             handler: "testHandlerBlock".to_string(),
             data: crate::subgraph::SubgraphData::Block(EthereumBlockData::default()),
@@ -251,7 +251,7 @@ mod test {
             .expect("Failed to send block_data_msg");
 
         // Test sending event data
-        let event_data_msg = SubgraphTransportMessage {
+        let event_data_msg = SubgraphJob {
             source: "TestDataSource1".to_string(),
             handler: "testHandlerEvent".to_string(),
             data: crate::subgraph::SubgraphData::Event(EthereumEventData {
@@ -268,7 +268,7 @@ mod test {
             .expect("Failed to send event_data_msg");
 
         // Test sending tx data
-        let transaction_data_msg = SubgraphTransportMessage {
+        let transaction_data_msg = SubgraphJob {
             source: "TestDataSource1".to_string(),
             handler: "testHandlerTransaction".to_string(),
             data: crate::subgraph::SubgraphData::Transaction(EthereumTransactionData {

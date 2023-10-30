@@ -4,7 +4,7 @@ use crate::asc::base::AscPtr;
 use crate::asc::bignumber::AscBigDecimal;
 use crate::asc::native_types::string::AscString;
 use crate::bignumber::bigdecimal::BigDecimal;
-use crate::host_exports::Env;
+use crate::wasm_host::Env;
 use std::str::FromStr;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
