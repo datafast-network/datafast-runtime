@@ -40,7 +40,14 @@ sequenceDiagram
 
 ## Host Imports Functions
 
-### Testing functions
+### Testing everything
+1. Build the test suits first with (Subgraph-testing repo)[https://github.com/hardbed/subgraph-testing]
+
+```shell
+subgraph-testing $: pnpm build-test
 ```
-$ RUST_LOG=info cargo test
+
+2. In the project repo, run test
+```shell
+subgraph-wasm-runtime $: RUST_LOG=info cargo test
 ```
