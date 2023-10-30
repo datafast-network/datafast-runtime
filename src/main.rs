@@ -57,6 +57,9 @@ async fn main() -> Result<(), SwrError> {
     let sender = Arc::new(sender);
 
     // 7. Start threads for subgraph-source and invoke
+    // - One thread for Input-Data(Block/Event/Log/Tx) Subscriber
+    // - One thread for SubgraphWasmInstance
+    // - One thread for DatabaseWorker
 
     Ok(())
 }
