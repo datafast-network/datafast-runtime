@@ -74,5 +74,7 @@ async fn main() -> Result<(), SwrError> {
     let (sender, receiver) = kanal::bounded::<SubgraphOperationMessage>(1);
     let sender = Arc::new(sender);
 
+    // 7. Start threads for subgraph-source and invoke
+
     Ok(())
 }
