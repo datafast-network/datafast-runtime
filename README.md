@@ -38,7 +38,7 @@ sequenceDiagram
     DatabaseWorker->>Database: database ops
 ```
 
-## Host Imports Functions
+## Unit-Test
 
 ### Testing everything
 1. Clone both this reop & [subgraph-testing](https://github.com/hardbed/subgraph-testing) repo and put them under the same directory
