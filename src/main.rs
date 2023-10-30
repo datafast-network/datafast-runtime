@@ -19,12 +19,18 @@ use subgraph::Subgraph;
 use subgraph::SubgraphOperationMessage;
 use subgraph::SubgraphSource;
 
+/*
+The goal design is, the runtime must be very easy to use, very easy to pull a demo
+Example usage:
+$ swr --manifest ~/my-subgraph-repo --subscribe nats://localhost:9000/blocks --store mystore://localhost:12345/namespace
+*/
+
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {
     // 1. Load config & cli-arg
     let config = Config::load()?;
 
-    // 2. Start ManifestLoader & load data
+    // 2. Start ManifestLoader & load manifest bundle (subgraph.yaml/abis/wasm etc)
     let manifest = ManifestLoader::new(&config).await?;
 
     // 3. Binding db connection
@@ -46,6 +52,7 @@ async fn main() -> Result<(), SwrError> {
     // 5. Binding blockstore connection
 
     // 6. Creating message transport channel
+    // Receving one mmessage at a time
     let (sender, receiver) = kanal::bounded::<SubgraphOperationMessage>(1);
     let sender = Arc::new(sender);
 
