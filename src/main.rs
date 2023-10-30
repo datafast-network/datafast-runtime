@@ -84,41 +84,8 @@ async fn main() -> Result<(), SwrError> {
 
     // 8. Run until one of the threads stop
     ::tokio::select! {
-        result = subscriber_run => {
-            match result {
-                Ok(()) => {
-                    ::log::info!("InputSubscriber stopped successfully");
-                    Ok(())
-                },
-                Err(e) => {
-                    ::log::error!("InputSubscriber stopped unexpectedly: {:?}", e);
-                    return Err(SwrError::from(e));
-                },
-            }
-        }
-        result = swr_run => {
-            match result {
-                Ok(()) => {
-                    ::log::info!("SubgraphWasmHost stopped successfully");
-                    Ok(())
-                },
-                Err(e) => {
-                    ::log::error!("SubgraphWasmHost stopped unexpectedly: {:?}", e);
-                    return Err(SwrError::from(e));
-                },
-            }
-        }
-        result = database_worker_run => {
-            match result {
-                Ok(()) => {
-                    ::log::info!("DatabaseWorker stopped successfully");
-                    Ok(())
-                },
-                Err(e) => {
-                    ::log::error!("DatabaseWorker stopped unexpectedly: {:?}", e);
-                    return Err(SwrError::from(e));
-                },
-            }
-        }
+        result = subscriber_run => result,
+        result = swr_run => result.map_err(SwrError::from),
+        result = database_worker_run => result
     }
 }
