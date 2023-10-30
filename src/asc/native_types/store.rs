@@ -3,7 +3,7 @@ use crate::impl_asc_type_enum;
 use semver::Version;
 
 #[repr(u32)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum StoreValueKind {
     String,
     Int,

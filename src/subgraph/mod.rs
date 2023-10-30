@@ -1,4 +1,5 @@
 use crate::asc::base::asc_new;
+use crate::db_worker::DatabaseAgent;
 use crate::errors::SubgraphError;
 use crate::internal_messages::SubgraphData;
 use crate::internal_messages::SubgraphOperationMessage;
@@ -6,6 +7,7 @@ use crate::wasm_host::AscHost;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 use kanal::Receiver;
+use kanal::Sender;
 use std::collections::HashMap;
 use wasmer::Exports;
 use wasmer::Function;
@@ -141,11 +143,6 @@ impl<T: ToString> Subgraph<T> {
     pub async fn run_async(
         mut self,
         recv: AsyncReceiver<SubgraphOperationMessage>,
-        // NOTE: temporarily store sender use String , but eventually we will have a static type for store-sender message type
-        // We need to pass store_sender down to AscHost and bind it to our FunctionEnvMut
-        // But AscHost does not accept async-code, so we need to use another blocking-channel
-        // to pass data to the async store_sender
-        _store_sender: AsyncSender<String>,
     ) -> Result<(), SubgraphError> {
         while let Ok(op) = recv.recv().await {
             match op {

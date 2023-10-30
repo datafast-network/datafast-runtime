@@ -1,4 +1,5 @@
 use crate::asc::errors::AscError;
+use kanal::SendError;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
@@ -39,6 +40,16 @@ pub enum SubgraphError {
 }
 
 #[derive(Debug, Error)]
+pub enum DatabaseWorkerError {
+    #[error("Invalid operation")]
+    Invalid,
+    #[error("Something wrong: {0}")]
+    Plain(String),
+    #[error("Result-reply sending failed: {0}")]
+    SendReplyFailed(#[from] SendError),
+}
+
+#[derive(Debug, Error)]
 pub enum SwrError {
     #[error(transparent)]
     ManifestLoader(#[from] ManifestLoaderError),
@@ -48,4 +59,6 @@ pub enum SwrError {
     WasmHostError(#[from] WasmHostError),
     #[error(transparent)]
     SubgraphError(#[from] SubgraphError),
+    #[error(transparent)]
+    DatabaseWorkerError(#[from] DatabaseWorkerError),
 }

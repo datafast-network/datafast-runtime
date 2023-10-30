@@ -7,6 +7,7 @@ mod log;
 mod macros;
 mod types_conversion;
 
+use crate::db_worker::DatabaseAgent;
 use crate::errors::WasmHostError;
 use semver::Version;
 use wasmer::imports;
@@ -33,6 +34,7 @@ pub struct Env {
 pub fn create_wasm_host_instance(
     api_version: Version,
     wasm_bytes: Vec<u8>,
+    dbstore_agent: Option<DatabaseAgent>,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -213,7 +215,7 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        create_wasm_host_instance(api_version, wasm_bytes).unwrap()
+        create_wasm_host_instance(api_version, wasm_bytes, None).unwrap()
     }
 
     pub fn version_to_test_resource(version: &str, test_wasm_name: &str) -> (Version, String) {
