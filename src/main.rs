@@ -54,21 +54,48 @@ async fn main() -> Result<(), SwrError> {
     }
 
     // 5. Binding blockstore connection
+    // TODO: impl blockstore (bus subscription)
 
     // 6. Creating message transport channel
     // Receving one mmessage at a time
-    let (_subgraph_msg_sender, subgraph_receiver) =
+    let (subgraph_msg_sender, subgraph_receiver) =
         kanal::bounded_async::<SubgraphOperationMessage>(1);
-    let (store_sender, _store_receiver) = kanal::bounded_async(1);
+    let (store_sender, store_receiver) = kanal::bounded_async(1);
 
-    // 7. Start threads for subgraph-source and invoke
+    // 7. Start 3 threads:
     // - One thread for Input-Data(Block/Event/Log/Tx) Subscriber
+    // TODO: impl
+    let subscriber_run = async move {
+        ::log::info!("Acquire subgraph_sender: {:?}", subgraph_msg_sender);
+        // todo!("Impl data subscription");
+        Ok::<(), SwrError>(())
+    };
+
     // - One thread for SubgraphWasmInstance
     let swr_run = subgraph.run_async(subgraph_receiver, store_sender);
-    // - One thread for DatabaseWorker
 
-    // Run until all threads stop
+    // - One thread for DatabaseWorker
+    // TODO: impl
+    let database_worker_run = async move {
+        ::log::info!("Acquire store_receiver: {:?}", store_receiver);
+        // todo!("Impl database worker");
+        Ok::<(), SwrError>(())
+    };
+
+    // 8. Run until one of the threads stop
     ::tokio::select! {
+        result = subscriber_run => {
+            match result {
+                Ok(()) => {
+                    ::log::info!("InputSubscriber stopped successfully");
+                    Ok(())
+                },
+                Err(e) => {
+                    ::log::error!("InputSubscriber stopped unexpectedly: {:?}", e);
+                    return Err(SwrError::from(e));
+                },
+            }
+        }
         result = swr_run => {
             match result {
                 Ok(()) => {
@@ -77,6 +104,18 @@ async fn main() -> Result<(), SwrError> {
                 },
                 Err(e) => {
                     ::log::error!("SubgraphWasmHost stopped unexpectedly: {:?}", e);
+                    return Err(SwrError::from(e));
+                },
+            }
+        }
+        result = database_worker_run => {
+            match result {
+                Ok(()) => {
+                    ::log::info!("DatabaseWorker stopped successfully");
+                    Ok(())
+                },
+                Err(e) => {
+                    ::log::error!("DatabaseWorker stopped unexpectedly: {:?}", e);
                     return Err(SwrError::from(e));
                 },
             }
