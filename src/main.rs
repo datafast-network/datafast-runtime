@@ -86,6 +86,7 @@ async fn main() -> Result<(), SwrError> {
     ::tokio::select! {
         result = subscriber_run => result,
         result = swr_run => result.map_err(SwrError::from),
-        result = database_worker_run => result
+        result = database_worker_run => result,
+        // TODO: We need prometheus as well
     }
 }
