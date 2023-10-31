@@ -119,89 +119,65 @@ mod test {
     use std::collections::HashMap;
     use std::str::FromStr;
 
-    host_fn_test!(
-        "store",
-        test_store_set,
-        host {
-            let entity_type = "Token".to_string();
-            let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
-            let data = host.dbstore_agent.send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
+    host_fn_test!("store", test_store_set, host {
+        let entity_type = "Token".to_string();
+        let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
+        let data = host.dbstore_agent.send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
 
-            if let StoreRequestResult::Load(Some(entity)) = data {
-                let id = entity.get("id").unwrap().to_owned();
-                assert_eq!(id, Value::String(entity_id));
-            } else {
-                panic!("Failed")
-            }
+        if let StoreRequestResult::Load(Some(entity)) = data {
+            let id = entity.get("id").unwrap().to_owned();
+            assert_eq!(id, Value::String(entity_id));
+        } else {
+            panic!("Failed")
         }
-    );
+    });
 
-    host_fn_test!(
-        "store",
-        test_store_get,
-        host,
-        result {
-            let entity_type = "Token".to_string();
-            let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
-            let mut entity_data = HashMap::new();
+    host_fn_test!("store", test_store_get, host, result {
+        let entity_type = "Token".to_string();
+        let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
+        let mut entity_data = HashMap::new();
 
-            // "totalValueLockedUSD": BigDecimal(BigDecimal(0)),
-            entity_data.insert("totalValueLockedUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "totalValueLockedUSD": BigDecimal(BigDecimal(0)),
+        entity_data.insert("totalValueLockedUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "whitelistPools": List([]),
+        entity_data.insert("whitelistPools".to_string(), Value::List(vec![]));
+        // "poolCount": BigInt(BigInt(0)),
+        entity_data.insert("poolCount".to_string(), Value::BigInt(BigInt::from_str("0").unwrap()));
+        // "volume": BigDecimal(BigDecimal(0)),
+        entity_data.insert("volume".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "untrackedVolumeUSD": BigDecimal(BigDecimal(0)),
+        entity_data.insert("untrackedVolumeUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "totalValueLockedUSDUntracked": BigDecimal(BigDecimal(0)),
+        entity_data.insert("totalValueLockedUSDUntracked".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "feesUSD": BigDecimal(BigDecimal(0)),
+        entity_data.insert("feeUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "decimals": BigInt(BigInt(10)),
+        entity_data.insert("decimals".to_string(), Value::BigInt(BigInt::from_str("0").unwrap()));
+        // "txCount": BigInt(BigInt(0)),
+        entity_data.insert("txCount".to_string(), Value::BigInt(BigInt::from_str("0").unwrap()));
+        // "name": String("MyCoin"),
+        entity_data.insert("name".to_string(), Value::String("MyCoin".to_string()));
+        // "symbol": String("MYCOIN"),
+        entity_data.insert("symbol".to_string(), Value::String("MYCOIN".to_string()));
+        // "derivedETH": BigDecimal(BigDecimal(0)),
+        entity_data.insert("derivedETH".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "totalSupply": BigInt(BigInt(1000000000000)),
+        entity_data.insert("totalSupply".to_string(), Value::BigInt(BigInt::from_str("1000000000000").unwrap()));
+        // "volumeUSD": BigDecimal(BigDecimal(0)),
+        entity_data.insert("volumeUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "totalValueLocked": BigDecimal(BigDecimal(0)),
+        entity_data.insert("totalValueLocked".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
+        // "id": String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
+        entity_data.insert("id".to_string(), Value::String(entity_id.clone()));
 
-            // "whitelistPools": List([]),
-            entity_data.insert("whitelistPools".to_string(), Value::List(vec![]));
-
-            // "poolCount": BigInt(BigInt(0)),
-            entity_data.insert("poolCount".to_string(), Value::BigInt(BigInt::from_str("0").unwrap()));
-
-            // "volume": BigDecimal(BigDecimal(0)),
-            entity_data.insert("volume".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
-
-            // "untrackedVolumeUSD": BigDecimal(BigDecimal(0)),
-            entity_data.insert("untrackedVolumeUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
-
-            // "totalValueLockedUSDUntracked": BigDecimal(BigDecimal(0)),
-            entity_data.insert("totalValueLockedUSDUntracked".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
-
-            // "feesUSD": BigDecimal(BigDecimal(0)),
-            entity_data.insert("feeUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
-
-            // "decimals": BigInt(BigInt(10)),
-            entity_data.insert("decimals".to_string(), Value::BigInt(BigInt::from_str("0").unwrap()));
-
-            // "txCount": BigInt(BigInt(0)),
-            entity_data.insert("txCount".to_string(), Value::BigInt(BigInt::from_str("0").unwrap()));
-
-            // "name": String("MyCoin"),
-            entity_data.insert("name".to_string(), Value::String("MyCoin".to_string()));
-
-            // "symbol": String("MYCOIN"),
-            entity_data.insert("symbol".to_string(), Value::String("MYCOIN".to_string()));
-
-            // "derivedETH": BigDecimal(BigDecimal(0)),
-            entity_data.insert("derivedETH".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
-
-            // "totalSupply": BigInt(BigInt(1000000000000)),
-            entity_data.insert("totalSupply".to_string(), Value::BigInt(BigInt::from_str("1000000000000").unwrap()));
-
-            // "volumeUSD": BigDecimal(BigDecimal(0)),
-            entity_data.insert("volumeUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
-
-            // "totalValueLocked": BigDecimal(BigDecimal(0)),
-            entity_data.insert("totalValueLocked".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
-
-            // "id": String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
-            entity_data.insert("id".to_string(), Value::String(entity_id.clone()));
-
-            let db = host.dbstore_agent.clone();
-            db.send_store_request(StoreOperationMessage::Create((entity_type.clone(), entity_data))).unwrap();
-            []
-        } {
-            let asc_entity = AscPtr::<AscEntity>::new(result.first().unwrap().unwrap_i32() as u32);
-            let entity: HashMap<String, Value> = asc_get(&host, asc_entity, 0).unwrap();
-            assert_eq!(entity.len(), 16);
-            assert_eq!(*entity.get("id").unwrap(), Value::String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string()));
-            assert_eq!(*entity.get("totalSupply").unwrap(), Value::BigInt(BigInt::from_str("1000000000000").unwrap()));
-        }
-    );
+        let db = host.dbstore_agent.clone();
+        db.send_store_request(StoreOperationMessage::Create((entity_type.clone(), entity_data))).unwrap();
+        []
+    } {
+        let asc_entity = AscPtr::<AscEntity>::new(result.first().unwrap().unwrap_i32() as u32);
+        let entity: HashMap<String, Value> = asc_get(&host, asc_entity, 0).unwrap();
+        assert_eq!(entity.len(), 16);
+        assert_eq!(*entity.get("id").unwrap(), Value::String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string()));
+        assert_eq!(*entity.get("totalSupply").unwrap(), Value::BigInt(BigInt::from_str("1000000000000").unwrap()));
+    });
 }
