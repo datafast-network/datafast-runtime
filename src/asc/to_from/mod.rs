@@ -12,6 +12,7 @@ use super::bignumber::AscBigInt;
 use super::errors::AscError;
 use super::native_types::array::Array;
 use super::native_types::json::AscJson;
+use super::native_types::json::JsonValueKind;
 use super::native_types::r#enum::AscEnum;
 use super::native_types::r#enum::AscEnumArray;
 use super::native_types::r#enum::EnumPayload;
@@ -240,6 +241,30 @@ impl ToAscObj<AscEnum<StoreValueKind>> for Value {
 
         Ok(AscEnum {
             kind: StoreValueKind::get_kind(self),
+            _padding: 0,
+            payload,
+        })
+    }
+}
+
+impl ToAscObj<AscEnum<JsonValueKind>> for serde_json::Value {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscEnum<JsonValueKind>, AscError> {
+        use serde_json::Value;
+
+        let payload = match self {
+            Value::Null => EnumPayload(0),
+            Value::Bool(b) => EnumPayload::from(*b),
+            Value::Number(number) => asc_new(heap, &*number.to_string())?.into(),
+            Value::String(string) => asc_new(heap, string.as_str())?.into(),
+            Value::Array(array) => asc_new(heap, array.as_slice())?.into(),
+            Value::Object(object) => asc_new(heap, object)?.into(),
+        };
+
+        Ok(AscEnum {
+            kind: JsonValueKind::get_kind(self),
             _padding: 0,
             payload,
         })

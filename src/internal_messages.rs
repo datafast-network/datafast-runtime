@@ -27,18 +27,21 @@ pub enum SubgraphOperationMessage {
     Finish,
 }
 
+pub type EntityType = String;
+pub type EntityID = String;
+
 #[derive(Debug)]
 pub enum StoreOperationMessage {
-    Create(HashMap<String, Value>),
-    Load(String),
-    Update(HashMap<String, Value>),
-    Delete(String),
+    Create((EntityType, HashMap<String, Value>)),
+    Load((EntityType, EntityID)),
+    Update((EntityType, EntityID, HashMap<String, Value>)),
+    Delete((EntityType, EntityID)),
 }
 
 #[derive(Debug)]
 pub enum StoreRequestResult {
     Create(String),
-    Load(HashMap<String, StoreValueKind>),
+    Load(HashMap<String, Value>),
     Delete,
     Update,
 }
