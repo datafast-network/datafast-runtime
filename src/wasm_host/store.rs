@@ -102,3 +102,22 @@ pub fn store_load_related(
     // TODO: impl
     Ok(AscPtr::null())
 }
+
+#[cfg(test)]
+mod test {
+    use super::super::test::*;
+    use crate::asc::base::asc_get;
+    use crate::asc::base::AscPtr;
+    use crate::bignumber::bigint::BigInt;
+    use crate::host_fn_test;
+
+    host_fn_test!(
+        test_store_set,
+        host,
+        ptr {
+        // let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
+        // let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
+        // assert_eq!(bigint_result.to_string(), "3000");
+    }
+    );
+}
