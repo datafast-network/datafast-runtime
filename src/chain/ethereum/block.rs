@@ -8,13 +8,15 @@ use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
+use crate::protobuf;
+use protobuf::ethereum::Block as pbBlock;
 use semver::Version;
+use std::str::FromStr;
 use web3::types::Block;
 use web3::types::H160;
 use web3::types::H256;
 use web3::types::U256;
 use web3::types::U64;
-
 #[repr(C)]
 pub struct AscEthereumBlock {
     pub hash: AscPtr<AscH256>,
@@ -123,5 +125,30 @@ impl ToAscObj<AscEthereumBlock> for EthereumBlockData {
                 .map(|base_fee| asc_new(heap, &BigInt::from_unsigned_u256(&base_fee)))
                 .unwrap_or(Ok(AscPtr::null()))?,
         })
+    }
+}
+
+impl From<pbBlock> for EthereumBlockData {
+    fn from(value: pbBlock) -> Self {
+        let header = value.header.unwrap();
+        Self {
+            hash: H256::from_str(&value.block_hash).unwrap(),
+            parent_hash: H256::from_str(&value.parent_hash).unwrap(),
+            uncles_hash: H256::zero(), //todo get uncles hash
+            author: H160::from_str(&header.author).unwrap(),
+            state_root: H256::from_str(&header.state_root).unwrap(),
+            transactions_root: H256::from_str(&header.transactions_root).unwrap(),
+            receipts_root: H256::from_str(&header.receipts_root).unwrap(),
+            number: U64::from(value.block_number),
+            gas_used: U256::from_str(&header.gas_used).unwrap(),
+            gas_limit: U256::from_str(&header.gas_limit).unwrap(),
+            timestamp: U256::from_str(&header.timestamp).unwrap(),
+            difficulty: U256::from_str(&header.difficulty).unwrap(),
+            total_difficulty: U256::from_str(&header.total_difficulty).unwrap(),
+            size: header.size.map_or(None, |size| Some(U256::from(size))),
+            base_fee_per_gas: header
+                .base_fee_per_gas
+                .map_or(None, |fee| Some(U256::from_str(&fee).unwrap())),
+        }
     }
 }

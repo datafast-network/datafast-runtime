@@ -14,8 +14,12 @@ use crate::asc::native_types::AscWrapped;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
+use crate::protobuf::ethereum::Log as pbLog;
 use semver::Version;
+use std::str::FromStr;
+use web3::types::Bytes;
 use web3::types::Log;
+use web3::types::H160;
 use web3::types::H256;
 
 impl ToAscObj<AscLogParam> for ethabi::LogParam {
@@ -196,4 +200,32 @@ impl ToAscObj<AscLogArray> for Vec<Log> {
 
 impl AscIndexId for AscLogArray {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayLog;
+}
+
+impl From<pbLog> for Log {
+    fn from(value: pbLog) -> Self {
+        Self {
+            address: H160::from_str(&value.address).unwrap(),
+            topics: value
+                .topics
+                .iter()
+                .map(|t| H256::from_str(t).unwrap())
+                .collect::<Vec<H256>>(),
+            data: Bytes::from(value.data),
+            block_hash: value
+                .block_hash
+                .map_or(None, |h| Some(H256::from_str(&h).unwrap_or_default())),
+            block_number: value.block_number.map_or(None, |nb| Some(nb.into())),
+            transaction_hash: value
+                .transaction_hash
+                .map_or(None, |h| Some(H256::from_str(&h).unwrap_or_default())),
+            transaction_index: value.transaction_index.map_or(None, |idx| Some(idx.into())),
+            log_index: value.log_index.map_or(None, |idx| Some(idx.into())),
+            transaction_log_index: value
+                .transaction_log_index
+                .map_or(None, |idx| Some(idx.into())),
+            log_type: value.log_type,
+            removed: value.removed,
+        }
+    }
 }

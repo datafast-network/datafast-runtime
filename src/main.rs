@@ -7,7 +7,9 @@ mod errors;
 mod from_to;
 mod internal_messages;
 mod manifest_loader;
+mod protobuf;
 mod subgraph;
+mod subgraph_filter;
 mod wasm_host;
 
 use config::Config;

@@ -9,8 +9,11 @@ use crate::asc::errors::AscError;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
+use crate::protobuf;
 use ethabi::Bytes;
+use protobuf::ethereum::Transaction as pbTransaction;
 use semver::Version;
+use std::str::FromStr;
 use web3::types::Transaction;
 use web3::types::H160;
 use web3::types::H256;
@@ -98,5 +101,25 @@ impl ToAscObj<AscEthereumTransaction> for EthereumTransactionData {
             input: asc_new(heap, &*self.input)?,
             nonce: asc_new(heap, &BigInt::from_unsigned_u256(&self.nonce))?,
         })
+    }
+}
+
+impl From<pbTransaction> for EthereumTransactionData {
+    fn from(tx: pbTransaction) -> EthereumTransactionData {
+        EthereumTransactionData {
+            hash: H256::from_str(&tx.hash).unwrap(),
+            index: tx.transaction_index.map_or(U128::zero(), |x| x.into()),
+            from: H160::from_str(&tx.from_address).unwrap(),
+            to: tx
+                .to_address
+                .map_or(None, |x| Some(H160::from_str(&x).unwrap())),
+            value: U256::from_str(&tx.value).unwrap(),
+            gas_limit: "0".parse().unwrap(),
+            gas_price: tx
+                .gas_price
+                .map_or(U256::zero(), |x| U256::from_str(&x).unwrap()),
+            input: Bytes::from(tx.input),
+            nonce: U256::from(tx.nonce),
+        }
     }
 }
