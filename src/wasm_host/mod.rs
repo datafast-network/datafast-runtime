@@ -5,6 +5,7 @@ mod chain;
 mod global;
 mod log;
 mod macros;
+mod store;
 mod types_conversion;
 
 use crate::db_worker::DatabaseAgent;
@@ -87,8 +88,8 @@ pub fn create_wasm_host_instance(
             "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
         },
         "index" => { //index for subgraph version <= 4
-            "store.set" => Function::new_typed(&mut store, || todo!("Store set")),
-            "store.get" => Function::new_typed(&mut store, || todo!("Store get")),
+            "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
+            "store.get" => Function::new_typed_with_env(&mut store, &env, store::store_get),
             //Convert
             "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
             "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),
