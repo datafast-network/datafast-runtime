@@ -4,10 +4,14 @@ use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::protobuf as pb;
 use crate::subgraph_filter::errors::FilterError;
 use crate::subgraph_filter::FilterResult;
+use ethabi::Address;
+use std::str::FromStr;
+use web3::types::H160;
+use web3::types::H256;
 
 #[async_trait::async_trait]
 pub trait SubgraphFilter {
-    async fn filter(
+    async fn filter_log(
         &self,
         block_data: &pb::ethereum::Block,
     ) -> FilterResult<Vec<EthereumEventData>> {
@@ -16,6 +20,7 @@ pub trait SubgraphFilter {
             .logs
             .clone()
             .into_iter()
+            .filter(|log| &Address::from_str(&log.address).unwrap() == self.get_address())
             .map(web3::types::Log::from)
             .collect::<Vec<_>>();
         let mut events = Vec::new();
@@ -24,7 +29,7 @@ pub trait SubgraphFilter {
                 Ok(mut data) => {
                     data.block = eth_block.clone();
                     let transaction = block_data.transactions.iter().find_map(|tx| {
-                        if tx.hash == raw_log.transaction_hash.unwrap().to_string() {
+                        if H256::from_str(&tx.hash).unwrap() == raw_log.transaction_hash.unwrap() {
                             Some(EthereumTransactionData::from(tx.clone()))
                         } else {
                             None
@@ -58,8 +63,8 @@ pub trait SubgraphFilter {
             .map(|event| EthereumEventData {
                 params: event.params,
                 address: log.address,
-                log_index: log.log_index.unwrap(),
-                transaction_log_index: log.transaction_log_index.unwrap(),
+                log_index: log.log_index.unwrap_or_default(),
+                transaction_log_index: log.transaction_log_index.unwrap_or_default(),
                 log_type: log.log_type.clone(),
                 ..Default::default()
             })
@@ -68,5 +73,5 @@ pub trait SubgraphFilter {
 
     fn get_contract(&self) -> ethabi::Contract;
 
-    fn get_address(&self) -> &ethabi::Address;
+    fn get_address(&self) -> &H160;
 }
