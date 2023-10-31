@@ -30,6 +30,7 @@ pub struct Env {
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
+    pub db_agent: Option<DatabaseAgent>,
 }
 
 pub fn create_wasm_host_instance(
@@ -49,6 +50,7 @@ pub fn create_wasm_host_instance(
             api_version: api_version.clone(),
             arena_start_ptr: 0,
             arena_free_size: 0,
+            db_agent: dbstore_agent,
         },
     );
 

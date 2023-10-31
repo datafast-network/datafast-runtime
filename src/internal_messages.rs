@@ -2,6 +2,7 @@ use crate::asc::native_types::store::StoreValueKind;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
+use crate::db_worker::abstract_types::Value;
 use std::collections::HashMap;
 use web3::types::Log;
 
@@ -28,9 +29,9 @@ pub enum SubgraphOperationMessage {
 
 #[derive(Debug)]
 pub enum StoreOperationMessage {
-    Create,
+    Create(HashMap<String, Value>),
     Load(String),
-    Update,
+    Update(HashMap<String, Value>),
     Delete(String),
 }
 
