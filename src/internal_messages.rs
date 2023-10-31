@@ -41,7 +41,7 @@ pub enum StoreOperationMessage {
 #[derive(Debug)]
 pub enum StoreRequestResult {
     Create(String),
-    Load(HashMap<String, Value>),
+    Load(Option<HashMap<String, Value>>),
     Delete,
     Update,
 }

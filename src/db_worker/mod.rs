@@ -40,6 +40,32 @@ impl DatabaseWorker {
             }
         }
     }
+
+    fn handle_load(
+        &self,
+        entity_type: String,
+        entity_id: String,
+    ) -> Result<StoreRequestResult, DatabaseWorkerError> {
+        match self {
+            Self::Memory(store) => {
+                let table = store.get(&entity_type);
+
+                if table.is_none() {
+                    return Ok(StoreRequestResult::Load(None));
+                }
+
+                let table = table.unwrap();
+                let entity = table.get(&entity_id);
+
+                if entity.is_none() {
+                    return Ok(StoreRequestResult::Load(None));
+                }
+
+                let entity = entity.unwrap().to_owned();
+                Ok(StoreRequestResult::Load(Some(entity)))
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -48,7 +74,7 @@ pub struct DatabaseAgent {
 }
 
 impl DatabaseWorker {
-    pub async fn new(cfg: &Config) -> Result<Self, DatabaseWorkerError> {
+    pub async fn new(_cfg: &Config) -> Result<Self, DatabaseWorkerError> {
         Ok(Self::Memory(HashMap::new()))
     }
 
@@ -61,6 +87,7 @@ impl DatabaseWorker {
                 self.handle_create(data.0.clone(), data.1)?;
                 Ok(StoreRequestResult::Create(data.0))
             }
+            StoreOperationMessage::Load(data) => self.handle_load(data.0, data.1),
             _ => {
                 unimplemented!()
             }

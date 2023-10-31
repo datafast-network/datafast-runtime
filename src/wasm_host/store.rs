@@ -44,10 +44,15 @@ pub fn store_get(
     let result = db
         .send_store_request(request)
         .map_err(|e| RuntimeError::new(e.to_string()))?;
+
     match result {
         StoreRequestResult::Load(data) => {
-            let asc_result = asc_new(&mut fenv, &data.into_iter().collect::<Vec<_>>())?;
-            Ok(asc_result)
+            if let Some(data) = data {
+                let asc_result = asc_new(&mut fenv, &data.into_iter().collect::<Vec<_>>())?;
+                Ok(asc_result)
+            } else {
+                Ok(AscPtr::null())
+            }
         }
         other => Err(RuntimeError::new(format!(
             "Load entity failed, recevied response: {:?}",
