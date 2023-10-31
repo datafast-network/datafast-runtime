@@ -45,24 +45,46 @@ impl DatabaseWorker {
         &self,
         entity_type: String,
         entity_id: String,
-    ) -> Result<StoreRequestResult, DatabaseWorkerError> {
+    ) -> Result<Option<RawEntity>, DatabaseWorkerError> {
         match self {
             Self::Memory(store) => {
                 let table = store.get(&entity_type);
 
                 if table.is_none() {
-                    return Ok(StoreRequestResult::Load(None));
+                    return Ok(None);
                 }
 
                 let table = table.unwrap();
                 let entity = table.get(&entity_id);
 
                 if entity.is_none() {
-                    return Ok(StoreRequestResult::Load(None));
+                    return Ok(None);
                 }
 
                 let entity = entity.unwrap().to_owned();
-                Ok(StoreRequestResult::Load(Some(entity)))
+                Ok(Some(entity))
+            }
+        }
+    }
+
+    fn handle_update(
+        &mut self,
+        entity_type: String,
+        entity_id: String,
+        data: RawEntity,
+    ) -> Result<(), DatabaseWorkerError> {
+        match self {
+            Self::Memory(store) => {
+                if !store.contains_key(&entity_type) {
+                    store.insert(entity_type.clone(), HashMap::new());
+                }
+                assert!(data.contains_key("id"));
+
+                let table = store.get_mut(&entity_type).unwrap();
+                table.remove_entry(&entity_id);
+                table.insert(entity_id, data);
+
+                Ok(())
             }
         }
     }
@@ -93,7 +115,15 @@ impl DatabaseWorker {
                 self.handle_create(data.0.clone(), data.1)?;
                 Ok(StoreRequestResult::Create(data.0))
             }
-            StoreOperationMessage::Load(data) => self.handle_load(data.0, data.1),
+            StoreOperationMessage::Load(data) => match self.handle_load(data.0, data.1)? {
+                Some(e) => Ok(StoreRequestResult::Load(Some(e))),
+                None => Ok(StoreRequestResult::Load(None)),
+            },
+            StoreOperationMessage::Update(data) => {
+                assert!(!data.1.is_empty());
+                self.handle_update(data.0, data.1, data.2)?;
+                Ok(StoreRequestResult::Update)
+            }
             _ => {
                 unimplemented!()
             }
