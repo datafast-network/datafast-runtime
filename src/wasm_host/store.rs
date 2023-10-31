@@ -26,6 +26,7 @@ pub fn store_set(
 
     if !data.contains_key("id") {
         // WARN: v0.0.5 Entity has `id` stripped off (why???)
+        // If entity is not yet created, forcing ID might not be a good idea
         data.insert("id".to_string(), Value::String(entity_id.clone()));
     }
 
@@ -53,15 +54,8 @@ pub fn store_get(
 
     match result {
         StoreRequestResult::Load(data) => {
-            if let Some(mut data) = data {
-                ::log::warn!("_______________Received data: {:?}", data);
-
-                // if env.api_version.patch == 5 {
-                //     data.remove("id");
-                // };
-
+            if let Some(data) = data {
                 let asc_result = asc_new(&mut fenv, &data.into_iter().collect::<Vec<_>>())?;
-                ::log::info!("DOOOOOOOOOOOONE");
                 Ok(asc_result)
             } else {
                 Ok(AscPtr::null())
@@ -215,12 +209,10 @@ mod test {
             []
         } {
             let asc_entity = AscPtr::<AscEntity>::new(result.first().unwrap().unwrap_i32() as u32);
-            ::log::info!("Retrieved entity pointer: {:?}", asc_entity);
             let entity: HashMap<String, Value> = asc_get(&host, asc_entity, 0).unwrap();
-            ::log::info!("Entity key: {}", entity.len());
-
-            // assert_eq!(entity.len(), 16);
-            // assert_eq!(*entity.get("id").unwrap(), Value::String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string()));
+            assert_eq!(entity.len(), 16);
+            assert_eq!(*entity.get("id").unwrap(), Value::String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string()));
+            assert_eq!(*entity.get("totalSupply").unwrap(), Value::BigInt(BigInt::from_str("1000000000000").unwrap()));
         }
     );
 }

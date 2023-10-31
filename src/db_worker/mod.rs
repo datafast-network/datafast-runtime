@@ -109,7 +109,6 @@ impl DatabaseWorker {
         &mut self,
         request: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseWorkerError> {
-        log::info!("StoreRequest received: {:?}", request);
         match request {
             StoreOperationMessage::Create(data) => {
                 self.handle_create(data.0.clone(), data.1)?;
@@ -145,7 +144,10 @@ impl DatabaseAgent {
         loop {
             match self.db.try_write() {
                 Ok(mut db) => return db.handle_request(request),
-                Err(_) => continue,
+                Err(_) => {
+                    ::log::warn!("@@@@@@@@@@@ Not yet locked");
+                    continue;
+                }
             }
         }
     }
