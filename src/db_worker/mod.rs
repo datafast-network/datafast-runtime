@@ -17,7 +17,7 @@ pub enum DatabaseWorker {
 }
 
 impl DatabaseWorker {
-    pub fn handle_create(
+    fn handle_create(
         &mut self,
         entity_type: String,
         data: RawEntity,
@@ -61,7 +61,9 @@ impl DatabaseWorker {
                 self.handle_create(data.0.clone(), data.1)?;
                 Ok(StoreRequestResult::Create(data.0))
             }
-            _ => Err(DatabaseWorkerError::Invalid),
+            _ => {
+                unimplemented!()
+            }
         }
     }
 
