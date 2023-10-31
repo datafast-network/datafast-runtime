@@ -1,4 +1,3 @@
-use crate::asc::native_types::store::StoreValueKind;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;

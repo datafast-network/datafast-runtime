@@ -50,7 +50,7 @@ pub fn create_wasm_host_instance(
             api_version: api_version.clone(),
             arena_start_ptr: 0,
             arena_free_size: 0,
-            db_agent: dbstore_agent,
+            db_agent: dbstore_agent.clone(),
         },
     );
 
@@ -144,6 +144,7 @@ pub fn create_wasm_host_instance(
             .expect("No global memory function")
             .clone(),
     );
+    assert!(data_mut.memory.is_some(), "Global Memory set");
 
     data_mut.memory_allocate = match api_version.clone() {
         version if version <= Version::new(0, 0, 4) => instance
@@ -202,6 +203,7 @@ pub fn create_wasm_host_instance(
         id_of_type,
         arena_start_ptr,
         arena_free_size,
+        dbstore_agent: dbstore_agent.unwrap(),
     };
 
     Ok(host)
@@ -209,6 +211,8 @@ pub fn create_wasm_host_instance(
 
 #[cfg(test)]
 pub mod test {
+    use crate::db_worker::DatabaseWorker;
+
     use super::*;
     use std::path::PathBuf;
 
@@ -221,7 +225,8 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        create_wasm_host_instance(api_version, wasm_bytes, None).unwrap()
+        let db = DatabaseWorker::new_memory_db();
+        create_wasm_host_instance(api_version, wasm_bytes, Some(db.agent())).unwrap()
     }
 
     pub fn version_to_test_resource(version: &str, test_wasm_name: &str) -> (Version, String) {

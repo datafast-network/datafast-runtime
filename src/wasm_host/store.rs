@@ -111,18 +111,17 @@ pub fn store_load_related(
 #[cfg(test)]
 mod test {
     use super::super::test::*;
-    use crate::asc::base::asc_get;
-    use crate::asc::base::AscPtr;
-    use crate::bignumber::bigint::BigInt;
     use crate::host_fn_test;
+    use crate::internal_messages::StoreOperationMessage;
 
     host_fn_test!(
+        "store",
         test_store_set,
-        host,
-        ptr {
-        // let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
-        // let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
-        // assert_eq!(bigint_result.to_string(), "3000");
-    }
+        host {
+            let entity_type = "Token".to_string();
+            let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
+            let data = host.dbstore_agent.send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone())));
+            ::log::info!("token: {:?}", data);
+        }
     );
 }

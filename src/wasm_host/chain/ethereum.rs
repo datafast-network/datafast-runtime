@@ -16,6 +16,7 @@ mod test {
     use web3::types::Address;
 
     host_fn_test!(
+        "test",
         test_ethereum_block,
         host,
         result

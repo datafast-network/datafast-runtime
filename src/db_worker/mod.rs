@@ -78,10 +78,16 @@ impl DatabaseWorker {
         Ok(Self::Memory(HashMap::new()))
     }
 
+    #[cfg(test)]
+    pub fn new_memory_db() -> Self {
+        Self::Memory(HashMap::new())
+    }
+
     pub fn handle_request(
         &mut self,
         request: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseWorkerError> {
+        log::info!("StoreRequest received: {:?}", request);
         match request {
             StoreOperationMessage::Create(data) => {
                 self.handle_create(data.0.clone(), data.1)?;
