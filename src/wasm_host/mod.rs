@@ -92,6 +92,9 @@ pub fn create_wasm_host_instance(
         "index" => { //index for subgraph version <= 4
             "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
             "store.get" => Function::new_typed_with_env(&mut store, &env, store::store_get),
+            "store.remove" => Function::new_typed_with_env(&mut store, &env, store::store_remove),
+            "store.loadRelated" => Function::new_typed_with_env(&mut store, &env, store::store_load_related),
+            "store.get_in_block" => Function::new_typed_with_env(&mut store, &env, store::store_get_in_block),
             //Convert
             "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
             "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),

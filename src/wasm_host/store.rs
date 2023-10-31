@@ -2,6 +2,7 @@ use super::Env;
 use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscPtr;
+use crate::asc::native_types::array::Array;
 use crate::asc::native_types::string::AscString;
 use crate::asc::native_types::typed_map::AscEntity;
 use crate::internal_messages::StoreOperationMessage;
@@ -53,4 +54,51 @@ pub fn store_get(
             other
         ))),
     }
+}
+
+pub fn store_remove(
+    fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
+) -> Result<(), RuntimeError> {
+    let env = fenv.data();
+    let db = env.db_agent.clone().unwrap();
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+
+    // FIXME: Update or insert new
+    let request = StoreOperationMessage::Delete((entity_type, entity_id));
+    let _result = db
+        .send_store_request(request)
+        .map_err(|e| RuntimeError::new(e.to_string()))?;
+
+    Ok(())
+}
+
+pub fn store_get_in_block(
+    fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
+) -> Result<AscPtr<AscEntity>, RuntimeError> {
+    let env = fenv.data();
+    let db = env.db_agent.clone().unwrap();
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+    // TODO: impl
+    Ok(AscPtr::null())
+}
+
+pub fn store_load_related(
+    fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
+    field_ptr: AscPtr<AscString>,
+) -> Result<AscPtr<Array<AscPtr<AscEntity>>>, RuntimeError> {
+    let env = fenv.data();
+    let db = env.db_agent.clone().unwrap();
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+    let field: String = asc_get(&fenv, field_ptr, 0)?;
+    // TODO: impl
+    Ok(AscPtr::null())
 }
