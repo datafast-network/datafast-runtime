@@ -18,7 +18,7 @@ use kanal;
 use manifest_loader::ManifestLoader;
 use subgraph::Subgraph;
 use subgraph::SubgraphSource;
-use wasm_host::create_wasm_host_instance;
+use wasm_host::create_wasm_host;
 
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {
@@ -45,8 +45,7 @@ async fn main() -> Result<(), SwrError> {
 
     for source in manifest.datasources.iter() {
         let wasm_bytes = manifest.load_wasm(&source.name).await?;
-        let wasm_host =
-            create_wasm_host_instance(source.version.to_owned(), wasm_bytes, database.agent())?;
+        let wasm_host = create_wasm_host(source.version.to_owned(), wasm_bytes, database.agent())?;
         let subgraph_source = SubgraphSource::try_from((wasm_host, source.to_owned()))?;
         subgraph.add_source(subgraph_source);
     }

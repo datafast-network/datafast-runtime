@@ -33,7 +33,7 @@ pub struct Env {
     pub db_agent: DatabaseAgent,
 }
 
-pub fn create_wasm_host_instance(
+pub fn create_wasm_host(
     api_version: Version,
     wasm_bytes: Vec<u8>,
     dbstore_agent: DatabaseAgent,
@@ -216,7 +216,7 @@ pub mod test {
     use super::*;
     use std::path::PathBuf;
 
-    pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> AscHost {
+    pub fn mock_wasm_host(api_version: Version, wasm_path: &str) -> AscHost {
         ::log::warn!(
             r#"New test-host-instance being created with:
                 > api-version={api_version}
@@ -226,7 +226,7 @@ pub mod test {
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
         let db = Database::new_memory_db();
-        create_wasm_host_instance(api_version, wasm_bytes, db.agent()).unwrap()
+        create_wasm_host(api_version, wasm_bytes, db.agent()).unwrap()
     }
 
     pub fn version_to_test_resource(version: &str, test_wasm_name: &str) -> (Version, String) {

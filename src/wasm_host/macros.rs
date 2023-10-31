@@ -15,7 +15,7 @@ macro_rules! host_fn_test {
             env_logger::try_init().unwrap_or_default();
             let (version, wasm_path) = version_to_test_resource(version, $wasm_file_name);
 
-            let mut $host = mock_host_instance(version, &wasm_path);
+            let mut $host = mock_wasm_host(version, &wasm_path);
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
                 .instance
@@ -46,7 +46,7 @@ macro_rules! host_fn_test {
             env_logger::try_init().unwrap_or_default();
             let (version, wasm_path) = version_to_test_resource(version, $wasm_file_name);
 
-            let mut $host = mock_host_instance(version, &wasm_path);
+            let mut $host = mock_wasm_host(version, &wasm_path);
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
                 .instance
@@ -78,7 +78,7 @@ macro_rules! host_fn_test {
             env_logger::try_init().unwrap_or_default();
 
             let (version, wasm_path) = version_to_test_resource(version, $wasm_file_name);
-            let mut $host = mock_host_instance(version, &wasm_path);
+            let mut $host = mock_wasm_host(version, &wasm_path);
 
             let args = $construct_args;
 
