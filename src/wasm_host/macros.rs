@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! host_fn_test {
-    ($guest_func:ident, $host:ident, $ptr:ident $body:block) => {
+    ($wasm_file_name:expr, $guest_func:ident, $host:ident, $ptr:ident $body:block) => {
         #[::rstest::rstest]
         #[case("0.0.4")]
         #[case("0.0.5")]
@@ -13,9 +13,9 @@ macro_rules! host_fn_test {
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
 
             env_logger::try_init().unwrap_or_default();
-            let (version, wasm_path) = version_to_test_resource(version, "test");
+            let (version, wasm_path) = version_to_test_resource(version, $wasm_file_name);
 
-            let mut $host = mock_host_instance(version, &wasm_path);
+            let mut $host = mock_wasm_host(version, &wasm_path);
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
                 .instance
@@ -34,7 +34,7 @@ macro_rules! host_fn_test {
         }
     };
 
-    ($guest_func:ident, $host:ident $body:block) => {
+    ($wasm_file_name:expr, $guest_func:ident, $host:ident $body:block) => {
         #[::rstest::rstest]
         #[case("0.0.4")]
         #[case("0.0.5")]
@@ -44,9 +44,9 @@ macro_rules! host_fn_test {
             use env_logger;
 
             env_logger::try_init().unwrap_or_default();
-            let (version, wasm_path) = version_to_test_resource(version, "test");
+            let (version, wasm_path) = version_to_test_resource(version, $wasm_file_name);
 
-            let mut $host = mock_host_instance(version, &wasm_path);
+            let mut $host = mock_wasm_host(version, &wasm_path);
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
                 .instance
@@ -64,7 +64,7 @@ macro_rules! host_fn_test {
         }
     };
 
-    ($guest_func:ident, $host:ident, $result:ident $construct_args:block $handle_result:block) => {
+    ($wasm_file_name:expr, $guest_func:ident, $host:ident, $result:ident $construct_args:block $handle_result:block) => {
         #[::rstest::rstest]
         #[case("0.0.4")]
         #[case("0.0.5")]
@@ -77,8 +77,8 @@ macro_rules! host_fn_test {
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
             env_logger::try_init().unwrap_or_default();
 
-            let (version, wasm_path) = version_to_test_resource(version, "test");
-            let mut $host = mock_host_instance(version, &wasm_path);
+            let (version, wasm_path) = version_to_test_resource(version, $wasm_file_name);
+            let mut $host = mock_wasm_host(version, &wasm_path);
 
             let args = $construct_args;
 

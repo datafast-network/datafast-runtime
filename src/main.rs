@@ -3,6 +3,7 @@ mod bignumber;
 mod chain;
 mod config;
 mod core;
+mod database;
 mod errors;
 mod from_to;
 mod internal_messages;
@@ -11,12 +12,13 @@ mod subgraph;
 mod wasm_host;
 
 use config::Config;
+use database::Database;
 use errors::SwrError;
 use kanal;
 use manifest_loader::ManifestLoader;
 use subgraph::Subgraph;
 use subgraph::SubgraphSource;
-use wasm_host::create_wasm_host_instance;
+use wasm_host::create_wasm_host;
 
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {
@@ -28,6 +30,7 @@ async fn main() -> Result<(), SwrError> {
 
     // 3. Binding db connection
     // TODO: add DB binding connection, so we can impl store_set & store_get
+    let database = Database::new(&config).await?;
 
     // 4. Create a subgraph-instance first
     // NOTE: normally subgraph does not have a name. It generally is derived from the hash of the whole manifest set.
@@ -42,7 +45,7 @@ async fn main() -> Result<(), SwrError> {
 
     for source in manifest.datasources.iter() {
         let wasm_bytes = manifest.load_wasm(&source.name).await?;
-        let wasm_host = create_wasm_host_instance(source.version.to_owned(), wasm_bytes)?;
+        let wasm_host = create_wasm_host(source.version.to_owned(), wasm_bytes, database.agent())?;
         let subgraph_source = SubgraphSource::try_from((wasm_host, source.to_owned()))?;
         subgraph.add_source(subgraph_source);
     }
@@ -53,9 +56,8 @@ async fn main() -> Result<(), SwrError> {
     // 6. Creating message transport channel
     // Receving one mmessage at a time
     let (subgraph_msg_sender, subgraph_receiver) = kanal::bounded_async(1);
-    let (store_sender, store_receiver) = kanal::bounded_async(1);
 
-    // 7. Start 3 threads:
+    // 7. Start 2 threads:
     // - One thread for Input-Data(Block/Event/Log/Tx) Subscriber
     // TODO: impl
     let subscriber_run = async move {
@@ -65,21 +67,12 @@ async fn main() -> Result<(), SwrError> {
     };
 
     // - One thread for SubgraphWasmInstance
-    let swr_run = subgraph.run_async(subgraph_receiver, store_sender);
-
-    // - One thread for DatabaseWorker
-    // TODO: impl
-    let database_worker_run = async move {
-        ::log::info!("Acquire store_receiver: {:?}", store_receiver);
-        // todo!("Impl database worker");
-        Ok::<(), SwrError>(())
-    };
+    let swr_run = subgraph.run_async(subgraph_receiver);
 
     // 8. Run until one of the threads stop
     ::tokio::select! {
         result = subscriber_run => result,
         result = swr_run => result.map_err(SwrError::from),
-        result = database_worker_run => result,
         // TODO: We need prometheus as well
     }
 }

@@ -5,8 +5,10 @@ mod chain;
 mod global;
 mod log;
 mod macros;
+mod store;
 mod types_conversion;
 
+use crate::database::DatabaseAgent;
 use crate::errors::WasmHostError;
 use semver::Version;
 use wasmer::imports;
@@ -28,11 +30,13 @@ pub struct Env {
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
+    pub db_agent: DatabaseAgent,
 }
 
-pub fn create_wasm_host_instance(
+pub fn create_wasm_host(
     api_version: Version,
     wasm_bytes: Vec<u8>,
+    dbstore_agent: DatabaseAgent,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -46,6 +50,7 @@ pub fn create_wasm_host_instance(
             api_version: api_version.clone(),
             arena_start_ptr: 0,
             arena_free_size: 0,
+            db_agent: dbstore_agent.clone(),
         },
     );
 
@@ -85,8 +90,11 @@ pub fn create_wasm_host_instance(
             "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
         },
         "index" => { //index for subgraph version <= 4
-            "store.set" => Function::new_typed(&mut store, || todo!("Store set")),
-            "store.get" => Function::new_typed(&mut store, || todo!("Store get")),
+            "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
+            "store.get" => Function::new_typed_with_env(&mut store, &env, store::store_get),
+            "store.remove" => Function::new_typed_with_env(&mut store, &env, store::store_remove),
+            "store.loadRelated" => Function::new_typed_with_env(&mut store, &env, store::store_load_related),
+            "store.get_in_block" => Function::new_typed_with_env(&mut store, &env, store::store_get_in_block),
             //Convert
             "typeConversion.bytesToString" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_string),
             "typeConversion.bytesToHex" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_hex),
@@ -136,6 +144,7 @@ pub fn create_wasm_host_instance(
             .expect("No global memory function")
             .clone(),
     );
+    assert!(data_mut.memory.is_some(), "Global Memory set");
 
     data_mut.memory_allocate = match api_version.clone() {
         version if version <= Version::new(0, 0, 4) => instance
@@ -194,6 +203,7 @@ pub fn create_wasm_host_instance(
         id_of_type,
         arena_start_ptr,
         arena_free_size,
+        dbstore_agent,
     };
 
     Ok(host)
@@ -201,10 +211,12 @@ pub fn create_wasm_host_instance(
 
 #[cfg(test)]
 pub mod test {
+    use crate::database::Database;
+
     use super::*;
     use std::path::PathBuf;
 
-    pub fn mock_host_instance(api_version: Version, wasm_path: &str) -> AscHost {
+    pub fn mock_wasm_host(api_version: Version, wasm_path: &str) -> AscHost {
         ::log::warn!(
             r#"New test-host-instance being created with:
                 > api-version={api_version}
@@ -213,7 +225,8 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        create_wasm_host_instance(api_version, wasm_bytes).unwrap()
+        let db = Database::new_memory_db();
+        create_wasm_host(api_version, wasm_bytes, db.agent()).unwrap()
     }
 
     pub fn version_to_test_resource(version: &str, test_wasm_name: &str) -> (Version, String) {

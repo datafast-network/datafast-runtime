@@ -1,8 +1,8 @@
 use crate::errors::SwrError;
-use crate::wasm_host::AscHost;
 use crate::manifest_loader::DataSource;
 use crate::subgraph::Handler;
 use crate::subgraph::SubgraphSource;
+use crate::wasm_host::AscHost;
 use std::collections::HashMap;
 
 impl TryFrom<(AscHost, DataSource)> for SubgraphSource {

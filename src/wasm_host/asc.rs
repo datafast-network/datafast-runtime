@@ -2,6 +2,7 @@ use crate::asc::base::AscHeap;
 use crate::asc::base::AscPtr;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
+use crate::database::DatabaseAgent;
 use crate::wasm_host::Env;
 use semver::Version;
 use std::mem::MaybeUninit;
@@ -84,7 +85,7 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         let memory = &env
             .memory
             .clone()
-            .expect("Memory must be initilized beforehand");
+            .expect("(FunctionEnvMut::read) Memory must be initilized beforehand");
 
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);
@@ -96,11 +97,11 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
     fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
         let mut bytes = [0; 4];
         let env = self.data();
-
+        assert!(env.memory.is_some(), "No memory???/");
         let memory = &env
             .memory
             .clone()
-            .expect("Memory must be initilized beforehand");
+            .expect("(FunctionEnvMut::read_u32) Memory must be initilized beforehand");
 
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);
@@ -145,6 +146,7 @@ pub struct AscHost {
     pub memory_allocate: Option<TypedFunction<i32, i32>>,
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
+    pub dbstore_agent: DatabaseAgent,
 }
 
 impl AscHeap for AscHost {

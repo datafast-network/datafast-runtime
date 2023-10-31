@@ -111,43 +111,43 @@ mod tests {
     use crate::bignumber::bigdecimal::BigDecimal;
     use crate::host_fn_test;
 
-    host_fn_test!(test_big_decimal_plus, host, ptr {
+    host_fn_test!("test", test_big_decimal_plus, host, ptr {
         let asc_ptr = AscPtr::<AscBigDecimal>::new(ptr);
         let bigint_result: BigDecimal = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "3000");
     });
 
-    host_fn_test!(test_big_decimal_minus, host, ptr {
+    host_fn_test!("test", test_big_decimal_minus, host, ptr {
         let asc_ptr = AscPtr::<AscBigDecimal>::new(ptr);
         let bigint_result: BigDecimal = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "-1000");
     });
 
-    host_fn_test!(test_big_decimal_times, host, ptr {
+    host_fn_test!("test", test_big_decimal_times, host, ptr {
         let asc_ptr = AscPtr::<AscBigDecimal>::new(ptr);
         let bigint_result: BigDecimal = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "2000000");
     });
 
-    host_fn_test!(test_big_decimal_divided_by, host, ptr {
+    host_fn_test!("test", test_big_decimal_divided_by, host, ptr {
         let asc_ptr = AscPtr::<AscBigDecimal>::new(ptr);
         let bigint_result: BigDecimal = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "0.5");
     });
 
-    host_fn_test!(test_big_decimal_from_string, host, ptr {
+    host_fn_test!("test", test_big_decimal_from_string, host, ptr {
         let asc_ptr = AscPtr::<AscBigDecimal>::new(ptr);
         let bigint_result: BigDecimal = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "1000");
     });
 
-    host_fn_test!(test_big_decimal_to_string, host, ptr {
+    host_fn_test!("test", test_big_decimal_to_string, host, ptr {
         let asc_ptr = AscPtr::<AscString>::new(ptr);
         let bigint_result: String = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result, "1000");
     });
 
-    host_fn_test!(test_big_decimal_equals, host, ptr {
+    host_fn_test!("test", test_big_decimal_equals, host, ptr {
         assert_eq!(ptr, 1);
     });
 }

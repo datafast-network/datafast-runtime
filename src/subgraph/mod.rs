@@ -4,7 +4,6 @@ use crate::internal_messages::SubgraphData;
 use crate::internal_messages::SubgraphOperationMessage;
 use crate::wasm_host::AscHost;
 use kanal::AsyncReceiver;
-use kanal::AsyncSender;
 use kanal::Receiver;
 use std::collections::HashMap;
 use wasmer::Exports;
@@ -141,11 +140,6 @@ impl<T: ToString> Subgraph<T> {
     pub async fn run_async(
         mut self,
         recv: AsyncReceiver<SubgraphOperationMessage>,
-        // NOTE: temporarily store sender use String , but eventually we will have a static type for store-sender message type
-        // We need to pass store_sender down to AscHost and bind it to our FunctionEnvMut
-        // But AscHost does not accept async-code, so we need to use another blocking-channel
-        // to pass data to the async store_sender
-        _store_sender: AsyncSender<String>,
     ) -> Result<(), SubgraphError> {
         while let Ok(op) = recv.recv().await {
             match op {
@@ -178,7 +172,7 @@ mod test {
     use crate::chain::ethereum::transaction::EthereumTransactionData;
     use crate::internal_messages::SubgraphJob;
     use crate::internal_messages::SubgraphOperationMessage;
-    use crate::wasm_host::test::mock_host_instance;
+    use crate::wasm_host::test::mock_wasm_host;
     use crate::wasm_host::test::version_to_test_resource;
     use ethabi::ethereum_types::H160;
     use ethabi::ethereum_types::U256;
@@ -204,7 +198,7 @@ mod test {
             let (version, wasm_path) = version_to_test_resource(version, "datasource");
 
             let id = source_name.to_string();
-            let host = mock_host_instance(version.clone(), &wasm_path);
+            let host = mock_wasm_host(version.clone(), &wasm_path);
             let mut handlers: HashMap<String, Handler> = [
                 Handler::new(&host.instance.exports, "testHandlerBlock").unwrap(),
                 Handler::new(&host.instance.exports, "testHandlerEvent").unwrap(),
