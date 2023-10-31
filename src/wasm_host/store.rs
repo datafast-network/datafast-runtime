@@ -19,7 +19,7 @@ pub fn store_set(
     data_ptr: AscPtr<AscEntity>,
 ) -> Result<(), RuntimeError> {
     let env = fenv.data();
-    let db = env.db_agent.clone().unwrap();
+    let db = env.db_agent.clone();
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let mut data: HashMap<String, Value> = asc_get(&fenv, data_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
@@ -46,7 +46,7 @@ pub fn store_get(
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let env = fenv.data();
-    let db = env.db_agent.clone().unwrap();
+    let db = env.db_agent.clone();
     let request = StoreOperationMessage::Load((entity_type, entity_id));
     let result = db
         .send_store_request(request)
@@ -74,7 +74,7 @@ pub fn store_remove(
     entity_id_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
     let env = fenv.data();
-    let db = env.db_agent.clone().unwrap();
+    let db = env.db_agent.clone();
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
 

@@ -30,13 +30,13 @@ pub struct Env {
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
-    pub db_agent: Option<DatabaseAgent>,
+    pub db_agent: DatabaseAgent,
 }
 
 pub fn create_wasm_host_instance(
     api_version: Version,
     wasm_bytes: Vec<u8>,
-    dbstore_agent: Option<DatabaseAgent>,
+    dbstore_agent: DatabaseAgent,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -203,7 +203,7 @@ pub fn create_wasm_host_instance(
         id_of_type,
         arena_start_ptr,
         arena_free_size,
-        dbstore_agent: dbstore_agent.unwrap(),
+        dbstore_agent,
     };
 
     Ok(host)
@@ -226,7 +226,7 @@ pub mod test {
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
         let db = DatabaseWorker::new_memory_db();
-        create_wasm_host_instance(api_version, wasm_bytes, Some(db.agent())).unwrap()
+        create_wasm_host_instance(api_version, wasm_bytes, db.agent()).unwrap()
     }
 
     pub fn version_to_test_resource(version: &str, test_wasm_name: &str) -> (Version, String) {
