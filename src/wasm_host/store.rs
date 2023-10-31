@@ -88,31 +88,20 @@ pub fn store_remove(
 }
 
 pub fn store_get_in_block(
-    fenv: FunctionEnvMut<Env>,
-    entity_type_ptr: AscPtr<AscString>,
-    entity_id_ptr: AscPtr<AscString>,
+    _fenv: FunctionEnvMut<Env>,
+    _entity_type_ptr: AscPtr<AscString>,
+    _entity_id_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<AscEntity>, RuntimeError> {
-    let env = fenv.data();
-    let db = env.db_agent.clone().unwrap();
-    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
-    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
-    // TODO: impl
-    Ok(AscPtr::null())
+    todo!()
 }
 
 pub fn store_load_related(
-    fenv: FunctionEnvMut<Env>,
-    entity_type_ptr: AscPtr<AscString>,
-    entity_id_ptr: AscPtr<AscString>,
-    field_ptr: AscPtr<AscString>,
+    _fenv: FunctionEnvMut<Env>,
+    _entity_type_ptr: AscPtr<AscString>,
+    _entity_id_ptr: AscPtr<AscString>,
+    _field_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<Array<AscPtr<AscEntity>>>, RuntimeError> {
-    let env = fenv.data();
-    let db = env.db_agent.clone().unwrap();
-    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
-    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
-    let field: String = asc_get(&fenv, field_ptr, 0)?;
-    // TODO: impl
-    Ok(AscPtr::null())
+    todo!()
 }
 
 #[cfg(test)]

@@ -1,13 +1,10 @@
 use crate::asc::base::asc_new;
-use crate::db_worker::DatabaseAgent;
 use crate::errors::SubgraphError;
 use crate::internal_messages::SubgraphData;
 use crate::internal_messages::SubgraphOperationMessage;
 use crate::wasm_host::AscHost;
 use kanal::AsyncReceiver;
-use kanal::AsyncSender;
 use kanal::Receiver;
-use kanal::Sender;
 use std::collections::HashMap;
 use wasmer::Exports;
 use wasmer::Function;
