@@ -3,7 +3,7 @@ mod bignumber;
 mod chain;
 mod config;
 mod core;
-mod db_worker;
+mod database;
 mod errors;
 mod from_to;
 mod internal_messages;
@@ -12,7 +12,7 @@ mod subgraph;
 mod wasm_host;
 
 use config::Config;
-use db_worker::DatabaseWorker;
+use database::Database;
 use errors::SwrError;
 use kanal;
 use manifest_loader::ManifestLoader;
@@ -30,7 +30,7 @@ async fn main() -> Result<(), SwrError> {
 
     // 3. Binding db connection
     // TODO: add DB binding connection, so we can impl store_set & store_get
-    let db_worker = DatabaseWorker::new(&config).await?;
+    let database = Database::new(&config).await?;
 
     // 4. Create a subgraph-instance first
     // NOTE: normally subgraph does not have a name. It generally is derived from the hash of the whole manifest set.
@@ -46,7 +46,7 @@ async fn main() -> Result<(), SwrError> {
     for source in manifest.datasources.iter() {
         let wasm_bytes = manifest.load_wasm(&source.name).await?;
         let wasm_host =
-            create_wasm_host_instance(source.version.to_owned(), wasm_bytes, db_worker.agent())?;
+            create_wasm_host_instance(source.version.to_owned(), wasm_bytes, database.agent())?;
         let subgraph_source = SubgraphSource::try_from((wasm_host, source.to_owned()))?;
         subgraph.add_source(subgraph_source);
     }

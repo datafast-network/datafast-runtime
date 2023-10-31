@@ -8,7 +8,7 @@ mod macros;
 mod store;
 mod types_conversion;
 
-use crate::db_worker::DatabaseAgent;
+use crate::database::DatabaseAgent;
 use crate::errors::WasmHostError;
 use semver::Version;
 use wasmer::imports;
@@ -211,7 +211,7 @@ pub fn create_wasm_host_instance(
 
 #[cfg(test)]
 pub mod test {
-    use crate::db_worker::DatabaseWorker;
+    use crate::database::Database;
 
     use super::*;
     use std::path::PathBuf;
@@ -225,7 +225,7 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        let db = DatabaseWorker::new_memory_db();
+        let db = Database::new_memory_db();
         create_wasm_host_instance(api_version, wasm_bytes, db.agent()).unwrap()
     }
 

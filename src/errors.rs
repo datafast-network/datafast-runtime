@@ -40,7 +40,7 @@ pub enum SubgraphError {
 }
 
 #[derive(Debug, Error)]
-pub enum DatabaseWorkerError {
+pub enum DatabaseError {
     #[error("Entity data missing `ID` field")]
     MissingID,
     #[error("Invalid operation")]
@@ -62,5 +62,5 @@ pub enum SwrError {
     #[error(transparent)]
     SubgraphError(#[from] SubgraphError),
     #[error(transparent)]
-    DatabaseWorkerError(#[from] DatabaseWorkerError),
+    DatabaseError(#[from] DatabaseError),
 }

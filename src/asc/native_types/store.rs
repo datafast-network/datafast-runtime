@@ -1,5 +1,5 @@
 use crate::asc::base::AscValue;
-use crate::db_worker::abstract_types::Value;
+use crate::database::abstract_types::Value;
 use crate::impl_asc_type_enum;
 use semver::Version;
 

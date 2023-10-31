@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::errors::DatabaseWorkerError;
+use crate::errors::DatabaseError;
 use crate::internal_messages::StoreOperationMessage;
 use crate::internal_messages::StoreRequestResult;
 use std::collections::HashMap;
@@ -12,16 +12,12 @@ type ImMemoryDatastore = HashMap<String, HashMap<String, HashMap<String, abstrac
 type RawEntity = HashMap<String, abstract_types::Value>;
 
 #[derive(Clone)]
-pub enum DatabaseWorker {
+pub enum Database {
     Memory(ImMemoryDatastore),
 }
 
-impl DatabaseWorker {
-    fn handle_create(
-        &mut self,
-        entity_type: String,
-        data: RawEntity,
-    ) -> Result<(), DatabaseWorkerError> {
+impl Database {
+    fn handle_create(&mut self, entity_type: String, data: RawEntity) -> Result<(), DatabaseError> {
         match self {
             Self::Memory(store) => {
                 if !store.contains_key(&entity_type) {
@@ -30,7 +26,7 @@ impl DatabaseWorker {
 
                 let table = store.get_mut(&entity_type).unwrap();
                 if let abstract_types::Value::String(entity_id) =
-                    data.get("id").ok_or(DatabaseWorkerError::MissingID)?
+                    data.get("id").ok_or(DatabaseError::MissingID)?
                 {
                     table.insert(entity_id.to_owned(), data);
                     Ok(())
@@ -45,7 +41,7 @@ impl DatabaseWorker {
         &self,
         entity_type: String,
         entity_id: String,
-    ) -> Result<Option<RawEntity>, DatabaseWorkerError> {
+    ) -> Result<Option<RawEntity>, DatabaseError> {
         match self {
             Self::Memory(store) => {
                 let table = store.get(&entity_type);
@@ -72,7 +68,7 @@ impl DatabaseWorker {
         entity_type: String,
         entity_id: String,
         data: RawEntity,
-    ) -> Result<(), DatabaseWorkerError> {
+    ) -> Result<(), DatabaseError> {
         match self {
             Self::Memory(store) => {
                 if !store.contains_key(&entity_type) {
@@ -92,11 +88,11 @@ impl DatabaseWorker {
 
 #[derive(Clone)]
 pub struct DatabaseAgent {
-    db: Arc<RwLock<DatabaseWorker>>,
+    db: Arc<RwLock<Database>>,
 }
 
-impl DatabaseWorker {
-    pub async fn new(_cfg: &Config) -> Result<Self, DatabaseWorkerError> {
+impl Database {
+    pub async fn new(_cfg: &Config) -> Result<Self, DatabaseError> {
         Ok(Self::Memory(HashMap::new()))
     }
 
@@ -108,7 +104,7 @@ impl DatabaseWorker {
     pub fn handle_request(
         &mut self,
         request: StoreOperationMessage,
-    ) -> Result<StoreRequestResult, DatabaseWorkerError> {
+    ) -> Result<StoreRequestResult, DatabaseError> {
         match request {
             StoreOperationMessage::Create(data) => {
                 self.handle_create(data.0.clone(), data.1)?;
@@ -140,7 +136,7 @@ impl DatabaseAgent {
     pub fn send_store_request(
         self,
         request: StoreOperationMessage,
-    ) -> Result<StoreRequestResult, DatabaseWorkerError> {
+    ) -> Result<StoreRequestResult, DatabaseError> {
         loop {
             match self.db.try_write() {
                 Ok(mut db) => return db.handle_request(request),

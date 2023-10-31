@@ -2,7 +2,7 @@ use crate::asc::base::AscHeap;
 use crate::asc::base::AscPtr;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::errors::AscError;
-use crate::db_worker::DatabaseAgent;
+use crate::database::DatabaseAgent;
 use crate::wasm_host::Env;
 use semver::Version;
 use std::mem::MaybeUninit;

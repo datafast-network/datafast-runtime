@@ -5,7 +5,7 @@ use crate::asc::base::AscPtr;
 use crate::asc::native_types::array::Array;
 use crate::asc::native_types::string::AscString;
 use crate::asc::native_types::typed_map::AscEntity;
-use crate::db_worker::abstract_types::Value;
+use crate::database::abstract_types::Value;
 use crate::internal_messages::StoreOperationMessage;
 use crate::internal_messages::StoreRequestResult;
 use std::collections::HashMap;
@@ -112,7 +112,7 @@ mod test {
     use crate::asc::native_types::typed_map::AscEntity;
     use crate::bignumber::bigdecimal::BigDecimal;
     use crate::bignumber::bigint::BigInt;
-    use crate::db_worker::abstract_types::Value;
+    use crate::database::abstract_types::Value;
     use crate::host_fn_test;
     use crate::internal_messages::StoreOperationMessage;
     use crate::internal_messages::StoreRequestResult;

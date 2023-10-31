@@ -24,7 +24,7 @@ use super::native_types::typed_map::AscEntity;
 use super::native_types::typed_map::AscTypedMap;
 use super::native_types::typed_map::AscTypedMapEntry;
 use crate::bignumber::bigint::BigInt;
-use crate::db_worker::abstract_types::Value;
+use crate::database::abstract_types::Value;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::FromIterator;
