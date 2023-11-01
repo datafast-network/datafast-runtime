@@ -23,7 +23,8 @@ sequenceDiagram
     Subscriber-->>MessageBus: binding connection
     Database-->>Database: binding connection
     Subscriber-->SubgraphWasmHost: kanal async channel
-    SubgraphWasmHost-->Database: kanal async channel
+    SubgraphWasmHost-->Database: blocking-request (StoreOperationMessage)
+    Database-->>SubgraphWasmHost: response (StoreRequestResult)
     MessageBus->>Subscriber: Block/Tx/Event/Log
 
     rect rgb(191, 220, 255, .5)
@@ -35,7 +36,7 @@ sequenceDiagram
     end
     end
 
-    Database->>Database: database ops
+    Database->>ActualExternalDatabase: database read/write
 ```
 
 ## Unit-Test
