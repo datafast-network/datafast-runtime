@@ -1,46 +1,11 @@
+use super::manifest_types::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
-use semver::Version;
-use serde::Deserialize;
-use serde::Serialize;
 use serde_yaml;
 use std::collections::HashMap;
 use std::env::current_dir;
-use std::fmt::Debug;
 use std::fs;
 use std::io::BufReader;
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct MappingABI {
-    name: String,
-    file: String,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-struct Mapping {
-    kind: String,
-    apiVersion: Version,
-    entities: Vec<String>,
-    abis: Vec<MappingABI>,
-    eventHandlers: Option<Vec<HashMap<String, String>>>,
-    blockHandlers: Option<Vec<HashMap<String, String>>>,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Datasource {
-    kind: String,
-    name: String,
-    network: String,
-    source: HashMap<String, String>,
-    mapping: Mapping,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
-#[allow(non_snake_case)]
-struct SubgraphYaml {
-    dataSources: Vec<Datasource>,
-}
 
 #[async_trait]
 pub trait LoaderTrait: Sized {

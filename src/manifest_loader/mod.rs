@@ -1,4 +1,5 @@
 mod loaders;
+mod manifest_types;
 
 use crate::config::Config;
 use crate::errors::ManifestLoaderError;
