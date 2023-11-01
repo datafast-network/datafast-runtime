@@ -21,9 +21,9 @@ sequenceDiagram
     participant Database
 
     Subscriber-->>MessageBus: binding connection
-    Database-->>Database: binding connection
+    Database-->>ExternalDatabase: binding connection
     Subscriber-->SubgraphWasmHost: kanal async channel
-    SubgraphWasmHost-->Database: blocking-request (StoreOperationMessage)
+    SubgraphWasmHost-->>Database: request (StoreOperationMessage), synchronous
     Database-->>SubgraphWasmHost: response (StoreRequestResult)
     MessageBus->>Subscriber: Block/Tx/Event/Log
 
@@ -36,7 +36,7 @@ sequenceDiagram
     end
     end
 
-    Database->>ActualExternalDatabase: database read/write
+    Database->>ExternalDatabase: database read/write
 ```
 
 ## Unit-Test
@@ -48,11 +48,11 @@ any-parent-dir $: git clone github.com/hardbed/subgraph-testing
 any-parent-dir $: git clone github.com/hardbed/subgraph-wasm-runtime
 ```
 
-2. Build the test suits first with [subgraph-testing](https://github.com/hardbed/subgraph-testing)
+2. Build the test suites first with [subgraph-testing](https://github.com/hardbed/subgraph-testing)
 ```shell
 # install dependencies first if neccessary
 subgraph-testing $: pnpm install
-subgraph-testing $: pnpm build-test
+subgraph-testing $: pnpm build
 ```
 
 3. In this repo, run test
