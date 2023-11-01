@@ -1,3 +1,5 @@
+mod loaders;
+
 use crate::config::Config;
 use crate::errors::ManifestLoaderError;
 use semver::Version;

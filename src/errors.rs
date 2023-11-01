@@ -23,6 +23,16 @@ pub enum WasmHostError {
 pub enum ManifestLoaderError {
     #[error("No datasource with id={0} exists")]
     InvalidDataSource(String),
+    #[error("Invalid `build` dir: {0}")]
+    InvalidBuildDir(String),
+    #[error("Invalid build path: {0}")]
+    InvalidBuildPath(String),
+    #[error("Invalid subgraph.yaml: {0}")]
+    InvalidSubgraphYAML(String),
+    #[error("Invalid abi: {0}")]
+    InvalidABI(String),
+    #[error("Invalid WASM: {0}")]
+    InvalidWASM(String),
 }
 
 #[derive(Debug, Error)]
