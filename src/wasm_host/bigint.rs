@@ -182,67 +182,67 @@ mod tests {
     use crate::bignumber::bigint::BigInt;
     use crate::host_fn_test;
 
-    host_fn_test!(test_big_int_plus, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_plus, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "3000");
     });
 
-    host_fn_test!(test_big_int_minus, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_minus, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "-1000");
     });
 
-    host_fn_test!(test_big_int_times, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_times, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "2000000");
     });
 
-    host_fn_test!(test_big_int_divided_by, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_divided_by, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "6");
     });
 
-    host_fn_test!(test_big_int_pow, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_pow, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "100000000000000000001");
     });
 
-    host_fn_test!(test_big_int_mod, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_mod, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "9");
     });
 
-    host_fn_test!(test_big_int_bit_or, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_bit_or, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "2040");
     });
 
-    host_fn_test!(test_big_int_bit_and, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_bit_and, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "960");
     });
 
-    host_fn_test!(test_big_int_divided_by_decimal, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_divided_by_decimal, host, ptr {
         let asc_ptr = AscPtr::<AscBigDecimal>::new(ptr);
         let bigint_result: BigDecimal = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "0.5");
     });
 
-    host_fn_test!(test_big_int_left_shift, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_left_shift, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "1024000");
     });
 
-    host_fn_test!(test_big_int_right_shift, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_right_shift, host, ptr {
         let asc_ptr = AscPtr::<AscBigInt>::new(ptr);
         let bigint_result: BigInt = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(bigint_result.to_string(), "0");

@@ -112,37 +112,37 @@ mod tests {
     use super::*;
     use crate::host_fn_test;
 
-    host_fn_test!(test_bytes_to_hex, host, ptr {
+    host_fn_test!("TestTypes", test_bytes_to_hex, host, ptr {
         let asc_ptr = AscPtr::<AscString>::new(ptr);
         let string_result: String = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(string_result, "0x616263");
     });
 
-    host_fn_test!(test_bytes_to_string, host, ptr {
+    host_fn_test!("TestTypes", test_bytes_to_string, host, ptr {
         let asc_ptr = AscPtr::<AscString>::new(ptr);
         let string_result: String = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(string_result, "abc");
     });
 
-    host_fn_test!(test_hex_to_bytes, host, ptr {
+    host_fn_test!("TestTypes", test_hex_to_bytes, host, ptr {
         let asc_ptr = AscPtr::<AscString>::new(ptr);
         let string_result: String = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(string_result, "abc");
     });
 
-    host_fn_test!(test_big_int_to_string, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_to_string, host, ptr {
         let asc_ptr = AscPtr::<AscString>::new(ptr);
         let string_result: String = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(string_result, "1000");
     });
 
-    host_fn_test!(test_big_int_to_hex, host, ptr {
+    host_fn_test!("TestTypes", test_big_int_to_hex, host, ptr {
         let asc_ptr = AscPtr::<AscString>::new(ptr);
         let string_result: String = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(string_result, "0x3e8"); //0x3E8
     });
 
-    host_fn_test!(test_bytes_to_base58, host, ptr {
+    host_fn_test!("TestTypes", test_bytes_to_base58, host, ptr {
         let asc_ptr = AscPtr::<AscString>::new(ptr);
         let string_result: String = asc_get(&host, asc_ptr, 0).unwrap();
         assert_eq!(string_result, "ZiCa");

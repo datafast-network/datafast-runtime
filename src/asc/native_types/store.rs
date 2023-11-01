@@ -1,9 +1,10 @@
 use crate::asc::base::AscValue;
+use crate::database::abstract_types::Value;
 use crate::impl_asc_type_enum;
 use semver::Version;
 
 #[repr(u32)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum StoreValueKind {
     String,
     Int,
@@ -29,24 +30,21 @@ impl_asc_type_enum!(
     Int8 => 8
 );
 
-// TODO: determine store data type and impl this
-// impl StoreValueKind {
-//     pub fn get_kind(value: &store::Value) -> StoreValueKind {
-//         use self::store::Value;
-
-//         match value {
-//             Value::String(_) => StoreValueKind::String,
-//             Value::Int(_) => StoreValueKind::Int,
-//             Value::Int8(_) => StoreValueKind::Int8,
-//             Value::BigDecimal(_) => StoreValueKind::BigDecimal,
-//             Value::Bool(_) => StoreValueKind::Bool,
-//             Value::List(_) => StoreValueKind::Array,
-//             Value::Null => StoreValueKind::Null,
-//             Value::Bytes(_) => StoreValueKind::Bytes,
-//             Value::BigInt(_) => StoreValueKind::BigInt,
-//         }
-//     }
-// }
+impl StoreValueKind {
+    pub fn get_kind(value: &Value) -> StoreValueKind {
+        match value {
+            Value::String(_) => StoreValueKind::String,
+            Value::Int(_) => StoreValueKind::Int,
+            Value::Int8(_) => StoreValueKind::Int8,
+            Value::BigDecimal(_) => StoreValueKind::BigDecimal,
+            Value::Bool(_) => StoreValueKind::Bool,
+            Value::List(_) => StoreValueKind::Array,
+            Value::Null => StoreValueKind::Null,
+            Value::Bytes(_) => StoreValueKind::Bytes,
+            Value::BigInt(_) => StoreValueKind::BigInt,
+        }
+    }
+}
 
 impl Default for StoreValueKind {
     fn default() -> Self {

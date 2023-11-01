@@ -17,13 +17,14 @@ sequenceDiagram
     participant MessageBus
     participant Subscriber
     participant SubgraphWasmHost
-    participant DatabaseWorker
+    participant Database
     participant Database
 
     Subscriber-->>MessageBus: binding connection
-    DatabaseWorker-->>Database: binding connection
+    Database-->>ExternalDatabase: binding connection
     Subscriber-->SubgraphWasmHost: kanal async channel
-    SubgraphWasmHost-->DatabaseWorker: kanal async channel
+    SubgraphWasmHost-->>Database: request (StoreOperationMessage), synchronous
+    Database-->>SubgraphWasmHost: response (StoreRequestResult)
     MessageBus->>Subscriber: Block/Tx/Event/Log
 
     rect rgb(191, 220, 255, .5)
@@ -31,11 +32,20 @@ sequenceDiagram
         note right of Subscriber: each class run in its own tokio-thread
         Subscriber->> SubgraphWasmHost: SubgraphOperationMessage(Job data)
         SubgraphWasmHost->>SubgraphWasmHost: processing triggers
-        SubgraphWasmHost->>DatabaseWorker: StoreOperationMessage(Job)
+        SubgraphWasmHost->>Database: StoreOperationMessage(Job)
     end
     end
 
-    DatabaseWorker->>Database: database ops
+    Database->>ExternalDatabase: database read/write
+```
+
+## Component usage
+
+### ManifestLoader
+
+- Accept local subgraph dir for constructor
+```rust
+let loader = ManifestLoader::new("fs://vutran/works/subgraph-testing/packages/v0_0_5").await.unwrap()
 ```
 
 ## Unit-Test
@@ -47,11 +57,11 @@ any-parent-dir $: git clone github.com/hardbed/subgraph-testing
 any-parent-dir $: git clone github.com/hardbed/subgraph-wasm-runtime
 ```
 
-2. Build the test suits first with [subgraph-testing](https://github.com/hardbed/subgraph-testing)
+2. Build the test suites first with [subgraph-testing](https://github.com/hardbed/subgraph-testing)
 ```shell
 # install dependencies first if neccessary
 subgraph-testing $: pnpm install
-subgraph-testing $: pnpm build-test
+subgraph-testing $: pnpm build
 ```
 
 3. In this repo, run test

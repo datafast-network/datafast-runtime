@@ -1,4 +1,5 @@
 use crate::asc::errors::AscError;
+use kanal::SendError;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
@@ -22,6 +23,16 @@ pub enum WasmHostError {
 pub enum ManifestLoaderError {
     #[error("No datasource with id={0} exists")]
     InvalidDataSource(String),
+    #[error("Invalid `build` dir: {0}")]
+    InvalidBuildDir(String),
+    #[error("Invalid build path: {0}")]
+    InvalidBuildPath(String),
+    #[error("Invalid subgraph.yaml: {0}")]
+    InvalidSubgraphYAML(String),
+    #[error("Invalid abi: {0}")]
+    InvalidABI(String),
+    #[error("Invalid WASM: {0}")]
+    InvalidWASM(String),
 }
 
 #[derive(Debug, Error)]
@@ -39,6 +50,18 @@ pub enum SubgraphError {
 }
 
 #[derive(Debug, Error)]
+pub enum DatabaseError {
+    #[error("Entity data missing `ID` field")]
+    MissingID,
+    #[error("Invalid operation")]
+    Invalid,
+    #[error("Something wrong: {0}")]
+    Plain(String),
+    #[error("Result-reply sending failed: {0}")]
+    SendReplyFailed(#[from] SendError),
+}
+
+#[derive(Debug, Error)]
 pub enum SwrError {
     #[error(transparent)]
     ManifestLoader(#[from] ManifestLoaderError),
@@ -48,4 +71,6 @@ pub enum SwrError {
     WasmHostError(#[from] WasmHostError),
     #[error(transparent)]
     SubgraphError(#[from] SubgraphError),
+    #[error(transparent)]
+    DatabaseError(#[from] DatabaseError),
 }

@@ -3,7 +3,7 @@ use crate::asc::base::AscPtr;
 use crate::asc::base::AscValue;
 use crate::asc::errors::AscError;
 use crate::asc::native_types::array_buffer;
-use crate::asc::native_types::array_buffer::v0_0_4::ArrayBuffer;
+use crate::asc::native_types::array_buffer::v0_0_5::ArrayBuffer;
 use crate::impl_asc_type_struct;
 use semver::Version;
 use std::marker::PhantomData;
