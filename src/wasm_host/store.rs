@@ -6,8 +6,8 @@ use crate::asc::native_types::array::Array;
 use crate::asc::native_types::string::AscString;
 use crate::asc::native_types::typed_map::AscEntity;
 use crate::database::abstract_types::Value;
-use crate::internal_messages::StoreOperationMessage;
-use crate::internal_messages::StoreRequestResult;
+use crate::messages::StoreOperationMessage;
+use crate::messages::StoreRequestResult;
 use std::collections::HashMap;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
@@ -114,8 +114,8 @@ mod test {
     use crate::bignumber::bigint::BigInt;
     use crate::database::abstract_types::Value;
     use crate::host_fn_test;
-    use crate::internal_messages::StoreOperationMessage;
-    use crate::internal_messages::StoreRequestResult;
+    use crate::messages::StoreOperationMessage;
+    use crate::messages::StoreRequestResult;
     use std::collections::HashMap;
     use std::str::FromStr;
 

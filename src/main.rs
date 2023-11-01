@@ -1,13 +1,13 @@
 mod asc;
 mod bignumber;
 mod chain;
+mod common;
 mod config;
-mod core;
 mod database;
 mod errors;
 mod from_to;
-mod internal_messages;
 mod manifest_loader;
+mod messages;
 mod subgraph;
 mod wasm_host;
 

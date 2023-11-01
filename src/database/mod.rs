@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::errors::DatabaseError;
-use crate::internal_messages::StoreOperationMessage;
-use crate::internal_messages::StoreRequestResult;
+use crate::messages::StoreOperationMessage;
+use crate::messages::StoreRequestResult;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;

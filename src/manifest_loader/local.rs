@@ -1,6 +1,6 @@
-use super::manifest_types::*;
 use super::LoaderTrait;
 use super::SubgraphWasmPack;
+use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use std::collections::HashMap;
