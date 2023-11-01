@@ -172,8 +172,8 @@ mod test {
     use crate::chain::ethereum::transaction::EthereumTransactionData;
     use crate::internal_messages::SubgraphJob;
     use crate::internal_messages::SubgraphOperationMessage;
+    use crate::wasm_host::test::get_subgraph_testing_resource;
     use crate::wasm_host::test::mock_wasm_host;
-    use crate::wasm_host::test::version_to_test_resource;
     use ethabi::ethereum_types::H160;
     use ethabi::ethereum_types::U256;
     use std::collections::HashMap;
@@ -195,7 +195,7 @@ mod test {
         let subgraph_sources = vec!["TestDataSource1"];
 
         for source_name in subgraph_sources {
-            let (version, wasm_path) = version_to_test_resource(version, "datasource");
+            let (version, wasm_path) = get_subgraph_testing_resource(version, "TestDataSource");
 
             let id = source_name.to_string();
             let host = mock_wasm_host(version.clone(), &wasm_path);

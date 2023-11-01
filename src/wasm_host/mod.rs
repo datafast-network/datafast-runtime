@@ -229,13 +229,15 @@ pub mod test {
         create_wasm_host(api_version, wasm_bytes, db.agent()).unwrap()
     }
 
-    pub fn version_to_test_resource(version: &str, test_wasm_name: &str) -> (Version, String) {
+    pub fn get_subgraph_testing_resource(
+        version: &str,
+        datasource_name: &str,
+    ) -> (Version, String) {
         let version = Version::parse(version).expect("Bad api-version");
         let mut project_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let version_as_package_dir = version.to_string().replace('.', "_");
         project_path.push(format!(
-            "../subgraph-testing/wasm/{}_{}.wasm",
-            test_wasm_name,
-            version.to_string().replace('.', "_"),
+            "../subgraph-testing/packages/v{version_as_package_dir}/build/{datasource_name}/{datasource_name}.wasm"
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
         (version, wasm_path)

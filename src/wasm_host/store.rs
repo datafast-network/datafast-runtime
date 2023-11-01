@@ -119,7 +119,7 @@ mod test {
     use std::collections::HashMap;
     use std::str::FromStr;
 
-    host_fn_test!("store", test_store_set, host {
+    host_fn_test!("TestStore", test_store_set, host {
         let entity_type = "Token".to_string();
         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
         let data = host.dbstore_agent.send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
@@ -132,7 +132,7 @@ mod test {
         }
     });
 
-    host_fn_test!("store", test_store_get, host, result {
+    host_fn_test!("TestStore", test_store_get, host, result {
         let entity_type = "Token".to_string();
         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
         let mut entity_data = HashMap::new();

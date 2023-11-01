@@ -15,7 +15,7 @@ mod test {
     use wasmer::Value;
     use web3::types::Address;
 
-    host_fn_test!("test", test_ethereum_block, host, result {
+    host_fn_test!("TestTypes", test_ethereum_block, host, result {
         let mut block = EthereumBlockData {
             number: U64::from(153453),
             hash: H256::from_str("0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440")

@@ -42,5 +42,5 @@ mod test {
     use super::super::test::*;
     use crate::host_fn_test;
 
-    host_fn_test!("test", test_log, host {});
+    host_fn_test!("TestTypes", test_log, host {});
 }
