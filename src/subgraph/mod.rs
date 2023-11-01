@@ -87,10 +87,10 @@ impl DatasourceWasmInstance {
 }
 
 pub struct Subgraph<T: ToString> {
-    pub sources: HashMap<String, DatasourceWasmInstance>,
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
     pub id: T,
     pub name: String,
+    sources: HashMap<String, DatasourceWasmInstance>,
 }
 
 impl<T: ToString> Subgraph<T> {
@@ -235,7 +235,7 @@ mod test {
         let block_data_msg = SubgraphJob {
             source: "TestDataSource1".to_string(),
             handler: "testHandlerBlock".to_string(),
-            data: crate::subgraph::SubgraphData::Block(EthereumBlockData::default()),
+            data: SubgraphData::Block(EthereumBlockData::default()),
         };
         log::info!("------- Send block to blockHandler of Subgraph");
         sender
@@ -246,7 +246,7 @@ mod test {
         let event_data_msg = SubgraphJob {
             source: "TestDataSource1".to_string(),
             handler: "testHandlerEvent".to_string(),
-            data: crate::subgraph::SubgraphData::Event(EthereumEventData {
+            data: SubgraphData::Event(EthereumEventData {
                 block: EthereumBlockData {
                     number: ethabi::ethereum_types::U64::from(1000),
                     ..Default::default()
@@ -263,7 +263,7 @@ mod test {
         let transaction_data_msg = SubgraphJob {
             source: "TestDataSource1".to_string(),
             handler: "testHandlerTransaction".to_string(),
-            data: crate::subgraph::SubgraphData::Transaction(EthereumTransactionData {
+            data: SubgraphData::Transaction(EthereumTransactionData {
                 from: H160::from_str("0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326").unwrap(),
                 to: Some(H160::from_str("0x388C818CA8B9251b393131C08a736A67ccB19297").unwrap()),
                 value: U256::from(10000),
