@@ -31,13 +31,13 @@ impl Handler {
     }
 }
 
-pub struct SubgraphSource {
+pub struct DatasourceWasmInstance {
     pub id: String,
     pub handlers: HashMap<String, Handler>,
     pub host: AscHost,
 }
 
-impl SubgraphSource {
+impl DatasourceWasmInstance {
     pub fn invoke(&mut self, func: &str, data: SubgraphData) -> Result<(), SubgraphError> {
         log::info!("Source={} is invoking function{func}", self.id);
         let handler = self
@@ -87,12 +87,12 @@ impl SubgraphSource {
 }
 
 pub struct Subgraph<T: ToString> {
-    pub sources: HashMap<String, SubgraphSource>,
+    pub sources: HashMap<String, DatasourceWasmInstance>,
+    // NOTE: using IPFS might lead to subgraph-id using a hex/hash
     pub id: T,
     pub name: String,
 }
 
-// NOTE: using IPFS might lead to subgraph-id using a hex/hash
 impl<T: ToString> Subgraph<T> {
     pub fn new_empty(name: &str, id: T) -> Self {
         Self {
@@ -102,7 +102,7 @@ impl<T: ToString> Subgraph<T> {
         }
     }
 
-    pub fn add_source(&mut self, source: SubgraphSource) -> bool {
+    pub fn add_source(&mut self, source: DatasourceWasmInstance) -> bool {
         self.sources.insert(source.id.clone(), source).is_some()
     }
 
@@ -217,7 +217,7 @@ mod test {
 
             subgraph.sources.insert(
                 source_name.to_string(),
-                SubgraphSource { id, host, handlers },
+                DatasourceWasmInstance { id, host, handlers },
             );
         }
 
