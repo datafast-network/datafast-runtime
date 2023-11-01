@@ -4,24 +4,36 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct MappingABI {
     pub name: String,
     pub file: String,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct EventHandler {
+    pub event: String,
+    pub handler: String,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct BlockHandler {
+    pub filter: Option<String>,
+    pub handler: String,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[allow(non_snake_case)]
 pub struct Mapping {
     pub kind: String,
     pub apiVersion: Version,
     pub entities: Vec<String>,
     pub abis: Vec<MappingABI>,
-    pub eventHandlers: Option<Vec<HashMap<String, String>>>,
-    pub blockHandlers: Option<Vec<HashMap<String, String>>>,
+    pub eventHandlers: Option<Vec<EventHandler>>,
+    pub blockHandlers: Option<Vec<BlockHandler>>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Datasource {
     pub kind: String,
     pub name: String,
@@ -30,7 +42,7 @@ pub struct Datasource {
     pub mapping: Mapping,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[allow(non_snake_case)]
 pub struct SubgraphYaml {
     pub dataSources: Vec<Datasource>,

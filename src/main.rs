@@ -15,7 +15,7 @@ use config::Config;
 use database::Database;
 use errors::SwrError;
 use kanal;
-use manifest_loader::ManifestLoader;
+use manifest_loader::*;
 use subgraph::Subgraph;
 use subgraph::SubgraphSource;
 use wasm_host::create_wasm_host;
@@ -26,7 +26,7 @@ async fn main() -> Result<(), SwrError> {
     let config = Config::load()?;
 
     // 2. Start ManifestLoader & load manifest bundle (subgraph.yaml/abis/wasm etc)
-    let manifest = ManifestLoader::new(&config).await?;
+    let manifest = ManifestLoader::new(&config.manifest).await?;
 
     // 3. Binding db connection
     // TODO: add DB binding connection, so we can impl store_set & store_get
@@ -43,10 +43,12 @@ async fn main() -> Result<(), SwrError> {
         .unwrap_or(config.subgraph_name.clone());
     let mut subgraph = Subgraph::new_empty(&config.subgraph_name, &subgraph_id);
 
-    for source in manifest.datasources.iter() {
-        let wasm_bytes = manifest.load_wasm(&source.name).await?;
-        let wasm_host = create_wasm_host(source.version.to_owned(), wasm_bytes, database.agent())?;
-        let subgraph_source = SubgraphSource::try_from((wasm_host, source.to_owned()))?;
+    for datasource in manifest.datasources() {
+        let api_version = datasource.mapping.apiVersion.to_owned();
+        let wasm_bytes = manifest.load_wasm(&datasource.name).await?.wasm_bytes;
+        let dbstore_agent = database.agent();
+        let wasm_host = create_wasm_host(api_version, wasm_bytes, dbstore_agent)?;
+        let subgraph_source = SubgraphSource::try_from((wasm_host, datasource))?;
         subgraph.add_source(subgraph_source);
     }
 

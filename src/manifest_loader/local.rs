@@ -1,43 +1,31 @@
 use super::manifest_types::*;
+use super::LoaderTrait;
+use super::SubgraphWasmPack;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
-use serde_yaml;
 use std::collections::HashMap;
-use std::env::current_dir;
 use std::fs;
 use std::io::BufReader;
 
-#[async_trait]
-pub trait LoaderTrait: Sized {
-    async fn new(path: &str) -> Result<Self, ManifestLoaderError>;
-    async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError>;
-    async fn load_abis(&mut self) -> Result<(), ManifestLoaderError>;
-    // Load-Wasm is lazy, we only execute it when we need it
-    async fn load_wasm(&self) -> Result<HashMap<String, Vec<u8>>, ManifestLoaderError>;
-}
-
 pub struct LocalFileLoader {
-    subgraph_dir: String,
-    subgraph_yaml: SubgraphYaml,
-    abis: HashMap<String, HashMap<String, serde_json::Value>>,
+    pub subgraph_dir: String,
+    pub subgraph_yaml: SubgraphYaml,
+    pub abis: HashMap<String, HashMap<String, serde_json::Value>>,
 }
 
 #[async_trait]
 impl LoaderTrait for LocalFileLoader {
-    async fn new(relative_subgraph_dir_path: &str) -> Result<Self, ManifestLoaderError> {
-        let mut current_path = current_dir().unwrap();
-        current_path.push(relative_subgraph_dir_path);
-        let subgraph_dir = current_path.into_os_string().into_string().unwrap();
+    async fn new(subgraph_dir: &str) -> Result<Self, ManifestLoaderError> {
         let md = fs::metadata(&subgraph_dir).unwrap();
 
         if !md.is_dir() {
             return Err(ManifestLoaderError::InvalidBuildDir(
-                relative_subgraph_dir_path.to_string(),
+                subgraph_dir.to_string(),
             ));
         }
 
         let mut this = Self {
-            subgraph_dir,
+            subgraph_dir: subgraph_dir.to_owned(),
             subgraph_yaml: SubgraphYaml::default(),
             abis: HashMap::new(),
         };
@@ -85,21 +73,31 @@ impl LoaderTrait for LocalFileLoader {
         Ok(())
     }
 
-    async fn load_wasm(&self) -> Result<HashMap<String, Vec<u8>>, ManifestLoaderError> {
-        let mut wasm_files = HashMap::new();
+    async fn load_wasm(
+        &self,
+        datasource_name: &str,
+    ) -> Result<SubgraphWasmPack, ManifestLoaderError> {
+        let datasource = self
+            .subgraph_yaml
+            .dataSources
+            .iter()
+            .find(|ds| &ds.name == datasource_name);
 
-        for datasource in self.subgraph_yaml.dataSources.iter() {
-            let datasource_name = datasource.name.to_owned();
-            let wasm_file = format!(
-                "{}/build/{datasource_name}/{datasource_name}.wasm",
-                self.subgraph_dir
-            );
-            let wasm_bytes = fs::read(wasm_file.to_owned())
-                .map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
-            wasm_files.insert(datasource_name, wasm_bytes);
+        if datasource.is_none() {
+            return Err(ManifestLoaderError::InvalidDataSource(
+                datasource_name.to_owned(),
+            ));
         }
 
-        Ok(wasm_files)
+        let datasource = datasource.unwrap().to_owned();
+        let wasm_file = format!(
+            "{}/build/{datasource_name}/{datasource_name}.wasm",
+            self.subgraph_dir
+        );
+        let wasm_bytes = fs::read(wasm_file.to_owned())
+            .map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
+
+        Ok(SubgraphWasmPack { wasm_bytes })
     }
 }
 
@@ -118,7 +116,8 @@ mod test {
         assert_eq!(loader.subgraph_yaml.dataSources.len(), 3);
         assert_eq!(loader.abis.keys().len(), 3);
 
-        let wasm_files = loader.load_wasm().await.unwrap();
-        assert_eq!(wasm_files.len(), 3);
+        loader.load_wasm("TestTypes").await.unwrap();
+        loader.load_wasm("TestStore").await.unwrap();
+        loader.load_wasm("TestDataSource").await.unwrap();
     }
 }
