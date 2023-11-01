@@ -20,7 +20,14 @@ pub trait SubgraphFilter {
             .logs
             .clone()
             .into_iter()
-            .filter(|log| &Address::from_str(&log.address).unwrap() == self.get_address())
+            .filter(|log| {
+                &Address::from_str(&log.address).unwrap_or_else(|_| {
+                    panic!(
+                        "parse address log from tx hash {:?} error",
+                        log.transaction_hash
+                    )
+                }) == self.get_address()
+            })
             .map(web3::types::Log::from)
             .collect::<Vec<_>>();
         let mut events = Vec::new();
@@ -29,7 +36,10 @@ pub trait SubgraphFilter {
                 Ok(mut data) => {
                     data.block = eth_block.clone();
                     let transaction = block_data.transactions.iter().find_map(|tx| {
-                        if H256::from_str(&tx.hash).unwrap() == raw_log.transaction_hash.unwrap() {
+                        if H256::from_str(&tx.hash)
+                            .unwrap_or_else(|_| panic!("parse address tx {:?} error", tx))
+                            == raw_log.transaction_hash.unwrap()
+                        {
                             Some(EthereumTransactionData::from(tx.clone()))
                         } else {
                             None
@@ -39,7 +49,7 @@ pub trait SubgraphFilter {
                     events.push(data);
                 }
                 Err(e) => {
-                    log::error!("Error parsing event: {:?}", e)
+                    log::error!("Error parsing event: {:?} from log: {:?}", e, raw_log);
                 }
             }
         }

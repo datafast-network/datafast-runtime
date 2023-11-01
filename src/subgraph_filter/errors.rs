@@ -9,7 +9,9 @@ pub enum FilterError {
     #[error("Init filter error: {0}")]
     InitializationError(String),
     #[error("Ethereum error: {0}")]
-    EthereumError(#[from] ethabi::Error),
+    EthAbiError(#[from] ethabi::Error),
     #[error("Parse error: {0}")]
     ParseError(String),
+    #[error("Web3 error: {0}")]
+    Web3Error(#[from] web3::Error),
 }

@@ -1,4 +1,11 @@
+use crate::chain::ethereum::event::EthereumEventData;
 use crate::subgraph_filter::filter::SubgraphFilter;
+
+#[derive(Clone, Debug)]
+pub struct SubgraphEventData {
+    pub name: String,
+    pub data: EthereumEventData,
+}
 
 #[derive(Clone, Debug)]
 pub struct EventFilter {
@@ -24,8 +31,7 @@ impl SubgraphFilter for EventFilter {
 
 #[cfg(test)]
 mod tests {
-    use crate::subgraph_filter::event_filter::EventFilter;
-    use crate::subgraph_filter::filter::SubgraphFilter;
+    use super::*;
     use std::fs::File;
     use std::str::FromStr;
 
@@ -45,7 +51,6 @@ mod tests {
         assert_eq!(events.len(), 5);
         let first_event = events[0].clone();
         assert_eq!(first_event.params.len(), 3);
-        log::info!("first event: {:?}", first_event.transaction.hash);
         //asert from address
         let first_params = first_event.params.first().unwrap();
         let from = first_params.value.clone().into_address().unwrap();
