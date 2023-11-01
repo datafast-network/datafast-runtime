@@ -5,7 +5,7 @@ use super::event_filter::SubgraphLogData;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::protobuf as pb;
+use crate::ingestor_data as pb;
 use ethabi::Address;
 use std::str::FromStr;
 use web3::types::H160;

@@ -14,7 +14,7 @@ use crate::asc::native_types::AscWrapped;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
-use crate::protobuf::ethereum::Log as pbLog;
+use crate::ingestor_data::ethereum::Log as pbLog;
 use semver::Version;
 use std::str::FromStr;
 use web3::types::Bytes;
