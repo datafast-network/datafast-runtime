@@ -1,16 +1,14 @@
 mod asc;
 mod bignumber;
 mod chain;
+mod common;
 mod config;
-mod core;
 mod database;
 mod errors;
 mod from_to;
-mod internal_messages;
 mod manifest_loader;
-mod protobuf;
+mod messages;
 mod subgraph;
-mod subgraph_filter;
 mod wasm_host;
 
 use config::Config;

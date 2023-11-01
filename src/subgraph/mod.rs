@@ -1,7 +1,7 @@
 use crate::asc::base::asc_new;
 use crate::errors::SubgraphError;
-use crate::internal_messages::SubgraphData;
-use crate::internal_messages::SubgraphOperationMessage;
+use crate::messages::SubgraphData;
+use crate::messages::SubgraphOperationMessage;
 use crate::wasm_host::AscHost;
 use kanal::AsyncReceiver;
 
@@ -168,8 +168,8 @@ mod test {
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::chain::ethereum::transaction::EthereumTransactionData;
-    use crate::internal_messages::SubgraphJob;
-    use crate::internal_messages::SubgraphOperationMessage;
+    use crate::messages::SubgraphJob;
+    use crate::messages::SubgraphOperationMessage;
     use crate::wasm_host::test::get_subgraph_testing_resource;
     use crate::wasm_host::test::mock_wasm_host;
     use ethabi::ethereum_types::H160;

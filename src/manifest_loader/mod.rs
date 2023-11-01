@@ -1,11 +1,10 @@
 mod local;
-mod manifest_types;
 
+use crate::common::Datasource;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use local::LocalFileLoader;
 use log;
-pub use manifest_types::Datasource;
 
 #[derive(Clone)]
 pub struct SubgraphWasmPack {
