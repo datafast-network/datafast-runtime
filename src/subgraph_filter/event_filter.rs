@@ -2,7 +2,7 @@ use crate::chain::ethereum::event::EthereumEventData;
 use crate::subgraph_filter::filter::SubgraphFilter;
 
 #[derive(Clone, Debug)]
-pub struct SubgraphEventData {
+pub struct SubgraphLogData {
     pub name: String,
     pub data: EthereumEventData,
 }
@@ -50,15 +50,16 @@ mod tests {
         let events = event_filter.filter_log(&block).await.unwrap();
         assert_eq!(events.len(), 5);
         let first_event = events[0].clone();
-        assert_eq!(first_event.params.len(), 3);
+        assert_eq!(first_event.name, "Transfer");
+        assert_eq!(first_event.data.params.len(), 3);
         //asert from address
-        let first_params = first_event.params.first().unwrap();
+        let first_params = first_event.data.params.first().unwrap();
         let from = first_params.value.clone().into_address().unwrap();
         let expected_from =
             ethabi::Address::from_str("0x22F0039e614eBA9c51A70376df72B9Ea92cE2500").unwrap();
         assert_eq!(from, expected_from);
         //assert to address
-        let second_params = first_event.params.get(1).unwrap();
+        let second_params = first_event.data.params.get(1).unwrap();
         let to = second_params.value.clone().into_address().unwrap();
         assert_eq!(
             to,
@@ -66,7 +67,7 @@ mod tests {
         );
 
         //assert value of event
-        let last_params = first_event.params.last().unwrap();
+        let last_params = first_event.data.params.last().unwrap();
         let value = last_params.value.clone();
         assert_eq!(
             value.into_uint().unwrap().to_string(),
