@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use local::LocalFileLoader;
 use log;
 
-#[derive(Clone)]
 pub struct SubgraphWasmPack {
     pub wasm_bytes: Vec<u8>,
 }
