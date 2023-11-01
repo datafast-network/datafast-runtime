@@ -1,7 +1,7 @@
 use super::errors::FilterError;
 use super::event_filter::EventFilter;
 use super::event_filter::SubgraphLogData;
-use super::FilterResult;
+
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
@@ -10,6 +10,8 @@ use ethabi::Address;
 use std::str::FromStr;
 use web3::types::H160;
 use web3::types::H256;
+
+type FilterResult<T> = Result<T, FilterError>;
 
 #[async_trait::async_trait]
 pub trait SubgraphFilter {
