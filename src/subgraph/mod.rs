@@ -4,7 +4,10 @@ use crate::internal_messages::SubgraphData;
 use crate::internal_messages::SubgraphOperationMessage;
 use crate::wasm_host::AscHost;
 use kanal::AsyncReceiver;
+
+#[cfg(test)]
 use kanal::Receiver;
+
 use std::collections::HashMap;
 use wasmer::Exports;
 use wasmer::Function;
@@ -117,7 +120,8 @@ impl<T: ToString> Subgraph<T> {
         source.invoke(func, data)
     }
 
-    pub fn run_with_receiver(
+    #[cfg(test)]
+    fn run_with_receiver(
         mut self,
         recv: Receiver<SubgraphOperationMessage>,
     ) -> Result<(), SubgraphError> {
@@ -160,12 +164,6 @@ impl<T: ToString> Subgraph<T> {
 
 #[cfg(test)]
 mod test {
-    /* test flow
-    - create multi source
-    - bind to a single subgraph
-    - invoke all handlers of sources
-    */
-
     use super::*;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;

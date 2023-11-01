@@ -39,6 +39,15 @@ sequenceDiagram
     Database->>ExternalDatabase: database read/write
 ```
 
+## Component usage
+
+### ManifestLoader
+
+- Accept local subgraph dir for constructor
+```rust
+let loader = ManifestLoader::new("fs://vutran/works/subgraph-testing/packages/v0_0_5").await.unwrap()
+```
+
 ## Unit-Test
 
 ### Testing everything
