@@ -4,6 +4,7 @@ mod manifest_types;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use local::LocalFileLoader;
+use log;
 pub use manifest_types::Datasource;
 
 #[derive(Clone)]
@@ -40,6 +41,10 @@ impl LoaderTrait for ManifestLoader {
         match protocol.as_str() {
             "fs" => {
                 let local_path = format!("/{}", parts[1]);
+                log::info!(
+                    "Using LocalFile Loader, loading subgraph build bundle at: {}",
+                    local_path
+                );
                 let loader = LocalFileLoader::new(&local_path).await?;
                 Ok(ManifestLoader::Local(loader))
             }
