@@ -43,7 +43,9 @@ macro_rules! host_fn_test {
             use convert_case::Case;
             use convert_case::Casing;
             use env_logger;
+            use std::env;
 
+            env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
             env_logger::try_init().unwrap_or_default();
             let (version, wasm_path) = get_subgraph_testing_resource(version, $datasource_name);
 
