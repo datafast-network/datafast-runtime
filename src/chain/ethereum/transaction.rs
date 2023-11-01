@@ -110,15 +110,13 @@ impl From<pbTransaction> for EthereumTransactionData {
             hash: H256::from_str(&tx.hash).unwrap(),
             index: tx.transaction_index.map_or(U128::zero(), |x| x.into()),
             from: H160::from_str(&tx.from_address).unwrap(),
-            to: tx
-                .to_address
-                .map_or(None, |x| Some(H160::from_str(&x).unwrap())),
+            to: tx.to_address.map(|x| H160::from_str(&x).unwrap()),
             value: U256::from_str(&tx.value).unwrap(),
             gas_limit: "0".parse().unwrap(),
             gas_price: tx
                 .gas_price
                 .map_or(U256::zero(), |x| U256::from_str(&x).unwrap()),
-            input: Bytes::from(tx.input),
+            input: hex::decode(tx.input.replace("0x", "")).map_or(Bytes::default(), |b| b.into()),
             nonce: U256::from(tx.nonce),
         }
     }

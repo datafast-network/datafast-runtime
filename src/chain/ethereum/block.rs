@@ -145,10 +145,10 @@ impl From<pbBlock> for EthereumBlockData {
             timestamp: U256::from_str(&header.timestamp).unwrap(),
             difficulty: U256::from_str(&header.difficulty).unwrap(),
             total_difficulty: U256::from_str(&header.total_difficulty).unwrap(),
-            size: header.size.map_or(None, |size| Some(U256::from(size))),
+            size: header.size.map(U256::from),
             base_fee_per_gas: header
                 .base_fee_per_gas
-                .map_or(None, |fee| Some(U256::from_str(&fee).unwrap())),
+                .map(|fee| U256::from_str(&fee).unwrap()),
         }
     }
 }

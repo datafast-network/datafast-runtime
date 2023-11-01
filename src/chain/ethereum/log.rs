@@ -204,6 +204,7 @@ impl AscIndexId for AscLogArray {
 
 impl From<pbLog> for Log {
     fn from(value: pbLog) -> Self {
+        //replace 0x with empty string
         Self {
             address: H160::from_str(&value.address).unwrap(),
             topics: value
@@ -211,19 +212,17 @@ impl From<pbLog> for Log {
                 .iter()
                 .map(|t| H256::from_str(t).unwrap())
                 .collect::<Vec<H256>>(),
-            data: Bytes::from(value.data),
+            data: hex::decode(value.data.replace("0x", "")).map_or(Bytes::default(), |b| b.into()),
             block_hash: value
                 .block_hash
-                .map_or(None, |h| Some(H256::from_str(&h).unwrap_or_default())),
-            block_number: value.block_number.map_or(None, |nb| Some(nb.into())),
+                .map(|h| H256::from_str(&h).unwrap_or_default()),
+            block_number: value.block_number.map(|nb| nb.into()),
             transaction_hash: value
                 .transaction_hash
-                .map_or(None, |h| Some(H256::from_str(&h).unwrap_or_default())),
-            transaction_index: value.transaction_index.map_or(None, |idx| Some(idx.into())),
-            log_index: value.log_index.map_or(None, |idx| Some(idx.into())),
-            transaction_log_index: value
-                .transaction_log_index
-                .map_or(None, |idx| Some(idx.into())),
+                .map(|h| H256::from_str(&h).unwrap_or_default()),
+            transaction_index: value.transaction_index.map(|idx| idx.into()),
+            log_index: value.log_index.map(|idx| idx.into()),
+            transaction_log_index: value.transaction_log_index.map(|idx| idx.into()),
             log_type: value.log_type,
             removed: value.removed,
         }

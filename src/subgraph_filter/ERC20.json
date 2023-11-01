@@ -28,7 +28,7 @@
     "name": "approve",
     "outputs": [
       {
-        "name": "",
+        "name": "success",
         "type": "bool"
       }
     ],
@@ -69,7 +69,7 @@
     "name": "transferFrom",
     "outputs": [
       {
-        "name": "",
+        "name": "success",
         "type": "bool"
       }
     ],
@@ -92,17 +92,36 @@
     "type": "function"
   },
   {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_value",
+        "type": "uint256"
+      }
+    ],
+    "name": "burn",
+    "outputs": [
+      {
+        "name": "success",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "constant": true,
     "inputs": [
       {
-        "name": "_owner",
+        "name": "",
         "type": "address"
       }
     ],
     "name": "balanceOf",
     "outputs": [
       {
-        "name": "balance",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -139,7 +158,34 @@
     "name": "transfer",
     "outputs": [
       {
-        "name": "",
+        "name": "success",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_spender",
+        "type": "address"
+      },
+      {
+        "name": "_value",
+        "type": "uint256"
+      },
+      {
+        "name": "_extraData",
+        "type": "bytes"
+      }
+    ],
+    "name": "approveAndCall",
+    "outputs": [
+      {
+        "name": "success",
         "type": "bool"
       }
     ],
@@ -151,11 +197,11 @@
     "constant": true,
     "inputs": [
       {
-        "name": "_owner",
+        "name": "",
         "type": "address"
       },
       {
-        "name": "_spender",
+        "name": "",
         "type": "address"
       }
     ],
@@ -171,31 +217,23 @@
     "type": "function"
   },
   {
-    "payable": true,
-    "stateMutability": "payable",
-    "type": "fallback"
-  },
-  {
-    "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "name": "spender",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "name": "value",
+        "name": "initialSupply",
         "type": "uint256"
+      },
+      {
+        "name": "tokenName",
+        "type": "string"
+      },
+      {
+        "name": "tokenSymbol",
+        "type": "string"
       }
     ],
-    "name": "Approval",
-    "type": "event"
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "constructor"
   },
   {
     "anonymous": false,
@@ -217,6 +255,45 @@
       }
     ],
     "name": "Transfer",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "_spender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_value",
+        "type": "uint256"
+      }
+    ],
+    "name": "Approval",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "value",
+        "type": "uint256"
+      }
+    ],
+    "name": "Burn",
     "type": "event"
   }
 ]
