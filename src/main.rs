@@ -11,10 +11,11 @@ mod messages;
 mod subgraph;
 mod wasm_host;
 
+mod subgraph_filter;
+
 use config::Config;
 use database::Database;
 use errors::SwrError;
-use kanal;
 use manifest_loader::*;
 use subgraph::Subgraph;
 use subgraph::SubgraphSource;
