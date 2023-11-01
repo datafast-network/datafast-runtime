@@ -1,9 +1,8 @@
-use std::env;
-
 use super::Env;
 use crate::asc::base::asc_get;
 use crate::asc::base::AscPtr;
 use crate::asc::native_types::string::AscString;
+use std::env;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
 
@@ -16,7 +15,7 @@ pub fn log_log(
 
     match log_level {
         0 => {
-            eprintln!("CRITICAL!!!!!!: {string}");
+            log::log!(target: "subgraph-wasm-host", log::Level::max(), "CRITICAL: {string}");
 
             if env::var("SUBGRAPH_WASM_RUNTIME_TEST").is_ok() {
                 // NOTE: if testing, just don't throw anything
@@ -27,10 +26,10 @@ pub fn log_log(
                 "Something bad happened, Terminating runtime!",
             ));
         }
-        1 => log::error!("{string}"),
-        2 => log::warn!("{string}"),
-        3 => log::info!("{string}"),
-        4 => log::debug!("{string}"),
+        1 => log::log!(target: "subgraph-wasm-host", log::Level::Error, "{string}"),
+        2 => log::log!(target: "subgraph-wasm-host", log::Level::Warn, "{string}"),
+        3 => log::log!(target: "subgraph-wasm-host", log::Level::Info, "{string}"),
+        4 => log::log!(target: "subgraph-wasm-host", log::Level::Debug, "{string}"),
         _ => return Err(RuntimeError::new("Invalid log level!!")),
     }
 
