@@ -72,21 +72,17 @@ mod test {
     use super::*;
     use crate::wasm_host::test::get_subgraph_testing_resource;
     use crate::wasm_host::test::mock_wasm_host;
+    use env_logger;
     use kanal;
     use serde_json::json;
     use tokio::join;
 
     #[tokio::test]
     async fn test_transformer() {
-        use env_logger;
-        use std::env;
-
-        env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
         env_logger::try_init().unwrap_or_default();
 
         let (s1, r1) = kanal::bounded_async(1);
         let (s2, r2) = kanal::bounded_async(1);
-
         let (version, wasm_path) = get_subgraph_testing_resource("0.0.5", "TestTransform");
         let host = mock_wasm_host(version, &wasm_path);
 
@@ -106,6 +102,7 @@ mod test {
         );
         let mut transformer = Transformer { host, funcs };
 
+        // Transformer listening for incoming data
         let t1 = async move {
             while let Ok(request) = r1.recv().await {
                 let result = transformer.handle_transform_request(request).unwrap();
@@ -114,25 +111,21 @@ mod test {
             }
         };
 
+        // Collecting result from transformer
         let t2 = async move {
-            while let Ok(data) = r2.recv().await {
-                ::log::info!("Transformed data: \n{:?}\n", data);
-                match data {
-                    SubgraphData::Block(block) => {
-                        assert_eq!(block.number.to_string(), "123123123");
-                        assert_eq!(
-                            format!("{:?}", block.hash),
-                            "0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440"
-                        );
-                        return;
-                    }
-                    _ => {
-                        assert!(false)
-                    }
-                }
+            while let Ok(SubgraphData::Block(block)) = r2.recv().await {
+                ::log::info!("Transformed data: \n{:?}\n", block);
+                assert_eq!(block.number.to_string(), "123123123");
+                assert_eq!(
+                    format!("{:?}", block.hash),
+                    "0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440"
+                );
+                return;
             }
+            panic!("test failed");
         };
 
+        // Send test data for transform
         let ingestor_block = json!({
             "number": 123123123,
             "hash": "0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440"
@@ -146,8 +139,7 @@ mod test {
             },
         };
 
-        let send_request = s1.send(request);
-
-        let _result = join!(t1, t2, send_request);
+        // Collecting the threads
+        let _result = join!(t1, t2, s1.send(request));
     }
 }
