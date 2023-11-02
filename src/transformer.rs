@@ -117,7 +117,19 @@ mod test {
         let t2 = async move {
             while let Ok(data) = r2.recv().await {
                 ::log::info!("Transformed data: \n{:?}\n", data);
-                return;
+                match data {
+                    SubgraphData::Block(block) => {
+                        assert_eq!(block.number.to_string(), "123123123");
+                        assert_eq!(
+                            format!("{:?}", block.hash),
+                            "0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440"
+                        );
+                        return;
+                    }
+                    _ => {
+                        assert!(false)
+                    }
+                }
             }
         };
 
