@@ -147,7 +147,7 @@ impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
             // state_root: asc_get(heap, asc_block.state_root, depth)?,
             // transactions_root: asc_get(heap, asc_block.transactions_root, depth)?,
             // receipts_root: asc_get(heap, asc_block.receipts_root, depth)?,
-            number: U64::from_str(&number.to_string()).unwrap(),
+            number: U64::from_dec_str(&number.to_string()).unwrap(),
             // gas_used: U256::from_str(&gas_used.to_string()).unwrap(),
             // TODO: impl the rest here
             ..Default::default()
