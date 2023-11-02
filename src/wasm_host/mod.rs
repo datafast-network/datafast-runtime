@@ -3,6 +3,7 @@ mod bigdecimal;
 mod bigint;
 mod chain;
 mod global;
+mod json;
 mod log;
 mod macros;
 mod store;
@@ -88,6 +89,9 @@ pub fn create_wasm_host(
             "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_times),
             "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_divided_by),
             "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
+        },
+        "json" => {
+            "json.toBigInt" =>Function::new_typed_with_env(&mut store, &env, json::json_to_bigint),
         },
         "index" => { //index for subgraph version <= 4
             "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
