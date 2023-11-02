@@ -74,12 +74,42 @@ impl Transformer {
 
 #[cfg(test)]
 mod test {
-    use crate::host_fn_test;
-
     use super::*;
+    use crate::wasm_host::test::get_subgraph_testing_resource;
+    use crate::wasm_host::test::mock_wasm_host;
+    use kanal;
+    use serde_json::json;
 
-    #[test]
-    fn test_transform_block_data() {
-        // host_fn_test!("test")
+    #[tokio::test]
+    async fn test_transformer() {
+        use env_logger;
+        use std::env;
+
+        env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
+        env_logger::try_init().unwrap_or_default();
+
+        let (s1, r1) = kanal::bounded_async(1);
+        let (s2, r2) = kanal::bounded(1);
+
+        let (version, wasm_path) = get_subgraph_testing_resource("0.0.5", "TestTransform");
+        let host = mock_wasm_host(version, &wasm_path);
+
+        let transformer = Transformer {
+            host,
+            funcs: HashMap::new(),
+            input_receiver: r1,
+            output_forwarder: s2,
+        };
+
+        let ingestor_block = json!({});
+        let request = TransformRequest {
+            value: ingestor_block,
+            transform: Transform {
+                datasource: "TestTransform".to_string(),
+                func_name: "transformBlock".to_string(),
+            },
+        };
+
+        s1.send(request).await.unwrap();
     }
 }
