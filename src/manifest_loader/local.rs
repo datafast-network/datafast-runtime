@@ -1,5 +1,4 @@
 use super::LoaderTrait;
-use super::SubgraphWasmPack;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
@@ -73,10 +72,7 @@ impl LoaderTrait for LocalFileLoader {
         Ok(())
     }
 
-    async fn load_wasm(
-        &self,
-        datasource_name: &str,
-    ) -> Result<SubgraphWasmPack, ManifestLoaderError> {
+    async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError> {
         let datasource = self
             .subgraph_yaml
             .dataSources
@@ -97,7 +93,7 @@ impl LoaderTrait for LocalFileLoader {
         let wasm_bytes = fs::read(wasm_file.to_owned())
             .map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
 
-        Ok(SubgraphWasmPack { wasm_bytes })
+        Ok(wasm_bytes)
     }
 }
 
