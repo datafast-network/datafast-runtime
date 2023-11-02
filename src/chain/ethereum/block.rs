@@ -1,8 +1,12 @@
+use std::str::FromStr;
+
 use super::asc::*;
+use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
@@ -122,6 +126,31 @@ impl ToAscObj<AscEthereumBlock> for EthereumBlockData {
                 .base_fee_per_gas
                 .map(|base_fee| asc_new(heap, &BigInt::from_unsigned_u256(&base_fee)))
                 .unwrap_or(Ok(AscPtr::null()))?,
+        })
+    }
+}
+
+impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        asc_block: AscEthereumBlock,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let number: BigInt = asc_get(heap, asc_block.number, depth)?;
+        let gas_used: BigInt = asc_get(heap, asc_block.gas_used, depth)?;
+
+        Ok(EthereumBlockData {
+            hash: asc_get(heap, asc_block.hash, depth)?,
+            parent_hash: asc_get(heap, asc_block.parent_hash, depth)?,
+            uncles_hash: asc_get(heap, asc_block.uncles_hash, depth)?,
+            author: asc_get(heap, asc_block.author, depth)?,
+            state_root: asc_get(heap, asc_block.state_root, depth)?,
+            transactions_root: asc_get(heap, asc_block.transactions_root, depth)?,
+            receipts_root: asc_get(heap, asc_block.receipts_root, depth)?,
+            number: U64::from_str(&number.to_string()).unwrap(),
+            gas_used: U256::from_str(&gas_used.to_string()).unwrap(),
+            // TODO: impl the rest here
+            ..Default::default()
         })
     }
 }

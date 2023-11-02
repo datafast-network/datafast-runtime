@@ -1,0 +1,7 @@
+subgraph_name = "MySgb"
+subgraph_id = "xxxxxxxxxxxxxxxxxx"
+manifest = "~/Work/hardbed/subgraph-testing/packages/v0_0_5"
+
+[transform.my_transform]
+datasource = "MySource"
+func_name = "blockTransform"
