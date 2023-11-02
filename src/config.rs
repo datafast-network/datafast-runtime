@@ -41,5 +41,8 @@ mod test {
         ::env_logger::try_init().unwrap_or_default();
         let config = Config::load().unwrap();
         log::info!("Config: {:?}", config);
+        assert!(config.subgraph_id.is_some());
+        assert!(config.transform.is_some());
+        assert_eq!(config.transform.unwrap().len(), 1);
     }
 }
