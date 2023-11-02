@@ -1,6 +1,4 @@
-use kanal::AsyncReceiver;
 use kanal::SendError;
-use kanal::Sender;
 use std::collections::HashMap;
 use thiserror::Error;
 use wasmer::Function;
@@ -42,15 +40,13 @@ pub struct TransformFunction {
 pub struct Transformer {
     host: AscHost,
     funcs: HashMap<String, TransformFunction>,
-    input_receiver: AsyncReceiver<TransformRequest>,
-    output_forwarder: Sender<SubgraphData>,
 }
 
 impl Transformer {
     fn handle_transform_request(
         &mut self,
         request: TransformRequest,
-    ) -> Result<(), TransformerError> {
+    ) -> Result<SubgraphData, TransformerError> {
         let func_name = request.transform.func_name;
         let func = self
             .funcs
@@ -67,8 +63,7 @@ impl Transformer {
         let asc_block =
             AscPtr::<AscEthereumBlock>::new(result.first().unwrap().unwrap_i32() as u32);
         let eth_block: EthereumBlockData = asc_get(&self.host, asc_block, 0).unwrap();
-        self.output_forwarder.send(SubgraphData::Block(eth_block))?;
-        Ok(())
+        Ok(SubgraphData::Block(eth_block))
     }
 }
 
@@ -79,6 +74,7 @@ mod test {
     use crate::wasm_host::test::mock_wasm_host;
     use kanal;
     use serde_json::json;
+    use tokio::join;
 
     #[tokio::test]
     async fn test_transformer() {
@@ -89,16 +85,27 @@ mod test {
         env_logger::try_init().unwrap_or_default();
 
         let (s1, r1) = kanal::bounded_async(1);
-        let (s2, r2) = kanal::bounded(1);
+        let (s2, r2) = kanal::bounded_async(1);
 
         let (version, wasm_path) = get_subgraph_testing_resource("0.0.5", "TestTransform");
         let host = mock_wasm_host(version, &wasm_path);
 
-        let transformer = Transformer {
+        let mut transformer = Transformer {
             host,
             funcs: HashMap::new(),
-            input_receiver: r1,
-            output_forwarder: s2,
+        };
+
+        let t1 = async move {
+            while let Ok(request) = r1.recv().await {
+                let result = transformer.handle_transform_request(request).unwrap();
+                s2.send(result).await.unwrap();
+            }
+        };
+
+        let t2 = async move {
+            while let Ok(data) = r2.recv().await {
+                ::log::info!("Received transformed block: {:?}", data);
+            }
         };
 
         let ingestor_block = json!({});
@@ -110,6 +117,8 @@ mod test {
             },
         };
 
-        s1.send(request).await.unwrap();
+        let send_request = s1.send(request);
+
+        let _result = join!(t1, t2, send_request);
     }
 }
