@@ -90,25 +90,42 @@ mod test {
         let (version, wasm_path) = get_subgraph_testing_resource("0.0.5", "TestTransform");
         let host = mock_wasm_host(version, &wasm_path);
 
-        let mut transformer = Transformer {
-            host,
-            funcs: HashMap::new(),
-        };
+        let transform_block_function = host
+            .instance
+            .exports
+            .get_function("transformBlock")
+            .unwrap()
+            .to_owned();
+        let mut funcs = HashMap::new();
+        funcs.insert(
+            "transformBlock".to_string(),
+            TransformFunction {
+                name: "transformBlock".to_string(),
+                func: transform_block_function,
+            },
+        );
+        let mut transformer = Transformer { host, funcs };
 
         let t1 = async move {
             while let Ok(request) = r1.recv().await {
                 let result = transformer.handle_transform_request(request).unwrap();
                 s2.send(result).await.unwrap();
+                return;
             }
         };
 
         let t2 = async move {
             while let Ok(data) = r2.recv().await {
-                ::log::info!("Received transformed block: {:?}", data);
+                ::log::info!("Transformed data: \n{:?}\n", data);
+                return;
             }
         };
 
-        let ingestor_block = json!({});
+        let ingestor_block = json!({
+            "number": 123123123,
+            "hash": "0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440"
+        });
+        ::log::info!("Input data:\n {:?} \n", ingestor_block);
         let request = TransformRequest {
             value: ingestor_block,
             transform: Transform {
