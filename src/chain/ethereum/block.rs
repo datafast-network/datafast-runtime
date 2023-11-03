@@ -11,9 +11,14 @@ use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::bignumber::bigint::BigInt;
+use crate::chain::ethereum::log::AscEthereumLog;
+use crate::chain::ethereum::log::AscLogArray;
+use crate::chain::ethereum::transaction::AscEthereumTransaction;
+use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::impl_asc_type_struct;
 use semver::Version;
 use web3::types::Block;
+use web3::types::Log;
 use web3::types::H160;
 use web3::types::H256;
 use web3::types::U256;
@@ -136,21 +141,59 @@ impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
         heap: &H,
         depth: usize,
     ) -> Result<Self, AscError> {
-        let number: BigInt = asc_get(heap, asc_block.number, depth)?;
-        // let gas_used: BigInt = asc_get(heap, asc_block.gas_used, depth)?;
+        let number = asc_get(heap, asc_block.number, depth)?;
+        let gas_used = asc_get(heap, asc_block.gas_used, depth)?;
+        let gas_limit = asc_get(heap, asc_block.gas_limit, depth)?;
+        let timestamp = asc_get(heap, asc_block.timestamp, depth)?;
+        let difficulty = asc_get(heap, asc_block.difficulty, depth)?;
+        let total_difficulty = asc_get(heap, asc_block.total_difficulty, depth)?;
+        let size = match asc_block.size.is_null() {
+            true => None,
+            false => asc_get(heap, asc_block.size, depth)
+                .map(|size| size.into())
+                .map(Some)?,
+        };
+
+        let base_fee_per_gas = match asc_block.base_fee_per_block.is_null() {
+            true => None,
+            false => asc_get::<BigInt, _, _>(heap, asc_block.base_fee_per_block, depth)
+                .map(|base_fee| base_fee.into())
+                .map(Some)?,
+        };
 
         Ok(EthereumBlockData {
             hash: asc_get(heap, asc_block.hash, depth)?,
-            // parent_hash: asc_get(heap, asc_block.parent_hash, depth)?,
-            // uncles_hash: asc_get(heap, asc_block.uncles_hash, depth)?,
-            // author: asc_get(heap, asc_block.author, depth)?,
-            // state_root: asc_get(heap, asc_block.state_root, depth)?,
-            // transactions_root: asc_get(heap, asc_block.transactions_root, depth)?,
-            // receipts_root: asc_get(heap, asc_block.receipts_root, depth)?,
-            number: U64::from_dec_str(&number.to_string()).unwrap(),
-            // gas_used: U256::from_str(&gas_used.to_string()).unwrap(),
-            // TODO: impl the rest here
-            ..Default::default()
+            parent_hash: asc_get(heap, asc_block.parent_hash, depth)?,
+            uncles_hash: asc_get(heap, asc_block.uncles_hash, depth)?,
+            author: asc_get(heap, asc_block.author, depth)?,
+            state_root: asc_get(heap, asc_block.state_root, depth)?,
+            transactions_root: asc_get(heap, asc_block.transactions_root, depth)?,
+            receipts_root: asc_get(heap, asc_block.receipts_root, depth)?,
+            number,
+            gas_used,
+            gas_limit,
+            timestamp,
+            difficulty,
+            total_difficulty,
+            size,
+            base_fee_per_gas,
         })
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EthereumFullBlock {
+    number: U64,
+    hash: H256,
+    header: EthereumBlockData,
+    transactions: Vec<EthereumTransactionData>,
+    logs: Vec<Log>,
+}
+
+pub struct AscFullBlock {
+    pub number: AscPtr<AscBigInt>,
+    pub hash: AscPtr<AscH256>,
+    pub header: AscPtr<AscEthereumBlock>,
+    pub transactions: Vec<AscPtr<AscEthereumTransaction>>,
+    pub logs: AscLogArray,
 }

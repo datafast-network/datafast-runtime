@@ -7,10 +7,12 @@ use wasmer::Value;
 
 use crate::asc::base::asc_get;
 use crate::asc::base::asc_new;
+use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::AscType;
+use crate::asc::base::FromAscObj;
 use crate::asc::errors::AscError;
 use crate::chain::ethereum::block::AscEthereumBlock;
-use crate::chain::ethereum::block::EthereumBlockData;
 use crate::config::Transform;
 use crate::messages::SubgraphData;
 use crate::wasm_host::*;
@@ -32,6 +34,12 @@ pub struct TransformRequest {
     transform: Transform,
 }
 
+impl TransformRequest {
+    pub fn new(value: serde_json::Value, transform: Transform) -> Self {
+        TransformRequest { value, transform }
+    }
+}
+
 pub struct TransformFunction {
     name: String,
     func: Function,
@@ -43,10 +51,10 @@ pub struct Transformer {
 }
 
 impl Transformer {
-    fn handle_transform_request(
+    fn handle_transform_request<P: AscType + AscIndexId, R: FromAscObj<P>>(
         &mut self,
         request: TransformRequest,
-    ) -> Result<SubgraphData, TransformerError> {
+    ) -> Result<R, TransformerError> {
         let func_name = request.transform.func_name;
         let func = self
             .funcs
@@ -60,21 +68,24 @@ impl Transformer {
             .func
             .call(&mut self.host.store, &[Value::I32(ptr as i32)])?;
 
-        let asc_block =
-            AscPtr::<AscEthereumBlock>::new(result.first().unwrap().unwrap_i32() as u32);
-        let eth_block: EthereumBlockData = asc_get(&self.host, asc_block, 0).unwrap();
-        Ok(SubgraphData::Block(eth_block))
+        let asc_ptr = AscPtr::<P>::new(result.first().unwrap().unwrap_i32() as u32);
+        let result = asc_get(&self.host, asc_ptr, 0).expect("Failed to get result");
+        Ok(result)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::chain::ethereum::block::AscFullBlock;
+    use crate::chain::ethereum::block::EthereumBlockData;
+    use crate::chain::ethereum::block::EthereumFullBlock;
     use crate::wasm_host::test::get_subgraph_testing_resource;
     use crate::wasm_host::test::mock_wasm_host;
     use env_logger;
     use kanal;
     use serde_json::json;
+    use std::fs::File;
     use tokio::join;
 
     #[tokio::test]
@@ -83,20 +94,20 @@ mod test {
 
         let (s1, r1) = kanal::bounded_async(1);
         let (s2, r2) = kanal::bounded_async(1);
-        let (version, wasm_path) = get_subgraph_testing_resource("0.0.5", "TestTransform");
+        let (version, wasm_path) = get_subgraph_testing_resource("0.0.5", "TestTypes");
         let host = mock_wasm_host(version, &wasm_path);
 
         let transform_block_function = host
             .instance
             .exports
-            .get_function("transformBlock")
+            .get_function("transformEthereumBlock")
             .unwrap()
             .to_owned();
         let mut funcs = HashMap::new();
         funcs.insert(
-            "transformBlock".to_string(),
+            "transformEthereumBlock".to_string(),
             TransformFunction {
-                name: "transformBlock".to_string(),
+                name: "transformEthereumBlock".to_string(),
                 func: transform_block_function,
             },
         );
@@ -105,8 +116,10 @@ mod test {
         // Transformer listening for incoming data
         let t1 = async move {
             while let Ok(request) = r1.recv().await {
-                let result = transformer.handle_transform_request(request).unwrap();
-                s2.send(result).await.unwrap();
+                let result = transformer
+                    .handle_transform_request::<AscEthereumBlock, _>(request)
+                    .unwrap();
+                s2.send(SubgraphData::Block(result)).await.unwrap();
                 return;
             }
         };
@@ -115,27 +128,27 @@ mod test {
         let t2 = async move {
             while let Ok(SubgraphData::Block(block)) = r2.recv().await {
                 ::log::info!("Transformed data: \n{:?}\n", block);
-                assert_eq!(block.number.to_string(), "123123123");
+                assert_eq!(block.number.to_string(), "10000000");
                 assert_eq!(
                     format!("{:?}", block.hash),
-                    "0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440"
+                    "0xaa20f7bde5be60603f11a45fc4923aab7552be775403fc00c2e6b805e6297dbe"
                 );
                 return;
             }
             panic!("test failed");
         };
-
+        let start = std::time::Instant::now();
+        // let file_json = File::open("/Users/quannguyen/block_10000000_safe_size.json").unwrap();
+        let file_json = File::open("./block.json").unwrap();
         // Send test data for transform
-        let ingestor_block = json!({
-            "number": 123123123,
-            "hash": "0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440"
-        });
-        ::log::info!("Input data:\n {:?} \n", ingestor_block);
+        let ingestor_block = serde_json::from_reader(file_json).unwrap();
+        ::log::info!("Input data success {:?}", start.elapsed());
+
         let request = TransformRequest {
             value: ingestor_block,
             transform: Transform {
-                datasource: "TestTransform".to_string(),
-                func_name: "transformBlock".to_string(),
+                datasource: "TestTypes".to_string(),
+                func_name: "transformEthereumBlock".to_string(),
             },
         };
 

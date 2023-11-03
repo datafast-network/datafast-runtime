@@ -130,6 +130,55 @@ impl ToAscObj<AscBigInt> for w3::U128 {
     }
 }
 
+impl FromAscObj<AscBigInt> for w3::U128 {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        asc_obj: AscBigInt,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let bytes = Vec::from_asc_obj(asc_obj, heap, depth)?;
+        Ok(Self::from_little_endian(&bytes))
+    }
+}
+
+impl ToAscObj<AscBigInt> for w3::U256 {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigInt, AscError> {
+        let mut bytes: [u8; 32] = [0; 32];
+        self.to_little_endian(&mut bytes);
+        bytes.to_asc_obj(heap)
+    }
+}
+
+impl FromAscObj<AscBigInt> for w3::U256 {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        asc_obj: AscBigInt,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let bytes = Vec::from_asc_obj(asc_obj, heap, depth)?;
+        Ok(Self::from_little_endian(&bytes))
+    }
+}
+
+impl ToAscObj<AscBigInt> for w3::U64 {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigInt, AscError> {
+        let mut bytes: [u8; 8] = [0; 8];
+        self.to_little_endian(&mut bytes);
+        bytes.to_asc_obj(heap)
+    }
+}
+
+impl FromAscObj<AscBigInt> for w3::U64 {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        asc_obj: AscBigInt,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let bytes = Vec::from_asc_obj(asc_obj, heap, depth)?;
+        Ok(Self::from_little_endian(&bytes))
+    }
+}
+
 impl ToAscObj<AscEnum<EthereumValueKind>> for ethabi::Token {
     fn to_asc_obj<H: AscHeap + ?Sized>(
         &self,
