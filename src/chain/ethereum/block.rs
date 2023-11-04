@@ -1,5 +1,6 @@
 use super::asc::*;
 use crate::asc::base::asc_get;
+use crate::asc::base::asc_get_opt;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
@@ -134,16 +135,6 @@ impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
         heap: &H,
         depth: usize,
     ) -> Result<Self, AscError> {
-        let base_fee_per_gas = if obj.base_fee_per_block.is_null() {
-            None
-        } else {
-            Some(asc_get(heap, obj.base_fee_per_block, depth)?)
-        };
-        let size = if obj.size.is_null() {
-            None
-        } else {
-            Some(asc_get(heap, obj.size, depth)?)
-        };
         Ok(Self {
             hash: asc_get(heap, obj.number, depth)?,
             parent_hash: asc_get(heap, obj.parent_hash, depth)?,
@@ -158,8 +149,8 @@ impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
             timestamp: asc_get(heap, obj.timestamp, depth)?,
             difficulty: asc_get(heap, obj.difficulty, depth)?,
             total_difficulty: asc_get(heap, obj.total_difficulty, depth)?,
-            size,
-            base_fee_per_gas,
+            size: asc_get_opt(heap, obj.size, depth)?,
+            base_fee_per_gas: asc_get_opt(heap, obj.base_fee_per_block, depth)?,
         })
     }
 }

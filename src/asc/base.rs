@@ -618,6 +618,29 @@ where
     T::from_asc_obj(asc_ptr.read_ptr(heap)?, heap, depth)
 }
 
+pub fn asc_get_opt<T, C, H: AscHeap + ?Sized>(
+    heap: &H,
+    asc_ptr: AscPtr<C>,
+    mut depth: usize,
+) -> Result<Option<T>, AscError>
+where
+    C: AscType + AscIndexId,
+    T: FromAscObj<C>,
+{
+    depth += 1;
+
+    if depth > MAX_RECURSION_DEPTH {
+        return Err(AscError::MaxRecursion);
+    }
+    if asc_ptr.is_null() {
+        return Ok(None);
+    }
+
+    Some(T::from_asc_obj(asc_ptr.read_ptr(heap)?, heap, depth)?)
+        .map(Ok)
+        .transpose()
+}
+
 impl<C: AscType, T: ToAscObj<C>> ToAscObj<C> for &T {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<C, AscError> {
         (*self).to_asc_obj(heap)
