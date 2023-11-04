@@ -10,9 +10,11 @@ use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::bignumber::bigint::BigInt;
+use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::impl_asc_type_struct;
 use semver::Version;
 use web3::types::Block;
+use web3::types::Log;
 use web3::types::H160;
 use web3::types::H256;
 use web3::types::U256;
@@ -27,7 +29,7 @@ pub struct AscEthereumBlock {
     pub state_root: AscPtr<AscH256>,
     pub transactions_root: AscPtr<AscH256>,
     pub receipts_root: AscPtr<AscH256>,
-    pub number: AscPtr<AscBigInt>,
+    pub number: AscPtr<AscH256>,
     pub gas_used: AscPtr<AscBigInt>,
     pub gas_limit: AscPtr<AscBigInt>,
     pub timestamp: AscPtr<AscBigInt>,
@@ -50,7 +52,7 @@ impl_asc_type_struct!(
     state_root => AscPtr<AscH256>,
     transactions_root => AscPtr<AscH256>,
     receipts_root => AscPtr<AscH256>,
-    number => AscPtr<AscBigInt>,
+    number => AscPtr<AscH256>,
     gas_used => AscPtr<AscBigInt>,
     gas_limit => AscPtr<AscBigInt>,
     timestamp => AscPtr<AscBigInt>,
@@ -152,5 +154,36 @@ impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
             size: asc_get_optional(heap, obj.size, depth)?,
             base_fee_per_gas: asc_get_optional(heap, obj.base_fee_per_block, depth)?,
         })
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct EthereumFullBlock {
+    pub number: U64,
+    pub hash: H256,
+    pub header: EthereumBlockData,
+    pub transactions: Vec<EthereumTransactionData>,
+    pub logs: Vec<Log>,
+}
+
+impl From<(EthereumBlockData, Vec<EthereumTransactionData>, Vec<Log>)> for EthereumFullBlock {
+    fn from(
+        (header, transactions, logs): (EthereumBlockData, Vec<EthereumTransactionData>, Vec<Log>),
+    ) -> Self {
+        Self {
+            number: header.number,
+            hash: header.hash,
+            header,
+            transactions,
+            logs,
+        }
+    }
+}
+
+impl EthereumFullBlock {
+    pub fn transaction_for_log(&self, log: &Log) -> Option<EthereumTransactionData> {
+        log.transaction_hash
+            .and_then(|hash| self.transactions.iter().find(|tx| tx.hash == hash))
+            .cloned()
     }
 }

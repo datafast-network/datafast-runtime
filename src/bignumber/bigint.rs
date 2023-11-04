@@ -179,6 +179,16 @@ impl BigInt {
         w3::U256::from_little_endian(&bytes)
     }
 
+    pub fn to_unsigned_u64(&self) -> w3::U64 {
+        let (sign, bytes) = self.to_bytes_le();
+        assert!(
+            sign == BigIntSign::NoSign || sign == BigIntSign::Plus,
+            "negative value encountered for U256: {}",
+            self
+        );
+        w3::U64::from_little_endian(&bytes)
+    }
+
     /// Exponential a `BigInt` to a `u32` power.
     pub fn pow(self, exponent: u32) -> Result<BigInt, BigNumberErr> {
         use num_traits::pow::Pow;
@@ -318,5 +328,23 @@ impl Shr<u8> for BigInt {
 
     fn shr(self, bits: u8) -> Self {
         BigInt::unchecked_new(self.inner().shr(bits))
+    }
+}
+
+impl From<BigInt> for w3::U64 {
+    fn from(big_int: BigInt) -> Self {
+        Self::from_little_endian(&big_int.to_signed_bytes_le())
+    }
+}
+
+impl From<BigInt> for w3::U256 {
+    fn from(big_int: BigInt) -> Self {
+        Self::from_little_endian(&big_int.to_signed_bytes_le())
+    }
+}
+
+impl From<BigInt> for w3::U128 {
+    fn from(big_int: BigInt) -> Self {
+        Self::from_little_endian(&big_int.to_signed_bytes_le())
     }
 }

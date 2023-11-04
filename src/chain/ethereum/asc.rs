@@ -1,4 +1,3 @@
-use hex::FromHex;
 use semver::Version;
 use web3::types as w3;
 

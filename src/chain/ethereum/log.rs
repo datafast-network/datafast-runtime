@@ -221,12 +221,19 @@ impl FromAscObj<AscEthereumLog> for Log {
         heap: &H,
         depth: usize,
     ) -> Result<Self, AscError> {
+        // Case đặc biệt của bigInt to U64
+        let block_number =
+            asc_get_optional::<Vec<u8>, _, _>(heap, obj.block_number, depth)?.map(|bytes| {
+                let hex_str = hex::encode(&bytes);
+                BigInt::from_hex(hex_str).unwrap().to_unsigned_u64()
+            });
+
         Ok(Self {
             address: asc_get(heap, obj.address, depth)?,
             topics: asc_get(heap, obj.topics, depth)?,
             data: asc_get(heap, obj.data, depth)?,
             block_hash: asc_get_optional(heap, obj.block_hash, depth)?,
-            block_number: asc_get_optional(heap, obj.block_number, depth)?,
+            block_number,
             transaction_hash: asc_get_optional(heap, obj.transaction_hash, depth)?,
             transaction_index: asc_get_optional(heap, obj.transaction_index, depth)?,
             log_index: asc_get_optional(heap, obj.log_index, depth)?,

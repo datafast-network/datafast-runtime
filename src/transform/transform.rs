@@ -4,6 +4,10 @@ use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
 use crate::asc::base::FromAscObj;
+use crate::chain::ethereum::block::AscEthereumBlock;
+use crate::chain::ethereum::block::EthereumFullBlock;
+use crate::chain::ethereum::log::AscLogArray;
+use crate::chain::ethereum::transaction::AscTransactionArray;
 use crate::config::Config;
 use crate::config::TransformConfig;
 use crate::transform::errors::TransformError;
@@ -12,6 +16,7 @@ use std::collections::HashMap;
 use wasmer::Function;
 use wasmer::Value;
 
+#[derive(Clone, Debug)]
 pub struct TransformRequest {
     value: serde_json::Value,
     transform: TransformConfig,
@@ -51,7 +56,7 @@ impl Transform {
 
     pub fn transform_data<P: AscType + AscIndexId, R: FromAscObj<P>>(
         &mut self,
-        request: TransformRequest,
+        request: &TransformRequest,
     ) -> Result<R, TransformError> {
         let func_name = request.transform.func_name.clone();
         let func = self
@@ -59,7 +64,7 @@ impl Transform {
             .get(&func_name)
             .ok_or(TransformError::InvalidFunctionName(func_name))?;
 
-        let mut json_data = request.value;
+        let mut json_data = request.value.clone();
         let asc_json = asc_new(&mut self.host, &mut json_data)?;
         let ptr = asc_json.wasm_ptr();
         let result = func
@@ -69,6 +74,34 @@ impl Transform {
         let asc_ptr = AscPtr::<P>::new(result.first().unwrap().unwrap_i32() as u32);
         let result = asc_get(&self.host, asc_ptr, 0).expect("Failed to get result");
         Ok(result)
+    }
+
+    /// ## Transform full block for delta Ingestor only
+    /// Require:
+    /// - block header request `transformEthereumBlock`
+    /// - block transactions request `transformEthereumTxs`
+    /// - block logs request `transformEthereumLogs`
+    pub fn transform_block(
+        &mut self,
+        block_requests: Vec<TransformRequest>,
+    ) -> Result<EthereumFullBlock, TransformError> {
+        let request_header = block_requests
+            .iter()
+            .find(|r| r.transform.func_name == "transformEthereumBlock")
+            .expect("transformEthereumBlock notfound");
+        let header = self.transform_data::<AscEthereumBlock, _>(request_header)?;
+        let request_tx = block_requests
+            .iter()
+            .find(|r| r.transform.func_name == "transformEthereumTxs")
+            .expect("transformEthereumTxs notfound");
+        let transactions = self.transform_data::<AscTransactionArray, _>(request_tx)?;
+        let request_logs = block_requests
+            .iter()
+            .find(|r| r.transform.func_name == "transformEthereumLogs")
+            .expect("transformEthereumLogs notfound");
+        let logs = self.transform_data::<AscLogArray, _>(request_logs)?;
+        let full_block = EthereumFullBlock::from((header, transactions, logs));
+        Ok(full_block)
     }
 }
 
@@ -109,7 +142,7 @@ mod tests {
         let t1 = async move {
             while let Ok(request) = r1.recv().await {
                 let result = transform
-                    .transform_data::<AscEthereumBlock, _>(request)
+                    .transform_data::<AscEthereumBlock, _>(&request)
                     .unwrap();
                 s2.send(SubgraphData::Block(result)).await.unwrap();
                 return;
@@ -145,6 +178,7 @@ mod tests {
         // Collecting the threads
         let _result = join!(t1, t2, s1.send(request));
     }
+
     #[tokio::test]
     async fn test_transform_txs() {
         env_logger::try_init().unwrap_or_default();
@@ -170,7 +204,7 @@ mod tests {
         let t1 = async move {
             while let Ok(request) = r1.recv().await {
                 let result = transform
-                    .transform_data::<AscTransactionArray, _>(request)
+                    .transform_data::<AscTransactionArray, _>(&request)
                     .unwrap();
                 s2.send(SubgraphData::Transactions(result)).await.unwrap();
                 return;
@@ -243,7 +277,9 @@ mod tests {
 
         let t1 = async move {
             while let Ok(request) = r1.recv().await {
-                let result = transform.transform_data::<AscLogArray, _>(request).unwrap();
+                let result = transform
+                    .transform_data::<AscLogArray, _>(&request)
+                    .unwrap();
                 s2.send(SubgraphData::Logs(result)).await.unwrap();
                 return;
             }
@@ -279,5 +315,64 @@ mod tests {
 
         // Collecting the threads
         let _result = join!(t1, t2, s1.send(request));
+    }
+
+    #[tokio::test]
+    async fn test_transform_full_block() {
+        env_logger::try_init().unwrap_or_default();
+        let mut transforms = HashMap::new();
+        for i in vec![
+            "transformEthereumBlock",
+            "transformEthereumLogs",
+            "transformEthereumTxs",
+        ] {
+            let transform_block = TransformConfig {
+                datasource: "TestTypes".to_string(),
+                func_name: i.to_string(),
+            };
+            transforms.insert(transform_block.func_name.clone(), transform_block.clone());
+        }
+        let conf = Config {
+            subgraph_name: "".to_string(),
+            subgraph_id: None,
+            manifest: "".to_string(),
+            transforms: Some(transforms),
+        };
+        let (version, wasm_path) = get_subgraph_testing_resource("0.0.5", "TestTypes");
+        let host = mock_wasm_host(version, &wasm_path);
+        let mut transform = Transform::new(host, &conf).unwrap();
+        let file_json = File::open("./block.json").unwrap();
+        // Send test data for transform
+        let ingestor_block: serde_json::Value = serde_json::from_reader(file_json).unwrap();
+        let requests = vec![
+            TransformRequest {
+                value: ingestor_block.clone(),
+                transform: TransformConfig {
+                    datasource: "TestTypes".to_string(),
+                    func_name: "transformEthereumBlock".to_string(),
+                },
+            },
+            TransformRequest {
+                value: ingestor_block.get("transactions").unwrap().clone(),
+                transform: TransformConfig {
+                    datasource: "TestTypes".to_string(),
+                    func_name: "transformEthereumTxs".to_string(),
+                },
+            },
+            TransformRequest {
+                value: ingestor_block.get("logs").unwrap().clone(),
+                transform: TransformConfig {
+                    datasource: "TestTypes".to_string(),
+                    func_name: "transformEthereumLogs".to_string(),
+                },
+            },
+        ];
+        let block = transform.transform_block(requests).unwrap();
+        log::info!("{:?}", block);
+        assert_eq!(format!("{:?}", block.header.gas_limit), "9990236");
+        assert_eq!(format!("{:?}", block.number), "10000000");
+        //asert_eq all fields of block
+        assert_eq!(block.transactions.len(), 2);
+        assert_eq!(block.logs.len(), 2);
     }
 }
