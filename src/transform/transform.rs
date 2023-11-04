@@ -180,7 +180,6 @@ mod tests {
         // Collecting result from transformer
         let t2 = async move {
             while let Ok(SubgraphData::Transactions(txs)) = r2.recv().await {
-                ::log::info!("Transformed data: \n{:?}\n", txs);
                 assert_eq!(txs.len(), 2);
                 let tx = txs.first().unwrap();
                 assert_eq!(
@@ -253,7 +252,6 @@ mod tests {
         // Collecting result from transformer
         let t2 = async move {
             while let Ok(SubgraphData::Logs(logs)) = r2.recv().await {
-                ::log::info!("Transformed data: \n{:?}\n", logs);
                 assert_eq!(logs.len(), 2);
                 let log = logs.first().unwrap();
                 assert_eq!(
@@ -262,6 +260,7 @@ mod tests {
                 );
                 assert!(log.log_index.is_some());
                 assert_eq!(format!("{:?}", log.log_index.unwrap()), "0");
+                assert_eq!(format!("{:?}", log.block_number.unwrap()), "10000000");
                 return;
             }
             panic!("test failed");
