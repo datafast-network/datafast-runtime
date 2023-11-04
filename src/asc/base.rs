@@ -618,7 +618,7 @@ where
     T::from_asc_obj(asc_ptr.read_ptr(heap)?, heap, depth)
 }
 
-pub fn asc_get_opt<T, C, H: AscHeap + ?Sized>(
+pub fn asc_get_optional<T, C, H: AscHeap + ?Sized>(
     heap: &H,
     asc_ptr: AscPtr<C>,
     mut depth: usize,

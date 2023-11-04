@@ -1,6 +1,6 @@
 use super::asc::*;
 use crate::asc::base::asc_get;
-use crate::asc::base::asc_get_opt;
+use crate::asc::base::asc_get_optional;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
@@ -149,8 +149,8 @@ impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
             timestamp: asc_get(heap, obj.timestamp, depth)?,
             difficulty: asc_get(heap, obj.difficulty, depth)?,
             total_difficulty: asc_get(heap, obj.total_difficulty, depth)?,
-            size: asc_get_opt(heap, obj.size, depth)?,
-            base_fee_per_gas: asc_get_opt(heap, obj.base_fee_per_block, depth)?,
+            size: asc_get_optional(heap, obj.size, depth)?,
+            base_fee_per_gas: asc_get_optional(heap, obj.base_fee_per_block, depth)?,
         })
     }
 }
