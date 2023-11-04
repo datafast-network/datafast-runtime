@@ -442,6 +442,7 @@ pub enum IndexForAscTypeId {
     ArrayLog = 1003,
     ArrayTypedMapStringStoreValue = 1004,
     ArrayTransactions = 1005,
+    EthereumFullBlock = 1006,
     // Continue to add more Ethereum type IDs here.
     // e.g.:
     // NextEthereumType = 1004,

@@ -10,6 +10,8 @@ use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::bignumber::bigint::BigInt;
+use crate::chain::ethereum::log::AscLogArray;
+use crate::chain::ethereum::transaction::AscTransactionArray;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::impl_asc_type_struct;
 use semver::Version;
@@ -161,9 +163,51 @@ impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
 pub struct EthereumFullBlock {
     pub number: U64,
     pub hash: H256,
+    pub parent_hash: H256,
     pub header: EthereumBlockData,
     pub transactions: Vec<EthereumTransactionData>,
     pub logs: Vec<Log>,
+}
+
+#[repr(C)]
+pub struct AscEthereumFullBlock {
+    pub hash: AscPtr<AscH256>,
+    pub parent_hash: AscPtr<AscH256>,
+    pub number: AscPtr<AscH256>,
+    pub header: AscPtr<AscEthereumBlock>,
+    pub transactions: AscPtr<AscTransactionArray>,
+    pub logs: AscPtr<AscLogArray>,
+}
+
+impl AscIndexId for AscEthereumFullBlock {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::EthereumFullBlock;
+}
+
+impl_asc_type_struct!(
+    AscEthereumFullBlock;
+    hash => AscPtr<AscH256>,
+    parent_hash => AscPtr<AscH256>,
+    number => AscPtr<AscH256>,
+    header => AscPtr<AscEthereumBlock>,
+    transactions => AscPtr<AscTransactionArray>,
+    logs => AscPtr<AscLogArray>
+);
+
+impl FromAscObj<AscEthereumFullBlock> for EthereumFullBlock {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscEthereumFullBlock,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        Ok(Self {
+            hash: asc_get(heap, obj.hash, depth)?,
+            parent_hash: asc_get(heap, obj.parent_hash, depth)?,
+            number: asc_get(heap, obj.number, depth)?,
+            header: asc_get(heap, obj.header, depth)?,
+            transactions: asc_get(heap, obj.transactions, depth)?,
+            logs: asc_get(heap, obj.logs, depth)?,
+        })
+    }
 }
 
 impl From<(EthereumBlockData, Vec<EthereumTransactionData>, Vec<Log>)> for EthereumFullBlock {
@@ -173,6 +217,7 @@ impl From<(EthereumBlockData, Vec<EthereumTransactionData>, Vec<Log>)> for Ether
         Self {
             number: header.number,
             hash: header.hash,
+            parent_hash: header.parent_hash,
             header,
             transactions,
             logs,
