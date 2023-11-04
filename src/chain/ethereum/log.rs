@@ -236,3 +236,16 @@ impl FromAscObj<AscEthereumLog> for Log {
         })
     }
 }
+
+impl FromAscObj<AscLogArray> for Vec<Log> {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscLogArray,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let logs: Vec<AscPtr<AscEthereumLog>> = obj.0.to_vec(heap)?;
+        logs.into_iter()
+            .map(|log| asc_get(heap, log, depth))
+            .collect::<Result<Vec<Log>, _>>()
+    }
+}

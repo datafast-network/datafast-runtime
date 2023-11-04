@@ -9,8 +9,10 @@ use web3::types::Log;
 pub enum SubgraphData {
     Block(EthereumBlockData),
     Transaction(EthereumTransactionData),
+    Transactions(Vec<EthereumTransactionData>),
     Event(EthereumEventData),
     Log(Log),
+    Logs(Vec<Log>),
 }
 
 #[derive(Debug)]

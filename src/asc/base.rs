@@ -108,7 +108,7 @@ pub trait AscType: Sized {
 
 // Only implemented because of structs that derive AscType and
 // contain fields that are PhantomData.
-impl<T> AscType for std::marker::PhantomData<T> {
+impl<T> AscType for PhantomData<T> {
     fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
         Ok(vec![])
     }
@@ -441,6 +441,7 @@ pub enum IndexForAscTypeId {
     ArrayH256 = 1002,
     ArrayLog = 1003,
     ArrayTypedMapStringStoreValue = 1004,
+    ArrayTransactions = 1005,
     // Continue to add more Ethereum type IDs here.
     // e.g.:
     // NextEthereumType = 1004,

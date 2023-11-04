@@ -64,10 +64,28 @@ impl DatasourceWasmInstance {
                     .call(&mut self.host.store, &[Value::I32(ptr)])?;
                 Ok(())
             }
+            SubgraphData::Transactions(mut inner) => {
+                let asc_data = asc_new(&mut self.host, &mut inner)?;
+                let ptr = asc_data.wasm_ptr() as i32;
+                log::info!("Calling txs handler");
+                handler
+                    .inner
+                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
+                Ok(())
+            }
             SubgraphData::Log(mut inner) => {
                 let asc_data = asc_new(&mut self.host, &mut inner)?;
                 let ptr = asc_data.wasm_ptr() as i32;
                 log::info!("Calling log handler");
+                handler
+                    .inner
+                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
+                Ok(())
+            }
+            SubgraphData::Logs(mut inner) => {
+                let asc_data = asc_new(&mut self.host, &mut inner)?;
+                let ptr = asc_data.wasm_ptr() as i32;
+                log::info!("Calling logs handler");
                 handler
                     .inner
                     .call(&mut self.host.store, &[Value::I32(ptr)])?;

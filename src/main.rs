@@ -9,6 +9,7 @@ mod from_to;
 mod manifest_loader;
 mod messages;
 mod subgraph;
+mod transform;
 mod wasm_host;
 
 use config::Config;

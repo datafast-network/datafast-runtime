@@ -5,6 +5,8 @@ use web3::types as w3;
 
 pub use num_bigint::Sign as BigIntSign;
 
+use hex::FromHex;
+use num_traits::Num;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::f32::consts::LOG2_10;
@@ -182,6 +184,10 @@ impl BigInt {
         use num_traits::pow::Pow;
 
         BigInt::new(self.inner().pow(exponent))
+    }
+    pub fn from_hex(hex: String) -> Result<BigInt, BigNumberErr> {
+        let b = num_bigint::BigInt::from_str_radix(&hex, 16).unwrap();
+        BigInt::new(b)
     }
 }
 

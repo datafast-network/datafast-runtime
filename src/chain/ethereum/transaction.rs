@@ -5,10 +5,12 @@ use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::AscType;
 use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
+use crate::asc::native_types::array::Array;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
@@ -121,5 +123,47 @@ impl FromAscObj<AscEthereumTransaction> for EthereumTransactionData {
             input: asc_get(heap, obj.input, 0)?,
             nonce: asc_get(heap, obj.nonce, 0)?,
         })
+    }
+}
+
+pub struct AscTransactionArray(Array<AscPtr<AscEthereumTransaction>>);
+
+impl AscType for AscTransactionArray {
+    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
+        self.0.to_asc_bytes()
+    }
+
+    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError> {
+        Ok(Self(Array::from_asc_bytes(asc_obj, api_version)?))
+    }
+}
+
+impl ToAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscTransactionArray, AscError> {
+        let txs = self
+            .iter()
+            .map(|tx| asc_new(heap, &tx))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(AscTransactionArray(Array::new(&txs, heap)?))
+    }
+}
+
+impl AscIndexId for AscTransactionArray {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayTransactions;
+}
+
+impl FromAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscTransactionArray,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let txs: Vec<AscPtr<AscEthereumTransaction>> = obj.0.to_vec(heap)?;
+        txs.into_iter()
+            .map(|tx| asc_get(heap, tx, depth))
+            .collect::<Result<Vec<_>, _>>()
     }
 }
