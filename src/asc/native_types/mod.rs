@@ -17,6 +17,7 @@ use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::AscValue;
+use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
@@ -52,6 +53,16 @@ impl AscIndexId for AscWrapped<AscPtr<AscEnum<JsonValueKind>>> {
 impl<T: AscValue> ToAscObj<AscWrapped<T>> for AscWrapped<T> {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, _heap: &mut H) -> Result<AscWrapped<T>, AscError> {
         Ok(*self)
+    }
+}
+
+impl<T: AscValue> FromAscObj<AscWrapped<T>> for T {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        asc_obj: AscWrapped<T>,
+        _heap: &H,
+        _depth: usize,
+    ) -> Result<Self, AscError> {
+        Ok(asc_obj.inner)
     }
 }
 
