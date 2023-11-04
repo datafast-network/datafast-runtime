@@ -1,8 +1,11 @@
 use super::asc::*;
+use crate::asc::base::asc_get;
+use crate::asc::base::asc_get_optional;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
@@ -122,6 +125,32 @@ impl ToAscObj<AscEthereumBlock> for EthereumBlockData {
                 .base_fee_per_gas
                 .map(|base_fee| asc_new(heap, &BigInt::from_unsigned_u256(&base_fee)))
                 .unwrap_or(Ok(AscPtr::null()))?,
+        })
+    }
+}
+
+impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscEthereumBlock,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        Ok(Self {
+            hash: asc_get(heap, obj.number, depth)?,
+            parent_hash: asc_get(heap, obj.parent_hash, depth)?,
+            uncles_hash: asc_get(heap, obj.uncles_hash, depth)?,
+            author: asc_get(heap, obj.author, depth)?,
+            state_root: asc_get(heap, obj.state_root, depth)?,
+            transactions_root: asc_get(heap, obj.transactions_root, depth)?,
+            receipts_root: asc_get(heap, obj.receipts_root, depth)?,
+            number: asc_get(heap, obj.number, depth)?,
+            gas_used: asc_get(heap, obj.gas_used, depth)?,
+            gas_limit: asc_get(heap, obj.gas_limit, depth)?,
+            timestamp: asc_get(heap, obj.timestamp, depth)?,
+            difficulty: asc_get(heap, obj.difficulty, depth)?,
+            total_difficulty: asc_get(heap, obj.total_difficulty, depth)?,
+            size: asc_get_optional(heap, obj.size, depth)?,
+            base_fee_per_gas: asc_get_optional(heap, obj.base_fee_per_block, depth)?,
         })
     }
 }

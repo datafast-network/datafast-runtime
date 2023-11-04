@@ -5,5 +5,6 @@ pub mod asc;
 pub mod block;
 pub mod event;
 pub mod log;
+mod macros;
 pub mod transaction;
 pub mod transaction_receipt;

@@ -1,8 +1,11 @@
 use super::asc::*;
+use crate::asc::base::asc_get;
+use crate::asc::base::asc_get_optional;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
@@ -97,6 +100,26 @@ impl ToAscObj<AscEthereumTransaction> for EthereumTransactionData {
             gas_price: asc_new(heap, &BigInt::from_unsigned_u256(&self.gas_price))?,
             input: asc_new(heap, &*self.input)?,
             nonce: asc_new(heap, &BigInt::from_unsigned_u256(&self.nonce))?,
+        })
+    }
+}
+
+impl FromAscObj<AscEthereumTransaction> for EthereumTransactionData {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscEthereumTransaction,
+        heap: &H,
+        _depth: usize,
+    ) -> Result<Self, AscError> {
+        Ok(EthereumTransactionData {
+            hash: asc_get(heap, obj.hash, 0)?,
+            index: asc_get(heap, obj.index, 0)?,
+            from: asc_get(heap, obj.from, 0)?,
+            to: asc_get_optional(heap, obj.to, 0)?,
+            value: asc_get(heap, obj.value, 0)?,
+            gas_limit: asc_get(heap, obj.gas_limit, 0)?,
+            gas_price: asc_get(heap, obj.gas_price, 0)?,
+            input: asc_get(heap, obj.input, 0)?,
+            nonce: asc_get(heap, obj.nonce, 0)?,
         })
     }
 }
