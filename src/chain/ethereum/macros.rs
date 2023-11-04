@@ -38,8 +38,8 @@ macro_rules! impl_from_big_int_to_web3_type {
                 depth: usize,
             ) -> Result<Self, AscError> {
                 let bytes = Vec::from_asc_obj(obj, heap, depth)?;
-                let big = BigInt::from_signed_bytes_le(&bytes)?;
-                Ok(big.into())
+                let big_int = BigInt::from_signed_bytes_le(&bytes)?;
+                Ok(big_int.into())
             }
         }
     };
