@@ -12,6 +12,7 @@ mod subgraph;
 mod transform;
 mod wasm_host;
 
+use crate::transform::TransformInstance;
 use config::Config;
 use database::Database;
 use errors::SwrError;
@@ -25,10 +26,20 @@ use wasm_host::create_wasm_host;
 async fn main() -> Result<(), SwrError> {
     // TODO: impl CLI
     let config = Config::load()?;
+
     // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.manifest).await?;
+
     // TODO: impl Actual DB Connection
     let database = Database::new(&config).await?;
+
+    // TODO: impl transform instance
+    let transform_instance = match config.transforms.is_some() {
+        true => Some(TransformInstance::new(&config, database.agent().clone())?),
+        false => None,
+    };
+
+    // TODO: impl filter instance
 
     let subgraph_id = config
         .subgraph_id
