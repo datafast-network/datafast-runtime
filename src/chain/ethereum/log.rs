@@ -104,7 +104,7 @@ impl FromAscObj<AscTopicArray> for Vec<H256> {
         topics
             .into_iter()
             .map(|topic| asc_get(heap, topic, depth))
-            .collect::<Result<Vec<_>, _>>()
+            .collect()
     }
 }
 

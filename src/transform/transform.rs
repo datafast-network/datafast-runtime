@@ -11,6 +11,7 @@ use crate::transform::errors::TransformError;
 use crate::wasm_host::AscHost;
 use std::collections::HashMap;
 use wasmer::Function;
+use wasmer::RuntimeError;
 use wasmer::Value;
 
 #[derive(Clone, Debug)]
@@ -67,8 +68,13 @@ impl Transform {
         let result = func
             .func
             .call(&mut self.host.store, &[Value::I32(ptr as i32)])?;
-
-        let asc_ptr = AscPtr::<P>::new(result.first().unwrap().unwrap_i32() as u32);
+        let result_ptr = result
+            .first()
+            .ok_or(TransformError::TransformFail(RuntimeError::new(
+                "Invalid pointer",
+            )))?
+            .unwrap_i32() as u32;
+        let asc_ptr = AscPtr::<P>::new(result_ptr);
         let result = asc_get(&self.host, asc_ptr, 0).expect("Failed to get result");
         Ok(result)
     }
@@ -87,7 +93,7 @@ mod tests {
         env_logger::try_init().unwrap_or_default();
         let mut transforms = HashMap::new();
         let transform_block = TransformConfig {
-            datasource: "TestTypes".to_string(),
+            datasource: "Ingestor".to_string(),
             func_name: "transformFullBlock".to_string(),
         };
         transforms.insert(transform_block.func_name.clone(), transform_block.clone());
@@ -97,7 +103,8 @@ mod tests {
             manifest: "".to_string(),
             transforms: Some(transforms),
         };
-        let (version, wasm_path) = get_subgraph_testing_resource("0.0.5", "TestTypes");
+        let (version, wasm_path) =
+            get_subgraph_testing_resource("0.0.5", &transform_block.datasource);
         let host = mock_wasm_host(version, &wasm_path);
         let mut transform = Transform::new(host, &conf).unwrap();
         let file_json = File::open("./block.json").unwrap();
@@ -126,6 +133,7 @@ mod tests {
             format!("{:?}", log.address),
             "0xced4e93198734ddaff8492d525bd258d49eb388e"
         );
+
         assert_eq!(log.block_number.unwrap(), block.number)
     }
 }
