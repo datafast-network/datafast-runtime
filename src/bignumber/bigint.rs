@@ -5,7 +5,6 @@ use web3::types as w3;
 
 pub use num_bigint::Sign as BigIntSign;
 
-use hex::FromHex;
 use num_traits::Num;
 use std::convert::TryFrom;
 use std::convert::TryInto;
