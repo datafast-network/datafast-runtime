@@ -7,7 +7,6 @@ use crate::asc::base::FromAscObj;
 use crate::config::Config;
 use crate::config::TransformConfig;
 use crate::database::Database;
-use crate::database::DatabaseAgent;
 use crate::errors::TransformError;
 use crate::wasm_host::create_wasm_host;
 use crate::wasm_host::AscHost;
