@@ -4,7 +4,6 @@ use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
 use crate::asc::base::FromAscObj;
-use crate::chain::ethereum::block::EthereumFullBlock;
 use crate::config::Config;
 use crate::config::TransformConfig;
 use crate::transform::errors::TransformError;
@@ -25,36 +24,48 @@ pub struct TransformFunction {
     func: Function,
 }
 
-pub struct Transform {
+struct Transform {
     host: AscHost,
     funcs: HashMap<String, TransformFunction>,
 }
 
 impl Transform {
-    pub fn new(host: AscHost, conf: &Config) -> Result<Self, TransformError> {
-        let mut funcs = HashMap::new();
+    pub fn new(host: AscHost, conf: &Config) -> Self {
         assert!(conf.transforms.is_some());
+
         let transforms = conf.transforms.as_ref().unwrap();
-        for (name, transform) in transforms {
-            let func = host
-                .instance
-                .exports
-                .get_function(&transform.func_name)?
-                .to_owned();
-            funcs.insert(
-                name.clone(),
-                TransformFunction {
-                    name: transform.func_name.clone(),
-                    func,
-                },
-            );
-        }
-        Ok(Transform { host, funcs })
+
+        let funcs = transforms
+            .into_iter()
+            .fold(HashMap::new(), |mut acc, (name, trans_conf)| {
+                let func = host
+                    .instance
+                    .exports
+                    .get_function(&trans_conf.func_name)
+                    .expect(
+                        format!(
+                            "Function {} not found in wasm module",
+                            &trans_conf.func_name
+                        )
+                        .as_str(),
+                    )
+                    .to_owned();
+                acc.insert(
+                    name.clone(),
+                    TransformFunction {
+                        name: trans_conf.func_name.clone(),
+                        func,
+                    },
+                );
+                acc
+            });
+
+        Transform { host, funcs }
     }
 
-    pub fn transform_data<P: AscType + AscIndexId, R: FromAscObj<P>>(
+    fn transform_data<P: AscType + AscIndexId, R: FromAscObj<P>>(
         &mut self,
-        request: &TransformRequest,
+        request: TransformRequest,
     ) -> Result<R, TransformError> {
         let func_name = request.transform.func_name.clone();
         let func = self
@@ -75,18 +86,55 @@ impl Transform {
             )))?
             .unwrap_i32() as u32;
         let asc_ptr = AscPtr::<P>::new(result_ptr);
-        let result = asc_get(&self.host, asc_ptr, 0).expect("Failed to get result");
+        let result = asc_get(&self.host, asc_ptr, 0)?;
         Ok(result)
+    }
+}
+
+/// # TransformInstance
+/// Transform multi datasource data to subgraph data
+/// Setup transform instance with config
+pub struct TransformInstance {
+    transforms: HashMap<String, Transform>,
+}
+
+impl TransformInstance {
+    pub fn transform_data<P: AscType + AscIndexId, R: FromAscObj<P>>(
+        &mut self,
+        request: TransformRequest,
+    ) -> Result<R, TransformError> {
+        let transform = self
+            .transforms
+            .get_mut(&request.transform.func_name)
+            .ok_or(TransformError::InvalidFunctionName(
+                request.transform.func_name.clone(),
+            ))?;
+        transform.transform_data(request)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain::ethereum::block::AscEthereumFullBlock;
+    use crate::chain::ethereum::block::AscEthereumBlock;
+    use crate::chain::ethereum::block::EthereumBlockData;
     use crate::wasm_host::test::get_subgraph_testing_resource;
     use crate::wasm_host::test::mock_wasm_host;
     use std::fs::File;
+
+    pub fn mock_transform(conf: &Config) -> TransformInstance {
+        let transforms = conf.transforms.as_ref().unwrap().iter().fold(
+            HashMap::new(),
+            |mut trans, (name, trans_conf)| {
+                let (version, wasm_path) =
+                    get_subgraph_testing_resource("0.0.5", &trans_conf.datasource);
+                let host = mock_wasm_host(version, &wasm_path);
+                trans.insert(trans_conf.func_name.clone(), Transform::new(host, conf));
+                trans
+            },
+        );
+        TransformInstance { transforms }
+    }
 
     #[tokio::test]
     async fn test_transform_full_block() {
@@ -94,7 +142,8 @@ mod tests {
         let mut transforms = HashMap::new();
         let transform_block = TransformConfig {
             datasource: "Ingestor".to_string(),
-            func_name: "transformFullBlock".to_string(),
+            func_name: "transformEthereumBlock".to_string(),
+            wasm_path: "test".to_string(),
         };
         transforms.insert(transform_block.func_name.clone(), transform_block.clone());
         let conf = Config {
@@ -103,10 +152,7 @@ mod tests {
             manifest: "".to_string(),
             transforms: Some(transforms),
         };
-        let (version, wasm_path) =
-            get_subgraph_testing_resource("0.0.5", &transform_block.datasource);
-        let host = mock_wasm_host(version, &wasm_path);
-        let mut transform = Transform::new(host, &conf).unwrap();
+        let mut transform = mock_transform(&conf);
         let file_json = File::open("./block.json").unwrap();
         // Send test data for transform
         let ingestor_block: serde_json::Value = serde_json::from_reader(file_json).unwrap();
@@ -114,26 +160,10 @@ mod tests {
             value: ingestor_block.clone(),
             transform: transform_block,
         };
-        let block: EthereumFullBlock = transform
-            .transform_data::<AscEthereumFullBlock, _>(&request)
+        let block = transform
+            .transform_data::<AscEthereumBlock, EthereumBlockData>(request)
             .unwrap();
-        assert_eq!(format!("{:?}", block.header.gas_limit), "9990236");
         assert_eq!(format!("{:?}", block.number), "10000000");
         //asert_eq all fields of block
-        assert_eq!(block.transactions.len(), 2);
-        assert_eq!(block.logs.len(), 2);
-        let transaction = block.transactions.get(0).unwrap();
-        assert_eq!(
-            format!("{:?}", transaction.hash),
-            "0x4a1e3e3a2aa4aa79a777d0ae3e2c3a6de158226134123f6c14334964c6ec70cf"
-        );
-        assert_eq!(format!("{:?}", transaction.nonce), "25936206");
-        let log = block.logs.get(0).unwrap();
-        assert_eq!(
-            format!("{:?}", log.address),
-            "0xced4e93198734ddaff8492d525bd258d49eb388e"
-        );
-
-        assert_eq!(log.block_number.unwrap(), block.number)
     }
 }

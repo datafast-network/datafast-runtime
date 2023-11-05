@@ -19,6 +19,7 @@ pub struct Config {
 pub struct TransformConfig {
     pub datasource: String,
     pub func_name: String,
+    pub wasm_path: String,
 }
 
 impl Config {
