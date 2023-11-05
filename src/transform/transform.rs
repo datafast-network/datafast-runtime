@@ -4,15 +4,20 @@ use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
 use crate::asc::base::FromAscObj;
+use crate::chain::ethereum::block::AscEthereumBlock;
+use crate::chain::ethereum::block::EthereumBlockData;
+use crate::chain::ethereum::log::AscLogArray;
+use crate::chain::ethereum::transaction::AscTransactionArray;
+use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::config::Config;
 use crate::config::TransformConfig;
 use crate::database::Database;
 use crate::errors::TransformError;
+use crate::messages::SubgraphData;
 use crate::wasm_host::create_wasm_host;
 use crate::wasm_host::AscHost;
 use semver::Version;
 use std::collections::HashMap;
-use std::str::FromStr;
 use wasmer::Function;
 use wasmer::RuntimeError;
 use wasmer::Value;
@@ -40,19 +45,18 @@ impl Transform {
         let transforms = conf.transforms.as_ref().unwrap();
 
         let funcs = transforms
-            .into_iter()
+            .iter()
             .fold(HashMap::new(), |mut acc, (name, trans_conf)| {
                 let func = host
                     .instance
                     .exports
                     .get_function(&trans_conf.func_name)
-                    .expect(
-                        format!(
+                    .unwrap_or_else(|_| {
+                        panic!(
                             "Function {} not found in wasm module",
                             &trans_conf.func_name
                         )
-                        .as_str(),
-                    )
+                    })
                     .to_owned();
                 acc.insert(
                     name.clone(),
@@ -77,8 +81,8 @@ impl Transform {
             .get(&func_name)
             .ok_or(TransformError::InvalidFunctionName(func_name))?;
 
-        let mut json_data = request.value.clone();
-        let asc_json = asc_new(&mut self.host, &mut json_data)?;
+        let json_data = request.value.clone();
+        let asc_json = asc_new(&mut self.host, &json_data)?;
         let ptr = asc_json.wasm_ptr();
         let result = func
             .func
@@ -103,38 +107,66 @@ pub struct TransformInstance {
 }
 
 impl TransformInstance {
-    pub fn new(conf: &Config) -> Result<Self, TransformError> {
+    pub async fn new(conf: &Config) -> Result<Self, TransformError> {
         assert!(conf.transforms.is_some());
         let mut transforms = HashMap::new();
-        let database = Database::new_memory_db();
+        let database = Database::Memory(HashMap::new());
         for trans_conf in conf.transforms.as_ref().unwrap().values() {
             let version = Version::new(0, 0, 5);
             let wasm_bytes = std::fs::read(&trans_conf.wasm_path)
-                .expect(format!("Failed to read wasm file {}", &trans_conf.wasm_path).as_str());
+                .unwrap_or_else(|_| panic!("Failed to read wasm file {}", &trans_conf.wasm_path));
             let host = create_wasm_host(version, wasm_bytes, database.agent())?;
             transforms.insert(trans_conf.func_name.clone(), Transform::new(host, conf));
         }
         Ok(TransformInstance { transforms })
     }
-    pub fn transform_data<P: AscType + AscIndexId, R: FromAscObj<P>>(
+    pub fn transform_block(
         &mut self,
         request: TransformRequest,
-    ) -> Result<R, TransformError> {
+    ) -> Result<SubgraphData, TransformError> {
         let transform = self
             .transforms
             .get_mut(&request.transform.func_name)
             .ok_or(TransformError::InvalidFunctionName(
                 request.transform.func_name.clone(),
             ))?;
-        transform.transform_data(request)
+        let block = transform.transform_data::<AscEthereumBlock, EthereumBlockData>(request)?;
+        Ok(SubgraphData::Block(block))
+    }
+
+    pub fn transform_txs(
+        &mut self,
+        request: TransformRequest,
+    ) -> Result<SubgraphData, TransformError> {
+        let transform = self
+            .transforms
+            .get_mut(&request.transform.func_name)
+            .ok_or(TransformError::InvalidFunctionName(
+                request.transform.func_name.clone(),
+            ))?;
+        let txs = transform
+            .transform_data::<AscTransactionArray, Vec<EthereumTransactionData>>(request)?;
+        Ok(SubgraphData::Transactions(txs))
+    }
+
+    pub fn transform_logs(
+        &mut self,
+        request: TransformRequest,
+    ) -> Result<SubgraphData, TransformError> {
+        let transform = self
+            .transforms
+            .get_mut(&request.transform.func_name)
+            .ok_or(TransformError::InvalidFunctionName(
+                request.transform.func_name.clone(),
+            ))?;
+        let logs = transform.transform_data::<AscLogArray, Vec<web3::types::Log>>(request)?;
+        Ok(SubgraphData::Logs(logs))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain::ethereum::block::AscEthereumBlock;
-    use crate::chain::ethereum::block::EthereumBlockData;
     use crate::wasm_host::test::get_subgraph_testing_resource;
     use crate::wasm_host::test::mock_wasm_host;
     use std::fs::File;
@@ -177,9 +209,11 @@ mod tests {
             value: ingestor_block.clone(),
             transform: transform_block,
         };
-        let block = transform
-            .transform_data::<AscEthereumBlock, EthereumBlockData>(request)
-            .unwrap();
+        let data = transform.transform_block(request).unwrap();
+        let block = match data {
+            SubgraphData::Block(block) => block,
+            _ => panic!("Invalid data type"),
+        };
         assert_eq!(format!("{:?}", block.number), "10000000");
         //asert_eq all fields of block
     }
