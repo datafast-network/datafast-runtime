@@ -35,7 +35,7 @@ async fn main() -> Result<(), SwrError> {
 
     // TODO: impl transform instance
     let transform_instance = match config.transforms.is_some() {
-        true => Some(TransformInstance::new(&config, database.agent().clone())?),
+        true => Some(TransformInstance::new(&config)?),
         false => None,
     };
 
