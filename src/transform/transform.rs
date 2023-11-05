@@ -6,6 +6,7 @@ use crate::asc::base::AscType;
 use crate::asc::base::FromAscObj;
 use crate::config::Config;
 use crate::config::TransformConfig;
+use crate::database::Database;
 use crate::database::DatabaseAgent;
 use crate::errors::TransformError;
 use crate::wasm_host::create_wasm_host;
@@ -103,14 +104,15 @@ pub struct TransformInstance {
 }
 
 impl TransformInstance {
-    pub fn new(conf: &Config, db: DatabaseAgent) -> Result<Self, TransformError> {
+    pub fn new(conf: &Config) -> Result<Self, TransformError> {
         assert!(conf.transforms.is_some());
         let mut transforms = HashMap::new();
+        let database = Database::new_memory_db();
         for trans_conf in conf.transforms.as_ref().unwrap().values() {
             let version = Version::new(0, 0, 5);
             let wasm_bytes = std::fs::read(&trans_conf.wasm_path)
                 .expect(format!("Failed to read wasm file {}", &trans_conf.wasm_path).as_str());
-            let host = create_wasm_host(version, wasm_bytes, db.clone())?;
+            let host = create_wasm_host(version, wasm_bytes, database.agent())?;
             transforms.insert(trans_conf.func_name.clone(), Transform::new(host, conf));
         }
         Ok(TransformInstance { transforms })
