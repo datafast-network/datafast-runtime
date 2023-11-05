@@ -1,4 +1,3 @@
-pub mod errors;
 mod event_filter;
 mod filter;
 

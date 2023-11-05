@@ -11,7 +11,6 @@ mod messages;
 mod subgraph;
 mod wasm_host;
 
-mod ingestor_data;
 mod subgraph_filter;
 
 use config::Config;

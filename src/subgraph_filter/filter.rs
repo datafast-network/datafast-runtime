@@ -14,8 +14,9 @@ pub enum FilterData {
     EthereumBlockData(EthereumBlockData),
     EthereumLogs(Vec<Log>),
     EthereumTransactions(Vec<EthereumTransactionData>),
-    EthereumEventData(Vec<EthereumEventData>),
+    EthereumEventsData(Vec<EthereumEventData>),
 }
+
 impl FilterData {
     pub fn get_logs(&self) -> Vec<Log> {
         match self {
@@ -23,11 +24,31 @@ impl FilterData {
             _ => panic!("Invalid FilterData for Logs"),
         }
     }
+
+    pub fn get_transactions(&self) -> Vec<EthereumTransactionData> {
+        match self {
+            FilterData::EthereumTransactions(transactions) => transactions.clone(),
+            _ => panic!("Invalid FilterData for Transactions"),
+        }
+    }
+
+    pub fn get_events(&self) -> Vec<EthereumEventData> {
+        match self {
+            FilterData::EthereumEventsData(events) => events.clone(),
+            _ => panic!("Invalid FilterData for Events"),
+        }
+    }
+
+    pub fn get_block(&self) -> EthereumBlockData {
+        match self {
+            FilterData::EthereumBlockData(block) => block.clone(),
+            _ => panic!("Invalid FilterData for Block"),
+        }
+    }
 }
 
-#[async_trait::async_trait]
 pub trait SubgraphFilter {
-    async fn filter_log(&self, filter_data: FilterData) -> FilterResult<FilterData>;
+    fn filter_log(&self, filter_data: FilterData) -> FilterResult<FilterData>;
 
     fn get_contract(&self) -> ethabi::Contract;
 
@@ -38,11 +59,11 @@ pub trait SubgraphFilter {
 pub enum FilterTypes {
     LogEvent(EventFilter),
 }
-#[async_trait::async_trait]
+
 impl SubgraphFilter for FilterTypes {
-    async fn filter_log(&self, filter_data: FilterData) -> FilterResult<FilterData> {
+    fn filter_log(&self, filter_data: FilterData) -> FilterResult<FilterData> {
         match self {
-            FilterTypes::LogEvent(filter) => filter.filter_log(filter_data).await,
+            FilterTypes::LogEvent(filter) => filter.filter_log(filter_data),
         }
     }
 
