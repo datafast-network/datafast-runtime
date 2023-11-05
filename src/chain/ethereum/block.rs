@@ -169,6 +169,7 @@ pub struct EthereumFullBlock {
     pub logs: Vec<Log>,
 }
 
+// Tương lai sẽ xoá. Hiện tại để lại test với data của mình :))
 #[repr(C)]
 pub struct AscEthereumFullBlock {
     pub hash: AscPtr<AscH256>,
