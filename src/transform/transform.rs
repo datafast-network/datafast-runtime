@@ -160,7 +160,6 @@ mod tests {
             datasource: "Ingestor".to_string(),
             func_name: "transformEthereumBlock".to_string(),
             wasm_path: "test".to_string(),
-            wasm_version: "5".to_string(),
         };
         transforms.insert(transform_block.func_name.clone(), transform_block.clone());
         let conf = Config {
