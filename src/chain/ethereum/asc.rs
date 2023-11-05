@@ -19,6 +19,8 @@ use crate::asc::native_types::string::AscString;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_enum;
+use crate::impl_from_big_int_to_web3_type;
+use crate::impl_uint8_array_for_web3_type;
 
 pub type AscH256 = Uint8Array;
 pub type AscH2048 = Uint8Array;
@@ -88,45 +90,46 @@ impl AscIndexId for AscEnum<EthereumValueKind> {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::EthereumValue;
 }
 
-impl ToAscObj<Uint8Array> for w3::H160 {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, AscError> {
+impl_uint8_array_for_web3_type!(w3::H160, 20);
+impl_uint8_array_for_web3_type!(w3::H256, 32);
+impl_uint8_array_for_web3_type!(w3::H512, 64);
+impl_uint8_array_for_web3_type!(w3::H2048, 256);
+
+impl_from_big_int_to_web3_type!(w3::U64, 8);
+impl_from_big_int_to_web3_type!(w3::U128, 16);
+impl_from_big_int_to_web3_type!(w3::U256, 32);
+
+impl ToAscObj<AscH256> for w3::Bytes {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscH256, AscError> {
         self.0.to_asc_obj(heap)
     }
 }
 
-impl FromAscObj<Uint8Array> for w3::H160 {
+impl FromAscObj<AscH256> for w3::Bytes {
     fn from_asc_obj<H: AscHeap + ?Sized>(
-        typed_array: Uint8Array,
+        obj: AscH256,
         heap: &H,
         depth: usize,
     ) -> Result<Self, AscError> {
-        let data = <[u8; 20]>::from_asc_obj(typed_array, heap, depth)?;
-        Ok(Self(data))
+        let bytes = Vec::from_asc_obj(obj, heap, depth)?;
+        Ok(Self(bytes))
     }
 }
 
-impl FromAscObj<Uint8Array> for w3::H256 {
-    fn from_asc_obj<H: AscHeap + ?Sized>(
-        typed_array: Uint8Array,
-        heap: &H,
-        depth: usize,
-    ) -> Result<Self, AscError> {
-        let data = <[u8; 32]>::from_asc_obj(typed_array, heap, depth)?;
-        Ok(Self(data))
-    }
-}
-
-impl ToAscObj<Uint8Array> for w3::H256 {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<Uint8Array, AscError> {
+impl ToAscObj<AscH256> for w3::BytesArray {
+    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscH256, AscError> {
         self.0.to_asc_obj(heap)
     }
 }
 
-impl ToAscObj<AscBigInt> for w3::U128 {
-    fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscBigInt, AscError> {
-        let mut bytes: [u8; 16] = [0; 16];
-        self.to_little_endian(&mut bytes);
-        bytes.to_asc_obj(heap)
+impl FromAscObj<AscH256> for w3::BytesArray {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscH256,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let bytes = Vec::from_asc_obj(obj, heap, depth)?;
+        Ok(Self(bytes))
     }
 }
 

@@ -1,18 +1,19 @@
 use super::asc::*;
+use crate::asc::base::asc_get;
+use crate::asc::base::asc_get_optional;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
-use crate::ingestor_data::ethereum::Transaction as pbTransaction;
 use ethabi::Bytes;
 use semver::Version;
-use std::str::FromStr;
 use web3::types::Transaction;
 use web3::types::H160;
 use web3::types::H256;
@@ -103,20 +104,22 @@ impl ToAscObj<AscEthereumTransaction> for EthereumTransactionData {
     }
 }
 
-impl From<pbTransaction> for EthereumTransactionData {
-    fn from(tx: pbTransaction) -> EthereumTransactionData {
-        EthereumTransactionData {
-            hash: H256::from_str(&tx.hash).unwrap(),
-            index: tx.transaction_index.map_or(U128::zero(), |x| x.into()),
-            from: H160::from_str(&tx.from_address).unwrap(),
-            to: tx.to_address.map(|x| H160::from_str(&x).unwrap()),
-            value: U256::from_str(&tx.value).unwrap(),
-            gas_limit: "0".parse().unwrap(),
-            gas_price: tx
-                .gas_price
-                .map_or(U256::zero(), |x| U256::from_str(&x).unwrap()),
-            input: hex::decode(tx.input.replace("0x", "")).map_or(Bytes::default(), |b| b.into()),
-            nonce: U256::from(tx.nonce),
-        }
+impl FromAscObj<AscEthereumTransaction> for EthereumTransactionData {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscEthereumTransaction,
+        heap: &H,
+        _depth: usize,
+    ) -> Result<Self, AscError> {
+        Ok(EthereumTransactionData {
+            hash: asc_get(heap, obj.hash, 0)?,
+            index: asc_get(heap, obj.index, 0)?,
+            from: asc_get(heap, obj.from, 0)?,
+            to: asc_get_optional(heap, obj.to, 0)?,
+            value: asc_get(heap, obj.value, 0)?,
+            gas_limit: asc_get(heap, obj.gas_limit, 0)?,
+            gas_price: asc_get(heap, obj.gas_price, 0)?,
+            input: asc_get(heap, obj.input, 0)?,
+            nonce: asc_get(heap, obj.nonce, 0)?,
+        })
     }
 }

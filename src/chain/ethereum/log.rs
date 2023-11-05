@@ -1,9 +1,12 @@
 use super::asc::*;
+use crate::asc::base::asc_get;
+use crate::asc::base::asc_get_optional;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
 use crate::asc::base::AscType;
+use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
@@ -14,12 +17,8 @@ use crate::asc::native_types::AscWrapped;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
-use crate::ingestor_data::ethereum::Log as pbLog;
 use semver::Version;
-use std::str::FromStr;
-use web3::types::Bytes;
 use web3::types::Log;
-use web3::types::H160;
 use web3::types::H256;
 
 impl ToAscObj<AscLogParam> for ethabi::LogParam {
@@ -92,6 +91,20 @@ impl ToAscObj<AscTopicArray> for Vec<H256> {
             .map(|topic| asc_new(heap, topic))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(AscTopicArray(Array::new(&topics, heap)?))
+    }
+}
+
+impl FromAscObj<AscTopicArray> for Vec<H256> {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscTopicArray,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let topics: Vec<AscPtr<AscH256>> = obj.0.to_vec(heap)?;
+        topics
+            .into_iter()
+            .map(|topic| asc_get(heap, topic, depth))
+            .collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -202,29 +215,24 @@ impl AscIndexId for AscLogArray {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayLog;
 }
 
-impl From<pbLog> for Log {
-    fn from(value: pbLog) -> Self {
-        //replace 0x with empty string
-        Self {
-            address: H160::from_str(&value.address).unwrap(),
-            topics: value
-                .topics
-                .iter()
-                .map(|t| H256::from_str(t).unwrap())
-                .collect::<Vec<H256>>(),
-            data: hex::decode(value.data.replace("0x", "")).map_or(Bytes::default(), |b| b.into()),
-            block_hash: value
-                .block_hash
-                .map(|h| H256::from_str(&h).unwrap_or_default()),
-            block_number: value.block_number.map(|nb| nb.into()),
-            transaction_hash: value
-                .transaction_hash
-                .map(|h| H256::from_str(&h).unwrap_or_default()),
-            transaction_index: value.transaction_index.map(|idx| idx.into()),
-            log_index: value.log_index.map(|idx| idx.into()),
-            transaction_log_index: value.transaction_log_index.map(|idx| idx.into()),
-            log_type: value.log_type,
-            removed: value.removed,
-        }
+impl FromAscObj<AscEthereumLog> for Log {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscEthereumLog,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        Ok(Self {
+            address: asc_get(heap, obj.address, depth)?,
+            topics: asc_get(heap, obj.topics, depth)?,
+            data: asc_get(heap, obj.data, depth)?,
+            block_hash: asc_get_optional(heap, obj.block_hash, depth)?,
+            block_number: asc_get_optional(heap, obj.block_number, depth)?,
+            transaction_hash: asc_get_optional(heap, obj.transaction_hash, depth)?,
+            transaction_index: asc_get_optional(heap, obj.transaction_index, depth)?,
+            log_index: asc_get_optional(heap, obj.log_index, depth)?,
+            transaction_log_index: asc_get_optional(heap, obj.transaction_log_index, depth)?,
+            log_type: asc_get_optional(heap, obj.log_type, depth)?,
+            removed: asc_get_optional(heap, obj.removed, depth)?,
+        })
     }
 }

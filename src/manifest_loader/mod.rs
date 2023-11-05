@@ -6,21 +6,13 @@ use async_trait::async_trait;
 use local::LocalFileLoader;
 use log;
 
-#[derive(Clone)]
-pub struct SubgraphWasmPack {
-    pub wasm_bytes: Vec<u8>,
-}
-
 #[async_trait]
 pub trait LoaderTrait: Sized {
     async fn new(path: &str) -> Result<Self, ManifestLoaderError>;
     async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError>;
     async fn load_abis(&mut self) -> Result<(), ManifestLoaderError>;
     // Load-Wasm is lazy, we only execute it when we need it
-    async fn load_wasm(
-        &self,
-        datasource_name: &str,
-    ) -> Result<SubgraphWasmPack, ManifestLoaderError>;
+    async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
 }
 
 pub enum ManifestLoader {
@@ -65,10 +57,7 @@ impl LoaderTrait for ManifestLoader {
         }
     }
 
-    async fn load_wasm(
-        &self,
-        datasource_name: &str,
-    ) -> Result<SubgraphWasmPack, ManifestLoaderError> {
+    async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError> {
         match self {
             ManifestLoader::Local(loader) => loader.load_wasm(datasource_name).await,
         }

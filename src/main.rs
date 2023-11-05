@@ -40,7 +40,7 @@ async fn main() -> Result<(), SwrError> {
 
     for datasource in manifest.datasources() {
         let api_version = datasource.mapping.apiVersion.to_owned();
-        let wasm_bytes = manifest.load_wasm(&datasource.name).await?.wasm_bytes;
+        let wasm_bytes = manifest.load_wasm(&datasource.name).await?;
         let dbstore_agent = database.agent();
         let wasm_host = create_wasm_host(api_version, wasm_bytes, dbstore_agent)?;
         let subgraph_source = DatasourceWasmInstance::try_from((wasm_host, datasource))?;

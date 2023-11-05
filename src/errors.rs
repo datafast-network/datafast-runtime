@@ -59,6 +59,8 @@ pub enum DatabaseError {
     Plain(String),
     #[error("Result-reply sending failed: {0}")]
     SendReplyFailed(#[from] SendError),
+    #[error("Database Mutex-lock failed")]
+    MutexLockFailed,
 }
 
 #[derive(Debug, Error)]

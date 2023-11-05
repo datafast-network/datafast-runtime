@@ -1,21 +1,23 @@
 use super::asc::*;
+use crate::asc::base::asc_get;
+use crate::asc::base::asc_get_optional;
 use crate::asc::base::asc_new;
 use crate::asc::base::AscHeap;
 use crate::asc::base::AscIndexId;
 use crate::asc::base::AscPtr;
+use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
-use crate::ingestor_data::ethereum::Block as pbBlock;
 use semver::Version;
-use std::str::FromStr;
 use web3::types::Block;
 use web3::types::H160;
 use web3::types::H256;
 use web3::types::U256;
 use web3::types::U64;
+
 #[repr(C)]
 pub struct AscEthereumBlock {
     pub hash: AscPtr<AscH256>,
@@ -127,27 +129,28 @@ impl ToAscObj<AscEthereumBlock> for EthereumBlockData {
     }
 }
 
-impl From<pbBlock> for EthereumBlockData {
-    fn from(value: pbBlock) -> Self {
-        let header = value.header.unwrap();
-        Self {
-            hash: H256::from_str(&value.block_hash).unwrap(),
-            parent_hash: H256::from_str(&value.parent_hash).unwrap(),
-            uncles_hash: H256::zero(), //todo get uncles hash
-            author: H160::from_str(&header.author).unwrap(),
-            state_root: H256::from_str(&header.state_root).unwrap(),
-            transactions_root: H256::from_str(&header.transactions_root).unwrap(),
-            receipts_root: H256::from_str(&header.receipts_root).unwrap(),
-            number: U64::from(value.block_number),
-            gas_used: U256::from_str(&header.gas_used).unwrap(),
-            gas_limit: U256::from_str(&header.gas_limit).unwrap(),
-            timestamp: U256::from_str(&header.timestamp).unwrap(),
-            difficulty: U256::from_str(&header.difficulty).unwrap(),
-            total_difficulty: U256::from_str(&header.total_difficulty).unwrap(),
-            size: header.size.map(U256::from),
-            base_fee_per_gas: header
-                .base_fee_per_gas
-                .map(|fee| U256::from_str(&fee).unwrap()),
-        }
+impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscEthereumBlock,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        Ok(Self {
+            hash: asc_get(heap, obj.number, depth)?,
+            parent_hash: asc_get(heap, obj.parent_hash, depth)?,
+            uncles_hash: asc_get(heap, obj.uncles_hash, depth)?,
+            author: asc_get(heap, obj.author, depth)?,
+            state_root: asc_get(heap, obj.state_root, depth)?,
+            transactions_root: asc_get(heap, obj.transactions_root, depth)?,
+            receipts_root: asc_get(heap, obj.receipts_root, depth)?,
+            number: asc_get(heap, obj.number, depth)?,
+            gas_used: asc_get(heap, obj.gas_used, depth)?,
+            gas_limit: asc_get(heap, obj.gas_limit, depth)?,
+            timestamp: asc_get(heap, obj.timestamp, depth)?,
+            difficulty: asc_get(heap, obj.difficulty, depth)?,
+            total_difficulty: asc_get(heap, obj.total_difficulty, depth)?,
+            size: asc_get_optional(heap, obj.size, depth)?,
+            base_fee_per_gas: asc_get_optional(heap, obj.base_fee_per_block, depth)?,
+        })
     }
 }
