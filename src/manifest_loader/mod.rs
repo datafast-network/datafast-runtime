@@ -70,4 +70,10 @@ impl ManifestLoader {
             Self::Local(loader) => loader.subgraph_yaml.dataSources.to_vec(),
         }
     }
+
+    pub fn get_abi(&self, datasource_name: &str, abi_name: &str) -> Option<&serde_json::Value> {
+        match self {
+            Self::Local(loader) => loader.abis.get(datasource_name)?.get(abi_name),
+        }
+    }
 }

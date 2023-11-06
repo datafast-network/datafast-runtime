@@ -3,7 +3,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs::File;
 use tiny_keccak::Hasher;
 use web3::types::Address;
 use web3::types::Log;
@@ -26,8 +25,8 @@ impl EventHandler {
         let mut result = [0u8; 32];
         let data = self
             .event
-            .replace(' ', "")
             .replace("indexed", "")
+            .replace(' ', "")
             .into_bytes();
         let mut sponge = tiny_keccak::Keccak::v256();
         sponge.update(&data);
@@ -77,12 +76,28 @@ pub struct Datasource {
 
 impl Datasource {
     pub fn check_log_matches(&self, raw_log: &Log) -> bool {
+        if self.get_start_block() > raw_log.block_number {
+            return false;
+        }
         let events = self.mapping.get_handler_for_log(raw_log.topics[0]);
         events.is_some() && self.get_address() == raw_log.address
     }
-    
+
     pub fn get_handler_for_log(&self, topic0: H256) -> Option<EventHandler> {
         self.mapping.get_handler_for_log(topic0)
+    }
+
+    pub fn get_start_block(&self) -> Option<web3::types::U64> {
+        self.source
+            .get("startBlock")
+            .map(|block| block.parse::<u64>().unwrap_or_default())
+            .map(|block| web3::types::U64::from(block))
+    }
+
+    pub fn get_network_chain(&self) -> Option<u64> {
+        self.source
+            .get("network")
+            .map(|network| network.parse::<u64>().unwrap_or_default())
     }
 
     pub fn get_address(&self) -> Address {
@@ -93,14 +108,8 @@ impl Datasource {
             .unwrap_or_default()
     }
 
-    pub fn get_abi(&self) -> ethabi::Contract {
-        self.mapping
-            .abis
-            .iter()
-            .find(|abi| abi.name == *self.source.get("abi").unwrap())
-            .map(|abi| File::open(abi.file.clone()).expect("Failed to open ABI file"))
-            .map(|abi| ethabi::Contract::load(abi).expect("Failed to load ABI"))
-            .expect("Failed to find ABI and create Contract")
+    pub fn get_abi_name(&self) -> String {
+        self.source.get("abi").expect("ABI not found").clone()
     }
 }
 
