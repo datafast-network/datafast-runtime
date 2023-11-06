@@ -1,10 +1,11 @@
 use num_bigint;
 use serde::Deserialize;
 use serde::Serialize;
-use web3::types as w3;
+use web3::types as web3;
 
 pub use num_bigint::Sign as BigIntSign;
 
+use num_traits::Num;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::f32::consts::LOG2_10;
@@ -132,27 +133,27 @@ impl BigInt {
         BigInt::new(num_bigint::BigInt::from_signed_bytes_be(bytes))
     }
 
-    pub fn from_unsigned_u128(n: w3::U128) -> Self {
+    pub fn from_unsigned_u128(n: web3::U128) -> Self {
         let mut bytes: [u8; 16] = [0; 16];
         n.to_little_endian(&mut bytes);
         // Unwrap: 128 bits is much less than BigInt::MAX_BITS
         BigInt::from_unsigned_bytes_le(&bytes).unwrap()
     }
 
-    pub fn from_unsigned_u256(n: &w3::U256) -> Self {
+    pub fn from_unsigned_u256(n: &web3::U256) -> Self {
         let mut bytes: [u8; 32] = [0; 32];
         n.to_little_endian(&mut bytes);
         // Unwrap: 256 bits is much less than BigInt::MAX_BITS
         BigInt::from_unsigned_bytes_le(&bytes).unwrap()
     }
 
-    pub fn from_signed_u256(n: &w3::U256) -> Self {
+    pub fn from_signed_u256(n: &web3::U256) -> Self {
         let mut bytes: [u8; 32] = [0; 32];
         n.to_little_endian(&mut bytes);
         BigInt::from_signed_bytes_le(&bytes).unwrap()
     }
 
-    pub fn to_signed_u256(&self) -> w3::U256 {
+    pub fn to_signed_u256(&self) -> web3::U256 {
         let bytes = self.to_signed_bytes_le();
         if self < &BigInt::from(0) {
             assert!(
@@ -161,20 +162,30 @@ impl BigInt {
             );
             let mut i_bytes: [u8; 32] = [255; 32];
             i_bytes[..bytes.len()].copy_from_slice(&bytes);
-            w3::U256::from_little_endian(&i_bytes)
+            web3::U256::from_little_endian(&i_bytes)
         } else {
-            w3::U256::from_little_endian(&bytes)
+            web3::U256::from_little_endian(&bytes)
         }
     }
 
-    pub fn to_unsigned_u256(&self) -> w3::U256 {
+    pub fn to_unsigned_u256(&self) -> web3::U256 {
         let (sign, bytes) = self.to_bytes_le();
         assert!(
             sign == BigIntSign::NoSign || sign == BigIntSign::Plus,
             "negative value encountered for U256: {}",
             self
         );
-        w3::U256::from_little_endian(&bytes)
+        web3::U256::from_little_endian(&bytes)
+    }
+
+    pub fn to_unsigned_u64(&self) -> web3::U64 {
+        let (sign, bytes) = self.to_bytes_le();
+        assert!(
+            sign == BigIntSign::NoSign || sign == BigIntSign::Plus,
+            "negative value encountered for U256: {}",
+            self
+        );
+        web3::U64::from_little_endian(&bytes)
     }
 
     /// Exponential a `BigInt` to a `u32` power.
@@ -182,6 +193,11 @@ impl BigInt {
         use num_traits::pow::Pow;
 
         BigInt::new(self.inner().pow(exponent))
+    }
+
+    pub fn from_hex(hex: String) -> Result<BigInt, BigNumberErr> {
+        let big_int = num_bigint::BigInt::from_str_radix(&hex, 16)?;
+        BigInt::new(big_int)
     }
 }
 
@@ -203,13 +219,13 @@ impl From<i64> for BigInt {
     }
 }
 
-impl From<w3::U64> for BigInt {
+impl From<web3::U64> for BigInt {
     /// This implementation assumes that U64 represents an unsigned U64,
     /// and not a signed U64 (aka int64 in Solidity). Right now, this is
     /// all we need (for block numbers). If it ever becomes necessary to
     /// handle signed U64s, we should add the same
     /// `{to,from}_{signed,unsigned}_u64` methods that we have for U64.
-    fn from(n: w3::U64) -> BigInt {
+    fn from(n: web3::U64) -> BigInt {
         BigInt::from(n.as_u64())
     }
 }
@@ -312,5 +328,23 @@ impl Shr<u8> for BigInt {
 
     fn shr(self, bits: u8) -> Self {
         BigInt::unchecked_new(self.inner().shr(bits))
+    }
+}
+
+impl From<BigInt> for web3::U64 {
+    fn from(big_int: BigInt) -> Self {
+        Self::from_little_endian(&big_int.to_signed_bytes_le())
+    }
+}
+
+impl From<BigInt> for web3::U256 {
+    fn from(big_int: BigInt) -> Self {
+        Self::from_little_endian(&big_int.to_signed_bytes_le())
+    }
+}
+
+impl From<BigInt> for web3::U128 {
+    fn from(big_int: BigInt) -> Self {
+        Self::from_little_endian(&big_int.to_signed_bytes_le())
     }
 }

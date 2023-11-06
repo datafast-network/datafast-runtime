@@ -104,7 +104,7 @@ impl FromAscObj<AscTopicArray> for Vec<H256> {
         topics
             .into_iter()
             .map(|topic| asc_get(heap, topic, depth))
-            .collect::<Result<Vec<_>, _>>()
+            .collect()
     }
 }
 
@@ -221,12 +221,19 @@ impl FromAscObj<AscEthereumLog> for Log {
         heap: &H,
         depth: usize,
     ) -> Result<Self, AscError> {
+        // Case đặc biệt của bigInt to U64
+        let block_number =
+            asc_get_optional::<Vec<u8>, _, _>(heap, obj.block_number, depth)?.map(|bytes| {
+                let hex_str = hex::encode(&bytes);
+                BigInt::from_hex(hex_str).unwrap().to_unsigned_u64()
+            });
+
         Ok(Self {
             address: asc_get(heap, obj.address, depth)?,
             topics: asc_get(heap, obj.topics, depth)?,
             data: asc_get(heap, obj.data, depth)?,
             block_hash: asc_get_optional(heap, obj.block_hash, depth)?,
-            block_number: asc_get_optional(heap, obj.block_number, depth)?,
+            block_number,
             transaction_hash: asc_get_optional(heap, obj.transaction_hash, depth)?,
             transaction_index: asc_get_optional(heap, obj.transaction_index, depth)?,
             log_index: asc_get_optional(heap, obj.log_index, depth)?,
@@ -234,5 +241,18 @@ impl FromAscObj<AscEthereumLog> for Log {
             log_type: asc_get_optional(heap, obj.log_type, depth)?,
             removed: asc_get_optional(heap, obj.removed, depth)?,
         })
+    }
+}
+
+impl FromAscObj<AscLogArray> for Vec<Log> {
+    fn from_asc_obj<H: AscHeap + ?Sized>(
+        obj: AscLogArray,
+        heap: &H,
+        depth: usize,
+    ) -> Result<Self, AscError> {
+        let logs: Vec<AscPtr<AscEthereumLog>> = obj.0.to_vec(heap)?;
+        logs.into_iter()
+            .map(|log| asc_get(heap, log, depth))
+            .collect::<Result<Vec<Log>, _>>()
     }
 }
