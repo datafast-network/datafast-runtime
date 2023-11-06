@@ -46,6 +46,7 @@ impl SubgraphFilterInstance {
         sender: AsyncSender<SubgraphOperationMessage>,
         receiver: AsyncReceiver<FilterData>,
     ) -> Result<Self, FilterError> {
+        //TODO: Create filter based on chain from manifest or env
         let ethereum_filter = EthereumFilter::new(manifest);
         Ok(Self {
             filter: Filter::Ethereum(ethereum_filter),

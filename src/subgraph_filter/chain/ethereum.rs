@@ -126,6 +126,10 @@ impl EthereumFilter {
         }
         Ok(jobs)
     }
+
+    //TODO: implement filter_block
+
+    //TODO: implement filter_call_function
 }
 
 impl SubgraphFilter for EthereumFilter {
