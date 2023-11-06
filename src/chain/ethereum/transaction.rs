@@ -9,6 +9,7 @@ use crate::asc::base::FromAscObj;
 use crate::asc::base::IndexForAscTypeId;
 use crate::asc::base::ToAscObj;
 use crate::asc::errors::AscError;
+use crate::asc::native_types::array::Array;
 use crate::asc::native_types::Uint8Array;
 use crate::bignumber::bigint::BigInt;
 use crate::impl_asc_type_struct;
@@ -122,4 +123,23 @@ impl FromAscObj<AscEthereumTransaction> for EthereumTransactionData {
             nonce: asc_get(heap, obj.nonce, 0)?,
         })
     }
+}
+
+pub type AscTransactionArray = Array<AscPtr<AscEthereumTransaction>>;
+
+impl ToAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
+    fn to_asc_obj<H: AscHeap + ?Sized>(
+        &self,
+        heap: &mut H,
+    ) -> Result<AscTransactionArray, AscError> {
+        let txs = self
+            .iter()
+            .map(|tx| asc_new(heap, &tx))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(AscTransactionArray::new(&txs, heap)?)
+    }
+}
+
+impl AscIndexId for AscTransactionArray {
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayEthereumTransaction;
 }

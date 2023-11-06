@@ -16,6 +16,8 @@ pub enum BigNumberErr {
     OutOfRange(#[from] BigIntOutOfRangeError),
     #[error("Number too big")]
     NumberTooBig,
+    #[error(transparent)]
+    ParseError(#[from] num_bigint::ParseBigIntError),
 }
 
 impl From<BigNumberErr> for wasmer::RuntimeError {
@@ -24,6 +26,7 @@ impl From<BigNumberErr> for wasmer::RuntimeError {
             BigNumberErr::Parser => wasmer::RuntimeError::new("Parser Error"),
             BigNumberErr::OutOfRange(_) => wasmer::RuntimeError::new("Out of range"),
             BigNumberErr::NumberTooBig => wasmer::RuntimeError::new("Number too big"),
+            BigNumberErr::ParseError(_) => wasmer::RuntimeError::new("Parse Error"),
         }
     }
 }
