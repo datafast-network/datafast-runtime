@@ -152,7 +152,7 @@ impl ToAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
 }
 
 impl AscIndexId for AscTransactionArray {
-    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayTransactions;
+    const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayEthereumTransaction;
 }
 
 impl FromAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
