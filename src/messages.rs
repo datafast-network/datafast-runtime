@@ -5,7 +5,7 @@ use crate::database::abstract_types::Value;
 use std::collections::HashMap;
 use web3::types::Log;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SourceInputMessage {
     JSON(serde_json::Value),
     Protobuf,
@@ -22,9 +22,9 @@ pub enum TransformedDataMessage {
 
 #[derive(Debug)]
 pub struct EthereumFilteredEvent {
-    datasource: String,
-    handler: String,
-    event: EthereumEventData,
+    pub datasource: String,
+    pub handler: String,
+    pub event: EthereumEventData,
 }
 
 #[derive(Debug)]

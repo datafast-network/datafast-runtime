@@ -12,10 +12,10 @@ mod subgraph;
 mod transform;
 mod wasm_host;
 
+use crate::transform::TransformInstance;
 use config::Config;
 use database::Database;
 use errors::SwrError;
-use kanal;
 use manifest_loader::*;
 use subgraph::DatasourceWasmInstance;
 use subgraph::Subgraph;
@@ -31,10 +31,6 @@ async fn main() -> Result<(), SwrError> {
 
     // TODO: impl Actual DB Connection
     let database = Database::new(&config).await?;
-
-    // TODO: impl transform instance
-
-    // TODO: impl filter instance
 
     let subgraph_id = config
         .subgraph_id
@@ -52,7 +48,16 @@ async fn main() -> Result<(), SwrError> {
         subgraph.add_source(subgraph_source);
     }
 
+    // TODO: impl filter instance
+
     // TODO: impl blockstore (bus subscription)
+
+    // TODO: impl transform instance
+    // TODO: Get wasm file from env or IPFS
+    let mut transform = TransformInstance::new(&config, None).await?;
+    let (_source_input_sender, transform_receiver) = kanal::bounded_async(1);
+    let (transform_sender, _filter_receiver) = kanal::bounded_async(1);
+    let transform_run = transform.run(transform_receiver, transform_sender);
 
     let (_subgraph_msg_sender, subgraph_receiver) = kanal::bounded_async(1);
 
@@ -63,6 +68,7 @@ async fn main() -> Result<(), SwrError> {
     ::tokio::select! {
         result = subscriber_run => result,
         result = swr_run => result.map_err(SwrError::from),
+        result = transform_run => result.map_err(SwrError::from),
         // TODO: impl prometheus
     }
 }

@@ -12,13 +12,18 @@ use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
 use crate::config::Config;
 use crate::config::TransformConfig;
+use crate::database::Database;
 use crate::errors::TransformError;
 use crate::messages::SourceInputMessage;
 use crate::messages::TransformedDataMessage;
+use crate::wasm_host::create_wasm_host;
 use crate::wasm_host::AscHost;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
+use semver::Version;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
 use wasmer::Function;
 use wasmer::RuntimeError;
 use wasmer::Value;
@@ -27,26 +32,23 @@ use web3::types::Log;
 pub struct Transform {
     host: AscHost,
     funcs: HashMap<String, Function>,
-    config: Option<TransformConfig>,
+    config: TransformConfig,
     chain: Chain,
 }
 
 impl Transform {
     pub fn new(host: AscHost, conf: &Config) -> Self {
+        assert!(conf.transforms.is_some());
         Transform {
             host,
             funcs: HashMap::new(),
-            config: conf.transforms.clone(),
+            config: conf.transforms.clone().unwrap(),
             chain: conf.chain.clone(),
         }
     }
 
     pub fn bind_transform_functions(mut self) -> Result<Self, TransformError> {
-        if self.config.is_none() {
-            return Ok(self);
-        }
-        let conf = self.config.unwrap();
-        match conf {
+        match self.config.clone() {
             TransformConfig::Ethereum {
                 block,
                 transactions,
@@ -105,11 +107,11 @@ impl Transform {
         match (self.chain.clone(), self.config.clone()) {
             (
                 Chain::Ethereum,
-                Some(TransformConfig::Ethereum {
+                TransformConfig::Ethereum {
                     block,
                     transactions,
                     logs,
-                }),
+                },
             ) => {
                 let block = self.generic_transform_data::<AscEthereumBlock, EthereumBlockData>(
                     source.clone(),
@@ -127,16 +129,11 @@ impl Transform {
                     logs,
                 })
             }
-            (Chain::Ethereum, None) => {
-                //TODO: Handle no transforms
-                todo!("serialize to transform message")
-            }
             _ => Err(TransformError::InvalidChain),
         }
     }
-
     pub async fn run(
-        mut self,
+        &mut self,
         receiver: AsyncReceiver<SourceInputMessage>,
         sender: AsyncSender<TransformedDataMessage>,
     ) -> Result<(), TransformError> {
@@ -145,5 +142,50 @@ impl Transform {
             sender.send(result).await?
         }
         Ok(())
+    }
+}
+pub enum TransformType {
+    Transform(Transform),
+    Serialize,
+}
+
+pub struct TransformInstance {
+    pub transform: TransformType,
+}
+
+impl TransformInstance {
+    pub async fn new(config: &Config, wasm_path: Option<String>) -> Result<Self, TransformError> {
+        let transform = match (config.transforms.clone(), wasm_path) {
+            (Some(_transform_config), Some(wasm_path)) => {
+                let wasm_version = Version::new(0, 0, 5);
+                let wasm_file = File::open(wasm_path).map_err(|_| {
+                    TransformError::InitTransformFail("Failed to open wasm file".to_string())
+                })?;
+                let wasm_bytes = BufReader::new(wasm_file).buffer().to_vec();
+                let db_agent = Database::Memory(HashMap::new()).agent();
+                let transform_host = create_wasm_host(wasm_version, wasm_bytes, db_agent).unwrap();
+                let transform = Transform::new(transform_host, config);
+                let transform = transform.bind_transform_functions()?;
+                TransformType::Transform(transform)
+            }
+            (Some(_transform_config), None) => Err(TransformError::InitTransformFail(
+                "Missing wasm file".to_string(),
+            ))?,
+            (None, Some(_wasm_path)) => Err(TransformError::InitTransformFail(
+                "Missing transform_config".to_string(),
+            ))?,
+            (None, None) => TransformType::Serialize,
+        };
+        Ok(TransformInstance { transform })
+    }
+    pub async fn run(
+        &mut self,
+        receiver: AsyncReceiver<SourceInputMessage>,
+        sender: AsyncSender<TransformedDataMessage>,
+    ) -> Result<(), TransformError> {
+        match self.transform {
+            TransformType::Transform(ref mut transform) => transform.run(receiver, sender).await,
+            TransformType::Serialize => unimplemented!(),
+        }
     }
 }

@@ -79,7 +79,7 @@ pub enum TransformError {
     InitTransformFail(String),
     #[error(transparent)]
     WasmHostError(#[from] WasmHostError),
-    #[error(transparent)]
+    #[error("Invalid name")]
     InvalidChain,
 }
 
