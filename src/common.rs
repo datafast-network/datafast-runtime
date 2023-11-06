@@ -79,8 +79,12 @@ impl Datasource {
         if self.get_start_block() > raw_log.block_number {
             return false;
         }
-        let events = self.mapping.get_handler_for_log(raw_log.topics[0]);
-        events.is_some() && self.get_address() == raw_log.address
+        let has_event = match raw_log.topics.first() {
+            None => false,
+            Some(topic) => self.mapping.get_handler_for_log(*topic).is_some(),
+        };
+
+        has_event && self.get_address() == raw_log.address
     }
 
     pub fn get_handler_for_log(&self, topic0: H256) -> Option<EventHandler> {
