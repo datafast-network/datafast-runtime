@@ -134,7 +134,7 @@ impl SubgraphFilter for EthereumFilter {
         filter_data: FilterData,
     ) -> Result<Vec<SubgraphOperationMessage>, FilterError> {
         match filter_data {
-            FilterData::Block(block) => self.filter_event_logs(block),
+            FilterData::Events(block) => self.filter_event_logs(block),
         }
     }
 }

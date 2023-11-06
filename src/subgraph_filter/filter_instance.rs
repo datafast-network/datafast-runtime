@@ -8,7 +8,7 @@ use kanal::AsyncSender;
 
 #[derive(Debug, Clone)]
 pub enum FilterData {
-    Block(EthereumBlockFilter),
+    Events(EthereumBlockFilter),
 }
 
 #[derive(Debug, Clone)]
@@ -54,7 +54,7 @@ impl SubgraphFilterInstance {
         })
     }
 
-    pub async fn filter_events(&self, filter_data: FilterData) -> Result<(), FilterError> {
+    pub async fn filter_data(&self, filter_data: FilterData) -> Result<(), FilterError> {
         let events = self.filter.filter_events(filter_data)?;
         for event in events {
             self.event_sender.send(event).await?;
@@ -64,7 +64,7 @@ impl SubgraphFilterInstance {
 
     pub async fn run(&self) -> Result<(), FilterError> {
         while let Ok(filter_data) = self.input_receiver.recv().await {
-            self.filter_events(filter_data).await?;
+            self.filter_data(filter_data).await?;
         }
         Ok(())
     }
