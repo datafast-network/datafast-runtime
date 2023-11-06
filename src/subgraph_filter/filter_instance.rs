@@ -12,7 +12,7 @@ pub enum FilterData {
 }
 
 #[derive(Debug, Clone)]
-pub enum FilterChain {
+enum Filter {
     Ethereum(EthereumFilter),
 }
 
@@ -23,19 +23,19 @@ pub trait SubgraphFilter {
     ) -> Result<Vec<SubgraphOperationMessage>, FilterError>;
 }
 
-impl SubgraphFilter for FilterChain {
+impl SubgraphFilter for Filter {
     fn filter_events(
         &self,
         filter_data: FilterData,
     ) -> Result<Vec<SubgraphOperationMessage>, FilterError> {
         match self {
-            FilterChain::Ethereum(filter) => filter.filter_events(filter_data),
+            Filter::Ethereum(filter) => filter.filter_events(filter_data),
         }
     }
 }
 
 pub struct SubgraphFilterInstance {
-    filter: FilterChain,
+    filter: Filter,
     input_receiver: AsyncReceiver<FilterData>,
     event_sender: AsyncSender<SubgraphOperationMessage>,
 }
@@ -48,7 +48,7 @@ impl SubgraphFilterInstance {
     ) -> Result<Self, FilterError> {
         let ethereum_filter = EthereumFilter::new(manifest);
         Ok(Self {
-            filter: FilterChain::Ethereum(ethereum_filter),
+            filter: Filter::Ethereum(ethereum_filter),
             event_sender: sender,
             input_receiver: receiver,
         })
