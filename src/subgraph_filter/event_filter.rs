@@ -50,27 +50,18 @@ impl EventFilter {
 }
 #[async_trait::async_trait]
 impl SubgraphFilter for EventFilter {
-    fn filter_events(&self, data: SubgraphData) -> FilterResult<SubgraphData> {
-        let logs = match data {
-            SubgraphData::Log(event_log) => vec![event_log],
-            _ => return Err(FilterError::ParseError("Invalid data type".to_string())),
+    fn filter_event(&self, data: SubgraphData) -> FilterResult<SubgraphData> {
+        let log = match data {
+            SubgraphData::Log(event_log) => event_log,
+            _ => return Err(FilterError::ParseError("Invalid log data type".to_string())),
         };
-        let logs = logs
-            .into_iter()
-            .filter(|log| &log.address == self.get_address())
-            .map(Log::from)
-            .collect::<Vec<_>>();
-        let mut events = Vec::new();
-        for raw_log in logs.iter() {
-            match self.parse_event(raw_log) {
-                Ok(data) => events.push(data),
-                Err(e) => {
-                    log::error!("Error parsing event: {:?} from log: {:?}", e, raw_log);
-                    //panic if critical with main stream flow
-                }
-            }
+        match self.parse_event(&log) {
+            Ok(data) => Ok(data),
+            Err(e) => Err(FilterError::ParseError(format!(
+                "Error parsing event: {:?} from log: {:?}",
+                e, log
+            ))),
         }
-        Ok(SubgraphData::Event(EthereumEventData::default()))
     }
 
     fn get_contract(&self) -> ethabi::Contract {

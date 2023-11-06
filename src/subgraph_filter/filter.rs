@@ -9,14 +9,13 @@ use crate::messages::SubgraphJob;
 use crate::messages::SubgraphOperationMessage;
 use ethabi::Address;
 use kanal::AsyncSender;
-use web3::futures::TryFutureExt;
 use web3::types::Log;
 use web3::types::H160;
 
 pub type FilterResult<T> = Result<T, FilterError>;
 
 pub trait SubgraphFilter {
-    fn filter_events(&self, filter_data: SubgraphData) -> FilterResult<SubgraphData>;
+    fn filter_event(&self, filter_data: SubgraphData) -> FilterResult<SubgraphData>;
 
     fn get_contract(&self) -> ethabi::Contract;
 
@@ -29,9 +28,9 @@ pub enum FilterTypes {
 }
 
 impl SubgraphFilter for FilterTypes {
-    fn filter_events(&self, events: SubgraphData) -> FilterResult<SubgraphData> {
+    fn filter_event(&self, events: SubgraphData) -> FilterResult<SubgraphData> {
         match self {
-            FilterTypes::Events(filter) => filter.filter_events(events),
+            FilterTypes::Events(filter) => filter.filter_event(events),
         }
     }
 
@@ -77,59 +76,50 @@ impl SubgraphFilterInstance {
     }
 
     pub fn filter_logs(&self, logs: Vec<Log>) -> Result<Vec<SubgraphJob>, FilterError> {
-        //Get all sources that match the log
-        let sources = logs
-            .iter()
-            .filter_map(|log| {
+        //Filter the logs
+        let logs_filtered = logs
+            .into_iter()
+            .filter(|log| {
                 self.sources
                     .iter()
-                    .find(|source| source.check_log_matches(log))
+                    .any(|source| source.check_log_matches(log))
             })
             .collect::<Vec<_>>();
 
-        //Get the filter for the source
-        let filter = sources
-            .iter()
-            .find_map(|source| self.filters.get(&source.name).cloned());
-
-        //Filter the logs
-        let jobs = logs
-            .into_iter()
-            .filter(|log| sources.iter().any(|source| source.check_log_matches(log)))
-            .map(|log| {
-                let source = sources
-                    .iter()
-                    .find(|source| source.check_log_matches(&log))
-                    .unwrap();
-                let handler = source.mapping.get_handler_for_log(log.topics[0]);
-                SubgraphJob {
-                    source: source.name.clone(),
-                    handler: handler.unwrap().handler,
-                    data: SubgraphData::Log(log),
-                }
+        let mut jobs = Vec::new();
+        for log in logs_filtered.into_iter() {
+            //Get the source that matches the log
+            //Unwrap is safe because we already filtered the logs
+            let source = self
+                .sources
+                .iter()
+                .find(|source| source.check_log_matches(&log))
+                .unwrap();
+            let handler = source.mapping.get_handler_for_log(log.topics[0]).map_or(
+                Err(FilterError::ParseError("No handler found".to_string())),
+                Ok,
+            )?;
+            let filter = self.filters.get(&source.name).ok_or_else(|| {
+                FilterError::ParseError(format!("No filter found for source {}", source.name))
+            })?;
+            let event = filter
+                .filter_event(SubgraphData::Log(log))
+                .expect("Filter error");
+            //TODO: Add block header and transaction into the event
+            jobs.push(SubgraphJob {
+                source: source.name.clone(),
+                handler: handler.handler,
+                data: event,
             })
-            .collect::<Vec<_>>();
-        let mut events = Vec::new();
-
-        //Filter the events
-        match filter {
-            None => return Err(FilterError::ParseError("No filter found".to_string())),
-            Some(filter) => {
-                for job in jobs.into_iter() {
-                    let event = filter.filter_events(job.data.clone())?;
-                    let new = SubgraphJob { data: event, ..job };
-                    events.push(new);
-                }
-            }
-        };
-        Ok(events)
+        }
+        Ok(jobs)
     }
 
     pub async fn filter_logs_and_send(&self, logs: Vec<Log>) -> Result<(), FilterError> {
         let events = self
             .filter_logs(logs)?
-            .iter()
-            .map(|job| SubgraphOperationMessage::Job(job.clone()))
+            .into_iter()
+            .map(SubgraphOperationMessage::Job)
             .collect::<Vec<_>>();
         for event in events {
             self.event_sender.send(event).await?;
