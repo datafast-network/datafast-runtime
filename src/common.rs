@@ -47,3 +47,8 @@ pub struct Datasource {
 pub struct SubgraphYaml {
     pub dataSources: Vec<Datasource>,
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Chain {
+    Ethereum,
+}

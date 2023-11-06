@@ -1,7 +1,5 @@
 use crate::asc::base::asc_new;
 use crate::errors::SubgraphError;
-use crate::messages::SubgraphData;
-use crate::messages::SubgraphOperationMessage;
 use crate::wasm_host::AscHost;
 use kanal::AsyncReceiver;
 
@@ -44,65 +42,71 @@ impl DatasourceWasmInstance {
             .handlers
             .get(func)
             .ok_or_else(|| SubgraphError::Plain("Bad handler name".to_string()))?;
-
         match data {
-            SubgraphData::Block(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner)?;
+            SubgraphData::Ethereum(inner) => {
+                let block = asc_new(&mut self.host, &mut inner.block)?;
                 let ptr = asc_data.wasm_ptr() as i32;
-                log::info!("Calling block handler");
-                handler
-                    .inner
-                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
-                Ok(())
-            }
-            SubgraphData::Transaction(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner)?;
-                let ptr = asc_data.wasm_ptr() as i32;
-                log::info!("Calling tx handler");
-                handler
-                    .inner
-                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
-                Ok(())
-            }
-            SubgraphData::Transactions(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner)?;
-                let ptr = asc_data.wasm_ptr() as i32;
-                log::info!("Calling txs handler");
-                handler
-                    .inner
-                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
-                Ok(())
-            }
-            SubgraphData::Log(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner)?;
-                let ptr = asc_data.wasm_ptr() as i32;
-                log::info!("Calling log handler");
-                handler
-                    .inner
-                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
-                Ok(())
-            }
-            SubgraphData::Logs(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner)?;
-                let ptr = asc_data.wasm_ptr() as i32;
-                log::info!("Calling logs handler");
-                handler
-                    .inner
-                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
-                Ok(())
-            }
-            SubgraphData::Event(mut inner) => {
-                let asc_data = asc_new(&mut self.host, &mut inner)?;
-                let ptr = asc_data.wasm_ptr() as i32;
-                log::info!("Calling event handler");
-                handler
-                    .inner
-                    .call(&mut self.host.store, &[Value::I32(ptr)])?;
-                Ok(())
             }
         }
     }
 }
+
+//match inner {
+//                 SubgraphData::Block(mut inner) => {
+//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
+//                     let ptr = asc_data.wasm_ptr() as i32;
+//                     log::info!("Calling block handler");
+//                     handler
+//                         .inner
+//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
+//                     Ok(())
+//                 }
+//                 SubgraphData::Transaction(mut inner) => {
+//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
+//                     let ptr = asc_data.wasm_ptr() as i32;
+//                     log::info!("Calling tx handler");
+//                     handler
+//                         .inner
+//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
+//                     Ok(())
+//                 }
+//                 SubgraphData::Transactions(mut inner) => {
+//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
+//                     let ptr = asc_data.wasm_ptr() as i32;
+//                     log::info!("Calling txs handler");
+//                     handler
+//                         .inner
+//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
+//                     Ok(())
+//                 }
+//                 SubgraphData::Log(mut inner) => {
+//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
+//                     let ptr = asc_data.wasm_ptr() as i32;
+//                     log::info!("Calling log handler");
+//                     handler
+//                         .inner
+//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
+//                     Ok(())
+//                 }
+//                 SubgraphData::Logs(mut inner) => {
+//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
+//                     let ptr = asc_data.wasm_ptr() as i32;
+//                     log::info!("Calling logs handler");
+//                     handler
+//                         .inner
+//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
+//                     Ok(())
+//                 }
+//                 SubgraphData::Event(mut inner) => {
+//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
+//                     let ptr = asc_data.wasm_ptr() as i32;
+//                     log::info!("Calling event handler");
+//                     handler
+//                         .inner
+//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
+//                     Ok(())
+//                 }
+//             }
 
 pub struct Subgraph<T: ToString> {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash

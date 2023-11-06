@@ -1,3 +1,4 @@
+use crate::common::Chain;
 use figment::providers::Env;
 use figment::providers::Format;
 use figment::providers::Toml;
@@ -9,17 +10,21 @@ use crate::errors::SwrError;
 
 #[derive(Deserialize)]
 pub struct Config {
+    pub chain: Chain,
     pub subgraph_name: String,
     pub subgraph_id: Option<String>,
     pub manifest: String,
-    pub transforms: Option<HashMap<String, TransformConfig>>,
+    pub transforms: Option<TransformConfig>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct TransformConfig {
-    pub datasource: String,
-    pub func_name: String,
-    pub wasm_path: String,
+pub enum TransformConfig {
+    Ethereum {
+        block: String,
+        transactions: String,
+        logs: String,
+    },
+    Mock,
 }
 
 impl Config {

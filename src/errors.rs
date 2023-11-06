@@ -79,6 +79,8 @@ pub enum TransformError {
     InitTransformFail(String),
     #[error(transparent)]
     WasmHostError(#[from] WasmHostError),
+    #[error(transparent)]
+    InvalidChain,
 }
 
 #[derive(Debug, Error)]

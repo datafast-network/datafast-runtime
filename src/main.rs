@@ -12,7 +12,6 @@ mod subgraph;
 mod transform;
 mod wasm_host;
 
-use crate::transform::TransformInstance;
 use config::Config;
 use database::Database;
 use errors::SwrError;
@@ -34,10 +33,6 @@ async fn main() -> Result<(), SwrError> {
     let database = Database::new(&config).await?;
 
     // TODO: impl transform instance
-    let transform_instance = match config.transforms.is_some() {
-        true => Some(TransformInstance::new(&config).await?),
-        false => None,
-    };
 
     // TODO: impl filter instance
 
