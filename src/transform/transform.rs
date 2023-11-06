@@ -202,7 +202,7 @@ mod tests {
             transforms: Some(transforms),
         };
         let mut transform = mock_transform(&conf);
-        let file_json = File::open("./block.json").unwrap();
+        let file_json = File::open("./tests/block.json").unwrap();
         // Send test data for transform
         let ingestor_block: serde_json::Value = serde_json::from_reader(file_json).unwrap();
         let request = TransformRequest {
@@ -215,6 +215,40 @@ mod tests {
             _ => panic!("Invalid data type"),
         };
         assert_eq!(format!("{:?}", block.number), "10000000");
+        //asert_eq all fields of block
+    }
+
+    #[tokio::test]
+    async fn test_transform_txs() {
+        env_logger::try_init().unwrap_or_default();
+        let mut transforms = HashMap::new();
+        let transform_block = TransformConfig {
+            datasource: "Ingestor".to_string(),
+            func_name: "transformEthereumTxs".to_string(),
+            wasm_path: "test".to_string(),
+        };
+        transforms.insert(transform_block.func_name.clone(), transform_block.clone());
+        let conf = Config {
+            subgraph_name: "".to_string(),
+            subgraph_id: None,
+            manifest: "".to_string(),
+            transforms: Some(transforms),
+        };
+        let mut transform = mock_transform(&conf);
+        let file_json = File::open("./src/tests/block.json").unwrap();
+        // Send test data for transform
+        let ingestor_block: serde_json::Value = serde_json::from_reader(file_json).unwrap();
+        let request = TransformRequest {
+            value: ingestor_block.get("transactions").unwrap().clone(),
+            transform: transform_block,
+        };
+        let data = transform.transform_txs(request).unwrap();
+        let txs = match data {
+            SubgraphData::Transactions(txs) => txs,
+            _ => panic!("Invalid data type"),
+        };
+        assert_eq!(txs.len(), 2);
+        // assert_eq!(format!("{:?}", block.len()), "10000000");
         //asert_eq all fields of block
     }
 }

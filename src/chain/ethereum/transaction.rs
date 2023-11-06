@@ -126,17 +126,7 @@ impl FromAscObj<AscEthereumTransaction> for EthereumTransactionData {
     }
 }
 
-pub struct AscTransactionArray(Array<AscPtr<AscEthereumTransaction>>);
-
-impl AscType for AscTransactionArray {
-    fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
-        self.0.to_asc_bytes()
-    }
-
-    fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, AscError> {
-        Ok(Self(Array::from_asc_bytes(asc_obj, api_version)?))
-    }
-}
+pub type AscTransactionArray = Array<AscPtr<AscEthereumTransaction>>;
 
 impl ToAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
     fn to_asc_obj<H: AscHeap + ?Sized>(
@@ -147,23 +137,10 @@ impl ToAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
             .iter()
             .map(|tx| asc_new(heap, &tx))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(AscTransactionArray(Array::new(&txs, heap)?))
+        Ok(AscTransactionArray::new(&txs, heap)?)
     }
 }
 
 impl AscIndexId for AscTransactionArray {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::ArrayEthereumTransaction;
-}
-
-impl FromAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
-    fn from_asc_obj<H: AscHeap + ?Sized>(
-        obj: AscTransactionArray,
-        heap: &H,
-        depth: usize,
-    ) -> Result<Self, AscError> {
-        let txs: Vec<AscPtr<AscEthereumTransaction>> = obj.0.to_vec(heap)?;
-        txs.into_iter()
-            .map(|tx| asc_get(heap, tx, depth))
-            .collect::<Result<Vec<_>, _>>()
-    }
 }
