@@ -77,6 +77,8 @@ pub enum FilterError {
     ParseError(String),
     #[error("Web3 error: {0}")]
     Web3Error(#[from] web3::Error),
+    #[error("Result-reply sending failed: {0}")]
+    SendReplyFailed(#[from] SendError),
 }
 
 #[derive(Debug, Error)]

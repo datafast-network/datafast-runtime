@@ -1,6 +1,6 @@
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::errors::FilterError;
-use crate::subgraph_filter::filter::FilterData;
+use crate::messages::SubgraphData;
 use crate::subgraph_filter::filter::FilterResult;
 use crate::subgraph_filter::filter::SubgraphFilter;
 use web3::types::Log;
@@ -22,7 +22,7 @@ impl EventFilter {
         Self { contract, address }
     }
 
-    fn parse_event(&self, log: &Log) -> Result<EthereumEventData, FilterError> {
+    fn parse_event(&self, log: &Log) -> Result<SubgraphData, FilterError> {
         let event = self
             .contract
             .events()
@@ -45,13 +45,17 @@ impl EventFilter {
                 ..Default::default()
             })
             .map_err(|e| FilterError::ParseError(e.to_string()))
+            .map(SubgraphData::Event)
     }
 }
 #[async_trait::async_trait]
 impl SubgraphFilter for EventFilter {
-    fn filter_log(&self, data: FilterData) -> FilterResult<FilterData> {
-        let logs = data
-            .get_logs()
+    fn filter_events(&self, data: SubgraphData) -> FilterResult<SubgraphData> {
+        let logs = match data {
+            SubgraphData::Log(event_log) => vec![event_log],
+            _ => return Err(FilterError::ParseError("Invalid data type".to_string())),
+        };
+        let logs = logs
             .into_iter()
             .filter(|log| &log.address == self.get_address())
             .map(Log::from)
@@ -66,7 +70,7 @@ impl SubgraphFilter for EventFilter {
                 }
             }
         }
-        Ok(FilterData::EthereumEventsData(events))
+        Ok(SubgraphData::Event(EthereumEventData::default()))
     }
 
     fn get_contract(&self) -> ethabi::Contract {

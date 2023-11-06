@@ -5,7 +5,7 @@ use crate::database::abstract_types::Value;
 use std::collections::HashMap;
 use web3::types::Log;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SubgraphData {
     Block(EthereumBlockData),
     Transaction(EthereumTransactionData),
@@ -13,7 +13,7 @@ pub enum SubgraphData {
     Log(Log),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubgraphJob {
     pub source: String,
     pub handler: String,

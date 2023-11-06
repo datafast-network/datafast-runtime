@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::BufReader;
 
+#[derive(Clone)]
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,

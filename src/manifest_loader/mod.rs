@@ -14,7 +14,7 @@ pub trait LoaderTrait: Sized {
     // Load-Wasm is lazy, we only execute it when we need it
     async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
 }
-
+#[derive(Clone)]
 pub enum ManifestLoader {
     Local(LocalFileLoader),
 }

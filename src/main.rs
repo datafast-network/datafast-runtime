@@ -48,7 +48,7 @@ async fn main() -> Result<(), SwrError> {
 
     // TODO: impl blockstore (bus subscription)
 
-    let (_subgraph_msg_sender, subgraph_receiver) = kanal::bounded_async(1);
+    let (subgraph_msg_sender, subgraph_receiver) = kanal::bounded_async(1);
 
     // TODO: pass block-store subscriber to thread
     let subscriber_run = async move { Ok::<(), SwrError>(()) };

@@ -2310,6 +2310,7 @@ dependencies = [
  "serde_yaml",
  "strum",
  "thiserror",
+ "tiny-keccak",
  "tokio",
  "wasmer",
  "web3",
