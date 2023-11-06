@@ -93,6 +93,7 @@ impl ToAscObj<Uint8Array> for w3::H160 {
         self.0.to_asc_obj(heap)
     }
 }
+
 impl FromAscObj<Uint8Array> for w3::H160 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         typed_array: Uint8Array,
@@ -109,6 +110,7 @@ impl ToAscObj<Uint8Array> for w3::H256 {
         self.0.to_asc_obj(heap)
     }
 }
+
 impl FromAscObj<Uint8Array> for w3::H256 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         typed_array: Uint8Array,
@@ -125,6 +127,7 @@ impl ToAscObj<Uint8Array> for w3::H512 {
         self.0.to_asc_obj(heap)
     }
 }
+
 impl FromAscObj<Uint8Array> for w3::H512 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         typed_array: Uint8Array,
@@ -141,6 +144,7 @@ impl ToAscObj<Uint8Array> for w3::H2048 {
         self.0.to_asc_obj(heap)
     }
 }
+
 impl FromAscObj<Uint8Array> for w3::H2048 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         typed_array: Uint8Array,
@@ -159,6 +163,7 @@ impl ToAscObj<AscBigInt> for w3::U64 {
         bytes.to_asc_obj(heap)
     }
 }
+
 impl FromAscObj<AscBigInt> for w3::U64 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         obj: AscBigInt,
@@ -178,6 +183,7 @@ impl ToAscObj<AscBigInt> for w3::U128 {
         bytes.to_asc_obj(heap)
     }
 }
+
 impl FromAscObj<AscBigInt> for w3::U128 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         obj: AscBigInt,
@@ -197,6 +203,7 @@ impl ToAscObj<AscBigInt> for w3::U256 {
         bytes.to_asc_obj(heap)
     }
 }
+
 impl FromAscObj<AscBigInt> for w3::U256 {
     fn from_asc_obj<H: AscHeap + ?Sized>(
         obj: AscBigInt,
