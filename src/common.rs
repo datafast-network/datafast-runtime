@@ -95,7 +95,7 @@ impl Datasource {
         self.source
             .get("startBlock")
             .map(|block| block.parse::<u64>().unwrap_or_default())
-            .map(|block| web3::types::U64::from(block))
+            .map(web3::types::U64::from)
     }
 
     pub fn get_network_chain(&self) -> Option<u64> {
