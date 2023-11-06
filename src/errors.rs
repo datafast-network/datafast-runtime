@@ -93,4 +93,6 @@ pub enum SwrError {
     SubgraphError(#[from] SubgraphError),
     #[error(transparent)]
     DatabaseError(#[from] DatabaseError),
+    #[error(transparent)]
+    FilterError(#[from] FilterError),
 }
