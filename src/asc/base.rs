@@ -108,7 +108,7 @@ pub trait AscType: Sized {
 
 // Only implemented because of structs that derive AscType and
 // contain fields that are PhantomData.
-impl<T> AscType for std::marker::PhantomData<T> {
+impl<T> AscType for PhantomData<T> {
     fn to_asc_bytes(&self) -> Result<Vec<u8>, AscError> {
         Ok(vec![])
     }
@@ -441,6 +441,7 @@ pub enum IndexForAscTypeId {
     ArrayH256 = 1002,
     ArrayLog = 1003,
     ArrayTypedMapStringStoreValue = 1004,
+    ArrayEthereumTransaction = 1005,
     // Continue to add more Ethereum type IDs here.
     // e.g.:
     // NextEthereumType = 1004,
@@ -621,24 +622,17 @@ where
 pub fn asc_get_optional<T, C, H: AscHeap + ?Sized>(
     heap: &H,
     asc_ptr: AscPtr<C>,
-    mut depth: usize,
+    depth: usize,
 ) -> Result<Option<T>, AscError>
 where
     C: AscType + AscIndexId,
     T: FromAscObj<C>,
 {
-    depth += 1;
-
-    if depth > MAX_RECURSION_DEPTH {
-        return Err(AscError::MaxRecursion);
-    }
     if asc_ptr.is_null() {
         return Ok(None);
     }
 
-    Some(T::from_asc_obj(asc_ptr.read_ptr(heap)?, heap, depth)?)
-        .map(Ok)
-        .transpose()
+    asc_get(heap, asc_ptr, depth).map(Some)
 }
 
 impl<C: AscType, T: ToAscObj<C>> ToAscObj<C> for &T {

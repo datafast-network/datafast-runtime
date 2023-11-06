@@ -136,7 +136,7 @@ impl FromAscObj<AscEthereumBlock> for EthereumBlockData {
         depth: usize,
     ) -> Result<Self, AscError> {
         Ok(Self {
-            hash: asc_get(heap, obj.number, depth)?,
+            hash: asc_get(heap, obj.hash, depth)?,
             parent_hash: asc_get(heap, obj.parent_hash, depth)?,
             uncles_hash: asc_get(heap, obj.uncles_hash, depth)?,
             author: asc_get(heap, obj.author, depth)?,
