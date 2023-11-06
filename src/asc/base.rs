@@ -441,8 +441,7 @@ pub enum IndexForAscTypeId {
     ArrayH256 = 1002,
     ArrayLog = 1003,
     ArrayTypedMapStringStoreValue = 1004,
-    ArrayTransactions = 1005,
-    EthereumFullBlock = 1006,
+    ArrayEthereumTransaction = 1005,
     // Continue to add more Ethereum type IDs here.
     // e.g.:
     // NextEthereumType = 1004,
@@ -632,7 +631,8 @@ where
     if asc_ptr.is_null() {
         return Ok(None);
     }
-    return asc_get(heap, asc_ptr, depth).map(Some);
+
+    asc_get(heap, asc_ptr, depth).map(Some)
 }
 
 impl<C: AscType, T: ToAscObj<C>> ToAscObj<C> for &T {
