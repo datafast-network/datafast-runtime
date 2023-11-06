@@ -36,27 +36,27 @@ impl SubgraphFilter for Filter {
 
 pub struct SubgraphFilterInstance {
     filter: Filter,
-    input_receiver: AsyncReceiver<FilterData>,
+    data_receiver: AsyncReceiver<FilterData>,
     event_sender: AsyncSender<SubgraphOperationMessage>,
 }
 
 impl SubgraphFilterInstance {
     pub fn new(
         manifest: &ManifestLoader,
-        sender: AsyncSender<SubgraphOperationMessage>,
-        receiver: AsyncReceiver<FilterData>,
+        event_sender: AsyncSender<SubgraphOperationMessage>,
+        data_receiver: AsyncReceiver<FilterData>,
     ) -> Result<Self, FilterError> {
         //TODO: Create filter based on chain from manifest or env
         let ethereum_filter = EthereumFilter::new(manifest);
         Ok(Self {
             filter: Filter::Ethereum(ethereum_filter),
-            event_sender: sender,
-            input_receiver: receiver,
+            event_sender,
+            data_receiver,
         })
     }
 
     pub async fn run(&self) -> Result<(), FilterError> {
-        while let Ok(filter_data) = self.input_receiver.recv().await {
+        while let Ok(filter_data) = self.data_receiver.recv().await {
             let events = self.filter.filter_events(filter_data)?;
             for event in events {
                 self.event_sender.send(event).await?;
