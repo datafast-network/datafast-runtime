@@ -1,3 +1,4 @@
+/// This Source Mode is only used for testing / debugging
 use crate::messages::SourceDataMessage;
 use async_stream::stream;
 use std::io;
@@ -45,7 +46,7 @@ mod test {
     use super::*;
     use futures_util::pin_mut;
 
-    /// Interactive test only, not for CI
+    // NOTE: Interactive test only, not for CI
     #[tokio::test]
     async fn test_source() {
         ::env_logger::try_init().unwrap_or_default();

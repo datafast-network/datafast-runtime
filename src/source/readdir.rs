@@ -1,3 +1,4 @@
+/// This Source Mode is only used for testing / debugging
 use crate::messages::SourceDataMessage;
 use async_stream::stream;
 use std::fs::File;
@@ -60,6 +61,8 @@ impl ReadDir {
 
 #[cfg(test)]
 mod test {
+    // NOTE: this Source Mode is only used for tesing / debugging,
+    // we dont need to go through this too carefully
     use super::*;
     use tokio_stream::StreamExt;
     use web3::futures::pin_mut;
@@ -69,8 +72,9 @@ mod test {
         ::env_logger::try_init().unwrap_or_default();
 
         let rd = ReadDir {
-            dir: "/Users/vutran/Downloads".to_owned(),
+            dir: std::env::var("JSON_DIR").unwrap_or("./tests".to_string()),
         };
+
         let stream = rd.get_json_in_dir_as_stream();
         pin_mut!(stream);
 
