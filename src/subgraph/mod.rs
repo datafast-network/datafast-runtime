@@ -27,17 +27,13 @@ impl Subgraph {
         }
     }
 
-    fn add_source(&mut self, source: DatasourceWasmInstance) -> bool {
-        self.sources.insert(source.id.clone(), source).is_some()
-    }
-
     pub fn create_source(
         &mut self,
         host: AscHost,
         datasource: Datasource,
     ) -> Result<(), SubgraphError> {
         let source = DatasourceWasmInstance::try_from((host, datasource))?;
-        self.add_source(source);
+        self.sources.insert(source.id.clone(), source);
         Ok(())
     }
 
