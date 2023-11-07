@@ -8,6 +8,7 @@ mod errors;
 mod manifest_loader;
 mod messages;
 mod serializer;
+mod source;
 mod subgraph;
 mod wasm_host;
 
@@ -20,6 +21,7 @@ use messages::FilteredDataMessage;
 use messages::SerializedDataMessage;
 use messages::SourceDataMessage;
 use serializer::Serializer;
+use source::Source;
 use subgraph::Subgraph;
 use wasm_host::create_wasm_host;
 
@@ -28,7 +30,9 @@ async fn main() -> Result<(), SwrError> {
     // TODO: impl CLI
     let config = Config::load()?;
 
-    // TODO: impl Source Consumer
+    // TODO: impl Source Consumer with Nats
+    let block_source = Source::new(&config)?;
+    let block_stream = source::block_stream(block_source).await;
 
     // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.manifest).await?;
@@ -54,16 +58,16 @@ async fn main() -> Result<(), SwrError> {
         subgraph.create_source(wasm_host, datasource)?;
     }
 
-    let (_sender1, recv1) = kanal::bounded_async::<SourceDataMessage>(1);
+    let (sender1, recv1) = kanal::bounded_async::<SourceDataMessage>(1);
     let (sender2, _recv2) = kanal::bounded_async::<SerializedDataMessage>(1);
     let (_sender3, recv3) = kanal::bounded_async::<FilteredDataMessage>(1);
 
-    let subscriber_run = async move { Ok::<(), SwrError>(()) };
+    let stream_run = source::stream_consume(block_stream, sender1);
     let serializer_run = serializer.run_async(recv1, sender2);
     let subgraph_run = subgraph.run_async(recv3);
 
     ::tokio::select! {
-        result = subscriber_run => result,
+        result = stream_run => result.map_err(SwrError::from),
         result = serializer_run => result.map_err(SwrError::from),
         result = subgraph_run => result.map_err(SwrError::from),
         // TODO: impl prometheus

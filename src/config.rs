@@ -7,8 +7,17 @@ use figment::Figment;
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum SourceTypes {
+    ReadLine,
+    ReadDir { source_dir: String },
+    Nats { uri: String, subject: String },
+}
+
+#[derive(Deserialize, Clone, Debug)]
 pub struct Config {
     pub chain: Chain,
+    pub source: SourceTypes,
     pub subgraph_name: String,
     pub subgraph_id: Option<String>,
     pub manifest: String,
