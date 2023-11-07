@@ -1,23 +1,33 @@
+mod readline;
+
+use crate::config::Config;
 use crate::config::SourceTypes;
-use crate::{config::Config, errors::SourceErr, messages::SourceDataMessage};
-use kanal::AsyncSender;
+use crate::errors::SourceErr;
+use crate::messages::SourceDataMessage;
+use readline::Readline;
+use tokio_stream::Stream;
 
 pub enum BlockSource {
-    Readline,
+    Readline(Readline),
     ReadDir,
     Nats,
 }
 
 impl BlockSource {
-    pub async fn new(cfg: &Config) -> Result<Self, SourceErr> {
-        match cfg.source {
-            SourceTypes::ReadLine => Self::Readline,
-            SourceTypes::ReadDir { source_dir } => Self::Readline,
-            SourceTypes::Nats { uri, subject } => Self::Nats,
-        }
+    pub fn new(config: &Config) -> Result<Self, SourceErr> {
+        let source = match config.source {
+            SourceTypes::ReadLine => BlockSource::Readline(Readline()),
+            _ => unimplemented!(),
+        };
+        Ok(source)
     }
+}
 
-    pub async fn run(self, input_sender: AsyncSender<SourceDataMessage>) -> Result<(), SourceErr> {
-        todo!()
+pub async fn block_stream(
+    source: BlockSource,
+) -> Result<impl Stream<Item = SourceDataMessage>, SourceErr> {
+    match source {
+        BlockSource::Readline(readline) => Ok(readline.get_user_input_as_stream()),
+        _ => unimplemented!(),
     }
 }
