@@ -85,7 +85,6 @@ impl LoaderTrait for LocalFileLoader {
             ));
         }
 
-        let datasource = datasource.unwrap().to_owned();
         let wasm_file = format!(
             "{}/build/{datasource_name}/{datasource_name}.wasm",
             self.subgraph_dir

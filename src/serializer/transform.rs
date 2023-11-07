@@ -49,7 +49,7 @@ impl Transform {
                 transactions,
                 logs,
             } => {
-                let exports = self.host.instance.exports;
+                let exports = &self.host.instance.exports;
                 let block_transform_fn = exports
                     .get_function(&block)
                     .map_err(|_| TransformError::InvalidFunctionName(block.to_owned()))?
