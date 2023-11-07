@@ -2,7 +2,7 @@ use crate::errors::FilterError;
 use crate::manifest_loader::ManifestLoader;
 use crate::messages::SubgraphOperationMessage;
 use crate::subgraph_filter::chain::EthereumBlockFilter;
-use crate::subgraph_filter::chain::EthereumFilter;
+use crate::subgraph_filter::chain::EthereumLogFilter;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 
@@ -13,7 +13,7 @@ pub enum FilterData {
 
 #[derive(Debug, Clone)]
 enum Filter {
-    Ethereum(EthereumFilter),
+    Ethereum(EthereumLogFilter),
 }
 
 pub trait SubgraphFilter {
@@ -47,7 +47,7 @@ impl SubgraphFilterInstance {
         data_receiver: AsyncReceiver<FilterData>,
     ) -> Result<Self, FilterError> {
         //TODO: Create filter based on chain from manifest or env
-        let ethereum_filter = EthereumFilter::new(manifest);
+        let ethereum_filter = EthereumLogFilter::new(manifest);
         Ok(Self {
             filter: Filter::Ethereum(ethereum_filter),
             event_sender,

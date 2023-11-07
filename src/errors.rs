@@ -71,14 +71,16 @@ pub enum FilterError {
     InvalidAddress(String),
     #[error("Init filter error: {0}")]
     InitializationError(String),
-    #[error("Ethereum error: {0}")]
+    #[error(transparent)]
     EthAbiError(#[from] ethabi::Error),
     #[error("Parse error: {0}")]
     ParseError(String),
-    #[error("Web3 error: {0}")]
+    #[error(transparent)]
     Web3Error(#[from] web3::Error),
-    #[error("Result-reply sending failed: {0}")]
+    #[error(transparent)]
     SendReplyFailed(#[from] SendError),
+    #[error(transparent)]
+    JsonParseError(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Error)]

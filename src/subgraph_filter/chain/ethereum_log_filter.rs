@@ -9,34 +9,43 @@ use crate::messages::SubgraphJob;
 use crate::messages::SubgraphOperationMessage;
 use crate::subgraph_filter::filter_instance::FilterData;
 use crate::subgraph_filter::filter_instance::SubgraphFilter;
-use ethabi::Address;
 use ethabi::Contract;
 use std::collections::HashMap;
 use web3::types::Log;
+use web3::types::H160;
 
 pub type EthereumBlockFilter = (EthereumBlockData, Vec<EthereumTransactionData>, Vec<Log>);
 
 #[derive(Debug, Clone)]
-pub struct EthereumFilter {
-    contracts: HashMap<Address, Contract>,
+pub struct EthereumLogFilter {
+    contracts: HashMap<String, Contract>,
     sources: Vec<Datasource>,
+    addresses: HashMap<H160, Datasource>,
 }
 
-impl EthereumFilter {
-    pub fn new(manifest: &ManifestLoader) -> Self {
+impl EthereumLogFilter {
+    pub fn new(manifest: &ManifestLoader) -> Result<Self, FilterError> {
         let sources = manifest.datasources().clone();
-        let mut filters = HashMap::new();
+        let mut contracts = HashMap::new();
         for source in sources.iter() {
-            let address = source.get_address();
             if let Some(abi) = manifest.get_abi(&source.name, &source.get_abi_name()) {
-                let contract = serde_json::from_value(abi.clone()).expect("Invalid ABI");
-                filters.insert(address, contract);
+                let contract = serde_json::from_value(abi.clone())?;
+                contracts.insert(source.name.clone(), contract);
             }
         }
-        Self {
-            contracts: filters,
+
+        //Map addresses to sources
+        let addresses = sources
+            .iter()
+            .map(|source| (source.get_address(), source))
+            .flat_map(|(address, source)| address.map(|address| (address, source.clone())))
+            .collect();
+
+        Ok(Self {
+            contracts,
             sources,
-        }
+            addresses,
+        })
     }
 
     fn parse_event(
@@ -76,10 +85,11 @@ impl EthereumFilter {
         //Filter the logs
         let logs_filtered = logs
             .into_iter()
+            .filter(|log| self.addresses.iter().any(|(addr, _)| addr == &log.address))
             .filter(|log| {
-                self.sources
-                    .iter()
-                    .any(|source| source.check_log_matches(log))
+                self.addresses
+                    .get(&log.address)
+                    .map_or(false, |source| source.check_log_matches(log))
             })
             .collect::<Vec<_>>();
 
@@ -87,22 +97,17 @@ impl EthereumFilter {
         for log in logs_filtered.into_iter() {
             //Get the source that matches the log
             //Unwrap is safe because we already filtered the logs
-            let source = self
-                .sources
-                .iter()
-                .find(|source| source.check_log_matches(&log))
-                .unwrap();
+            let source = self.addresses.get(&log.address).unwrap();
 
             //Get the handler for the log
             let handler = source.mapping.get_handler_for_log(log.topics[0]).map_or(
                 Err(FilterError::ParseError("No handler found".to_string())),
                 Ok,
             )?;
-
-            //Get the contract for the log
-            let contract = self.contracts.get(&log.address).ok_or_else(|| {
-                FilterError::ParseError(format!("No abi contract for source {}", source.name))
-            })?;
+            let contract = self
+                .contracts
+                .get(&source.name)
+                .ok_or_else(|| FilterError::ParseError("No contract found".to_string()))?;
 
             //Parse the event
             let mut event = self.parse_event(contract, &log)?;
@@ -132,7 +137,7 @@ impl EthereumFilter {
     //TODO: implement filter_call_function
 }
 
-impl SubgraphFilter for EthereumFilter {
+impl SubgraphFilter for EthereumLogFilter {
     fn filter_events(
         &self,
         filter_data: FilterData,
