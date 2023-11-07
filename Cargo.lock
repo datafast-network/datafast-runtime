@@ -2504,6 +2504,7 @@ dependencies = [
  "serde_yaml",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "wasmer",
  "web3",
 ]
