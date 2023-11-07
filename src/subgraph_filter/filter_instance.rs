@@ -1,6 +1,7 @@
 use crate::errors::FilterError;
 use crate::manifest_loader::ManifestLoader;
-use crate::messages::SubgraphOperationMessage;
+use crate::messages::FilteredDataMessage;
+use crate::messages::SerializedDataMessage;
 use crate::subgraph_filter::chain::EthereumBlockFilter;
 use crate::subgraph_filter::chain::EthereumLogFilter;
 use kanal::AsyncReceiver;
@@ -19,15 +20,15 @@ enum Filter {
 pub trait SubgraphFilter {
     fn filter_events(
         &self,
-        filter_data: FilterData,
-    ) -> Result<Vec<SubgraphOperationMessage>, FilterError>;
+        filter_data: SerializedDataMessage,
+    ) -> Result<FilteredDataMessage, FilterError>;
 }
 
 impl SubgraphFilter for Filter {
     fn filter_events(
         &self,
-        filter_data: FilterData,
-    ) -> Result<Vec<SubgraphOperationMessage>, FilterError> {
+        filter_data: SerializedDataMessage,
+    ) -> Result<FilteredDataMessage, FilterError> {
         match self {
             Filter::Ethereum(filter) => filter.filter_events(filter_data),
         }
@@ -36,31 +37,25 @@ impl SubgraphFilter for Filter {
 
 pub struct SubgraphFilterInstance {
     filter: Filter,
-    data_receiver: AsyncReceiver<FilterData>,
-    event_sender: AsyncSender<SubgraphOperationMessage>,
 }
 
 impl SubgraphFilterInstance {
-    pub fn new(
-        manifest: &ManifestLoader,
-        event_sender: AsyncSender<SubgraphOperationMessage>,
-        data_receiver: AsyncReceiver<FilterData>,
-    ) -> Result<Self, FilterError> {
+    pub fn new(manifest: &ManifestLoader) -> Result<Self, FilterError> {
         //TODO: Create filter based on chain from manifest or env
-        let ethereum_filter = EthereumLogFilter::new(manifest);
+        let ethereum_filter = EthereumLogFilter::new(manifest)?;
         Ok(Self {
             filter: Filter::Ethereum(ethereum_filter),
-            event_sender,
-            data_receiver,
         })
     }
 
-    pub async fn run(&self) -> Result<(), FilterError> {
-        while let Ok(filter_data) = self.data_receiver.recv().await {
-            let events = self.filter.filter_events(filter_data)?;
-            for event in events {
-                self.event_sender.send(event).await?;
-            }
+    pub async fn run(
+        &self,
+        data_receiver: AsyncReceiver<SerializedDataMessage>,
+        event_sender: AsyncSender<FilteredDataMessage>,
+    ) -> Result<(), FilterError> {
+        while let Ok(filter_data) = data_receiver.recv().await {
+            let result = self.filter.filter_events(filter_data)?;
+            event_sender.send(result).await?;
         }
         Ok(())
     }

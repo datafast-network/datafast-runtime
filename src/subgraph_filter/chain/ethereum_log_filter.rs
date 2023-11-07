@@ -4,10 +4,9 @@ use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Datasource;
 use crate::errors::FilterError;
 use crate::manifest_loader::ManifestLoader;
-use crate::messages::SubgraphData;
-use crate::messages::SubgraphJob;
-use crate::messages::SubgraphOperationMessage;
-use crate::subgraph_filter::filter_instance::FilterData;
+use crate::messages::EthereumFilteredEvent;
+use crate::messages::FilteredDataMessage;
+use crate::messages::SerializedDataMessage;
 use crate::subgraph_filter::filter_instance::SubgraphFilter;
 use ethabi::Contract;
 use std::collections::HashMap;
@@ -16,10 +15,21 @@ use web3::types::H160;
 
 pub type EthereumBlockFilter = (EthereumBlockData, Vec<EthereumTransactionData>, Vec<Log>);
 
+impl From<SerializedDataMessage> for EthereumBlockFilter {
+    fn from(data: SerializedDataMessage) -> Self {
+        match data {
+            SerializedDataMessage::Ethereum {
+                block,
+                transactions,
+                logs,
+            } => (block, transactions, logs),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EthereumLogFilter {
     contracts: HashMap<String, Contract>,
-    sources: Vec<Datasource>,
     addresses: HashMap<H160, Datasource>,
 }
 
@@ -43,7 +53,6 @@ impl EthereumLogFilter {
 
         Ok(Self {
             contracts,
-            sources,
             addresses,
         })
     }
@@ -79,8 +88,8 @@ impl EthereumLogFilter {
     pub fn filter_event_logs(
         &self,
         block: EthereumBlockFilter,
-    ) -> Result<Vec<SubgraphOperationMessage>, FilterError> {
-        let (block, transactions, logs) = block;
+    ) -> Result<FilteredDataMessage, FilterError> {
+        let (block, _transactions, logs) = block;
 
         //Filter the logs
         let logs_filtered = logs
@@ -93,7 +102,7 @@ impl EthereumLogFilter {
             })
             .collect::<Vec<_>>();
 
-        let mut jobs = Vec::new();
+        let mut events = Vec::new();
         for log in logs_filtered.into_iter() {
             //Get the source that matches the log
             //Unwrap is safe because we already filtered the logs
@@ -110,26 +119,17 @@ impl EthereumLogFilter {
                 .ok_or_else(|| FilterError::ParseError("No contract found".to_string()))?;
 
             //Parse the event
-            let mut event = self.parse_event(contract, &log)?;
-
-            //Get the transaction hash for the log
-            let tx_hash = log
-                .transaction_hash
-                .ok_or_else(|| FilterError::ParseError("No transaction hash found".to_string()))?;
-
-            event.block = block.clone();
-            event.transaction = transactions
-                .iter()
-                .find(|tx| tx.hash == tx_hash)
-                .map_or(EthereumTransactionData::default(), |tx| tx.clone());
-            let job = SubgraphJob {
-                source: source.name.clone(),
-                handler: handler.handler,
-                data: SubgraphData::Event(event),
-            };
-            jobs.push(SubgraphOperationMessage::Job(job));
+            let event = self.parse_event(contract, &log)?;
+            events.push(EthereumFilteredEvent {
+                datasource: source.name.clone(),
+                handler: handler.handler.clone(),
+                event: event.clone(),
+            })
         }
-        Ok(jobs)
+        Ok(FilteredDataMessage::Ethereum {
+            events,
+            block: block.clone(),
+        })
     }
 
     //TODO: implement filter_block
@@ -140,10 +140,8 @@ impl EthereumLogFilter {
 impl SubgraphFilter for EthereumLogFilter {
     fn filter_events(
         &self,
-        filter_data: FilterData,
-    ) -> Result<Vec<SubgraphOperationMessage>, FilterError> {
-        match filter_data {
-            FilterData::Events(block) => self.filter_event_logs(block),
-        }
+        input_data: SerializedDataMessage,
+    ) -> Result<FilteredDataMessage, FilterError> {
+        self.filter_event_logs(EthereumBlockFilter::from(input_data))
     }
 }
