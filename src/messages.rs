@@ -6,27 +6,37 @@ use std::collections::HashMap;
 use web3::types::Log;
 
 #[derive(Debug, Clone)]
-pub enum SubgraphData {
-    Block(EthereumBlockData),
-    Transaction(EthereumTransactionData),
-    Event(EthereumEventData),
-    Log(Log),
-}
-
-#[derive(Debug, Clone)]
-pub struct SubgraphJob {
-    pub source: String,
-    pub handler: String,
-    pub data: SubgraphData,
+pub enum SourceDataMessage {
+    JSON(serde_json::Value),
+    Protobuf,
 }
 
 #[derive(Debug)]
-pub enum SubgraphOperationMessage {
-    Job(SubgraphJob),
-    Finish,
+pub enum SerializedDataMessage {
+    Ethereum {
+        block: EthereumBlockData,
+        transactions: Vec<EthereumTransactionData>,
+        logs: Vec<Log>,
+    },
+}
+
+#[derive(Debug)]
+pub struct EthereumFilteredEvent {
+    pub datasource: String,
+    pub handler: String,
+    pub event: EthereumEventData,
+}
+
+#[derive(Debug)]
+pub enum FilteredDataMessage {
+    Ethereum {
+        events: Vec<EthereumFilteredEvent>,
+        block: EthereumBlockData,
+    },
 }
 
 pub type EntityType = String;
+
 pub type EntityID = String;
 
 #[derive(Debug)]

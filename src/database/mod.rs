@@ -70,7 +70,6 @@ impl Database {
         Ok(Self::Memory(HashMap::new()))
     }
 
-    #[cfg(test)]
     pub fn new_memory_db() -> Self {
         Self::Memory(HashMap::new())
     }
@@ -116,5 +115,13 @@ impl DatabaseAgent {
             .try_write()
             .map_err(|_| DatabaseError::MutexLockFailed)?;
         db.handle_request(request)
+    }
+}
+
+impl Default for DatabaseAgent {
+    fn default() -> Self {
+        Self {
+            db: Arc::new(RwLock::new(Database::new_memory_db())),
+        }
     }
 }
