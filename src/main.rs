@@ -13,7 +13,6 @@ mod subgraph;
 mod subgraph_filter;
 mod wasm_host;
 
-use crate::subgraph_filter::SubgraphFilter;
 use config::Config;
 use database::Database;
 use errors::SwrError;
@@ -25,6 +24,7 @@ use messages::SourceDataMessage;
 use serializer::Serializer;
 use source::Source;
 use subgraph::Subgraph;
+use subgraph_filter::SubgraphFilter;
 use wasm_host::create_wasm_host;
 
 #[tokio::main]
@@ -64,8 +64,8 @@ async fn main() -> Result<(), SwrError> {
     }
 
     let (sender1, recv1) = kanal::bounded_async::<SourceDataMessage>(1);
-    let (sender2, _recv2) = kanal::bounded_async::<SerializedDataMessage>(1);
-    let (_sender3, recv3) = kanal::bounded_async::<FilteredDataMessage>(1);
+    let (sender2, recv2) = kanal::bounded_async::<SerializedDataMessage>(1);
+    let (sender3, recv3) = kanal::bounded_async::<FilteredDataMessage>(1);
 
     let stream_run = source::stream_consume(block_stream, sender1);
     let serializer_run = serializer.run_async(recv1, sender2);
