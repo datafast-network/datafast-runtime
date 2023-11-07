@@ -1,19 +1,20 @@
+use crate::asc::base::asc_new;
+use crate::asc::base::AscIndexId;
+use crate::asc::base::AscType;
+use crate::asc::base::ToAscObj;
+use crate::chain::ethereum::block::EthereumBlockData;
 use crate::errors::SubgraphError;
-use crate::wasm_host::AscHost;
-use kanal::AsyncReceiver;
-
-#[cfg(test)]
-use kanal::Receiver;
-
-use crate::chain::ethereum::event::EthereumEventData;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
+use crate::wasm_host::AscHost;
+use kanal::AsyncReceiver;
 use std::collections::HashMap;
 use wasmer::Exports;
 use wasmer::Function;
+use wasmer::Value;
 
 pub struct Handler {
-    name: String,
+    pub name: String,
     inner: Function,
 }
 
@@ -30,90 +31,54 @@ impl Handler {
     }
 }
 
+pub enum HandlerTypes {
+    EthereumBlock,
+    EthereumEvent,
+}
+
+pub struct EthereumHandlers {
+    pub block: HashMap<String, Handler>,
+    pub events: HashMap<String, Handler>,
+}
+
 pub struct DatasourceWasmInstance {
     pub id: String,
-    pub handlers: HashMap<String, Handler>,
+    // NOTE: Add more chain-based handler here....
+    pub ethereum_handlers: EthereumHandlers,
     pub host: AscHost,
 }
 
 impl DatasourceWasmInstance {
-    pub fn invoke(&mut self, func: &str, data: EthereumEventData) -> Result<(), SubgraphError> {
-        log::info!("Source={} is invoking function{func}", self.id);
-        let handler = self
-            .handlers
-            .get(func)
-            .ok_or_else(|| SubgraphError::Plain("Bad handler name".to_string()))?;
-        // let asc_data = asc_new(&mut self.host, &mut data)?;
+    pub fn invoke<T: AscType + AscIndexId>(
+        &mut self,
+        handler_type: HandlerTypes,
+        handler_name: &str,
+        mut data: impl ToAscObj<T>,
+    ) -> Result<(), SubgraphError> {
+        let handler = match handler_type {
+            HandlerTypes::EthereumBlock => self.ethereum_handlers.block.get(handler_name),
+            HandlerTypes::EthereumEvent => self.ethereum_handlers.events.get(handler_name),
+        }
+        .ok_or(SubgraphError::InvalidHandlerName(handler_name.to_owned()))?;
+
+        let asc_data = asc_new(&mut self.host, &mut data)?;
+        handler.inner.call(
+            &mut self.host.store,
+            &[Value::I32(asc_data.wasm_ptr() as i32)],
+        )?;
         Ok(())
     }
 }
 
-//match inner {
-//                 SubgraphData::Block(mut inner) => {
-//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
-//                     let ptr = asc_data.wasm_ptr() as i32;
-//                     log::info!("Calling block handler");
-//                     handler
-//                         .inner
-//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
-//                     Ok(())
-//                 }
-//                 SubgraphData::Transaction(mut inner) => {
-//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
-//                     let ptr = asc_data.wasm_ptr() as i32;
-//                     log::info!("Calling tx handler");
-//                     handler
-//                         .inner
-//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
-//                     Ok(())
-//                 }
-//                 SubgraphData::Transactions(mut inner) => {
-//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
-//                     let ptr = asc_data.wasm_ptr() as i32;
-//                     log::info!("Calling txs handler");
-//                     handler
-//                         .inner
-//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
-//                     Ok(())
-//                 }
-//                 SubgraphData::Log(mut inner) => {
-//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
-//                     let ptr = asc_data.wasm_ptr() as i32;
-//                     log::info!("Calling log handler");
-//                     handler
-//                         .inner
-//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
-//                     Ok(())
-//                 }
-//                 SubgraphData::Logs(mut inner) => {
-//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
-//                     let ptr = asc_data.wasm_ptr() as i32;
-//                     log::info!("Calling logs handler");
-//                     handler
-//                         .inner
-//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
-//                     Ok(())
-//                 }
-//                 SubgraphData::Event(mut inner) => {
-//                     let asc_data = asc_new(&mut self.host, &mut inner)?;
-//                     let ptr = asc_data.wasm_ptr() as i32;
-//                     log::info!("Calling event handler");
-//                     handler
-//                         .inner
-//                         .call(&mut self.host.store, &[Value::I32(ptr)])?;
-//                     Ok(())
-//                 }
-//             }
-
-pub struct Subgraph<T: ToString> {
+pub struct Subgraph {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
-    pub id: T,
+    pub id: String,
     pub name: String,
     sources: HashMap<String, DatasourceWasmInstance>,
 }
 
-impl<T: ToString> Subgraph<T> {
-    pub fn new_empty(name: &str, id: T) -> Self {
+impl Subgraph {
+    pub fn new_empty(name: &str, id: String) -> Self {
         Self {
             sources: HashMap::new(),
             name: name.to_owned(),
@@ -125,65 +90,60 @@ impl<T: ToString> Subgraph<T> {
         self.sources.insert(source.id.clone(), source).is_some()
     }
 
-    pub fn invoke(
+    fn handle_ethereum_filtered_data(
         &mut self,
-        source_id: &str,
-        func: &str,
-        data: EthereumEventData,
+        events: Vec<EthereumFilteredEvent>,
+        block: EthereumBlockData,
     ) -> Result<(), SubgraphError> {
-        log::info!("Invoking: source={source_id}, func={func}");
-        let source = self
-            .sources
-            .get_mut(source_id)
-            .ok_or_else(|| SubgraphError::InvalidSourceID(source_id.to_owned()))?;
-        source.invoke(func, data)
-    }
+        let mut block_handlers = HashMap::new();
 
-    #[cfg(test)]
-    fn run_with_receiver(
-        mut self,
-        recv: Receiver<FilteredDataMessage>,
-    ) -> Result<(), SubgraphError> {
-        while let Ok(msg) = recv.recv() {
-            match msg {
-                FilteredDataMessage::Ethereum { events, block } => {
-                    for event in events {
-                        match event {
-                            EthereumFilteredEvent {
-                                datasource,
-                                handler,
-                                event,
-                            } => {
-                                self.invoke(&datasource, &handler, event)?;
-                            }
-                        }
-                    }
-                }
+        for (source_name, source_instance) in self.sources.iter() {
+            let source_block_handlers = source_instance
+                .ethereum_handlers
+                .block
+                .keys()
+                .cloned()
+                .collect::<Vec<String>>();
+            block_handlers.insert(source_name.to_owned(), source_block_handlers);
+        }
+
+        for (source_name, handlers) in block_handlers {
+            // FIXME: this is not correct, block-handler may have filter itself,
+            // thus not all datasource would handle the same block
+            let source_instance = self.sources.get_mut(&source_name).unwrap();
+            for handler in handlers {
+                source_instance.invoke(HandlerTypes::EthereumBlock, &handler, block.clone())?;
             }
+        }
+
+        for event in events {
+            let source_instance = self
+                .sources
+                .get_mut(&event.datasource)
+                .ok_or(SubgraphError::InvalidSourceID(event.datasource.to_owned()))?;
+            source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
         }
 
         Ok(())
     }
 
+    fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
+        match data {
+            FilteredDataMessage::Ethereum { events, block } => {
+                self.handle_ethereum_filtered_data(events, block)
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
     pub async fn run_async(
-        mut self,
+        &mut self,
         recv: AsyncReceiver<FilteredDataMessage>,
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
-            match msg {
-                FilteredDataMessage::Ethereum { events, block } => {
-                    for event in events {
-                        let EthereumFilteredEvent {
-                            datasource,
-                            handler,
-                            event,
-                        } = event;
-                        {
-                            self.invoke(&datasource, &handler, event)?;
-                        }
-                    }
-                }
-            }
+            self.handle_filtered_data(msg)?;
         }
 
         Ok(())
