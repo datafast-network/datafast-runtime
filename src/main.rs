@@ -5,7 +5,6 @@ mod common;
 mod config;
 mod database;
 mod errors;
-mod from_to;
 mod manifest_loader;
 mod messages;
 mod serializer;
@@ -18,7 +17,6 @@ use errors::SwrError;
 use manifest_loader::LoaderTrait;
 use manifest_loader::ManifestLoader;
 use serializer::Serializer;
-use subgraph::DatasourceWasmInstance;
 use subgraph::Subgraph;
 use wasm_host::create_wasm_host;
 
@@ -50,8 +48,7 @@ async fn main() -> Result<(), SwrError> {
         let wasm_bytes = manifest.load_wasm(&datasource.name).await?;
         let dbstore_agent = database.agent();
         let wasm_host = create_wasm_host(api_version, wasm_bytes, dbstore_agent)?;
-        let subgraph_source = DatasourceWasmInstance::try_from((wasm_host, datasource))?;
-        subgraph.add_source(subgraph_source);
+        subgraph.create_source(wasm_host, datasource)?;
     }
 
     let (_subgraph_msg_sender, subgraph_receiver) = kanal::bounded_async(1);

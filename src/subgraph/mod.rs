@@ -1,73 +1,15 @@
-use crate::asc::base::asc_new;
-use crate::asc::base::AscIndexId;
-use crate::asc::base::AscType;
-use crate::asc::base::ToAscObj;
+mod datasource_wasm_instance;
+
 use crate::chain::ethereum::block::EthereumBlockData;
+use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::wasm_host::AscHost;
+use datasource_wasm_instance::DatasourceWasmInstance;
 use kanal::AsyncReceiver;
 use std::collections::HashMap;
-use wasmer::Exports;
-use wasmer::Function;
-use wasmer::Value;
-
-pub struct Handler {
-    pub name: String,
-    inner: Function,
-}
-
-impl Handler {
-    pub fn new(instance_exports: &Exports, func_name: &str) -> Result<Self, SubgraphError> {
-        let this = Self {
-            name: func_name.to_string(),
-            inner: instance_exports
-                .get_function(&func_name)
-                .map_err(|_| SubgraphError::InvalidHandlerName(func_name.to_owned()))?
-                .to_owned(),
-        };
-        Ok(this)
-    }
-}
-
-pub struct EthereumHandlers {
-    pub block: HashMap<String, Handler>,
-    pub events: HashMap<String, Handler>,
-}
-
-pub struct DatasourceWasmInstance {
-    pub id: String,
-    // NOTE: Add more chain-based handler here....
-    pub ethereum_handlers: EthereumHandlers,
-    pub host: AscHost,
-}
-
-impl DatasourceWasmInstance {
-    pub fn invoke<T: AscType + AscIndexId>(
-        &mut self,
-        handler_type: HandlerTypes,
-        handler_name: &str,
-        mut data: impl ToAscObj<T>,
-    ) -> Result<(), SubgraphError> {
-        let handler = match handler_type {
-            HandlerTypes::EthereumBlock => self.ethereum_handlers.block.get(handler_name),
-            HandlerTypes::EthereumEvent => self.ethereum_handlers.events.get(handler_name),
-            _ => {
-                unimplemented!()
-            }
-        }
-        .ok_or(SubgraphError::InvalidHandlerName(handler_name.to_owned()))?;
-
-        let asc_data = asc_new(&mut self.host, &mut data)?;
-        handler.inner.call(
-            &mut self.host.store,
-            &[Value::I32(asc_data.wasm_ptr() as i32)],
-        )?;
-        Ok(())
-    }
-}
 
 pub struct Subgraph {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
@@ -85,8 +27,18 @@ impl Subgraph {
         }
     }
 
-    pub fn add_source(&mut self, source: DatasourceWasmInstance) -> bool {
+    fn add_source(&mut self, source: DatasourceWasmInstance) -> bool {
         self.sources.insert(source.id.clone(), source).is_some()
+    }
+
+    pub fn create_source(
+        &mut self,
+        host: AscHost,
+        datasource: Datasource,
+    ) -> Result<(), SubgraphError> {
+        let source = DatasourceWasmInstance::try_from((host, datasource))?;
+        self.add_source(source);
+        Ok(())
     }
 
     fn handle_ethereum_filtered_data(
