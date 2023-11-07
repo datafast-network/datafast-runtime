@@ -28,8 +28,9 @@ pub enum TransformConfig {
 
 impl Config {
     pub fn load() -> Result<Self, SwrError> {
+        let config_file_path = std::env::var("CONFIG").unwrap_or("config.toml".to_string());
         Figment::new()
-            .merge(Toml::file("config.toml"))
+            .merge(Toml::file(config_file_path))
             .merge(Env::prefixed("SWR_"))
             .extract()
             .map_err(|e| SwrError::ConfigLoadFail(e.to_string()))
