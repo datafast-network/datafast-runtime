@@ -7,7 +7,6 @@ use crate::manifest_loader::ManifestLoader;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
-use crate::subgraph_filter::filter::FilterTrait;
 use ethabi::Contract;
 use std::collections::HashMap;
 use web3::types::Log;
@@ -34,7 +33,7 @@ pub struct EthereumLogFilter {
 }
 
 impl EthereumLogFilter {
-    pub fn new(manifest: &ManifestLoader) -> Result<Self, FilterError> {
+    pub fn new(manifest: ManifestLoader) -> Result<Self, FilterError> {
         let sources = manifest.datasources().clone();
         let mut contracts = HashMap::new();
         for source in sources.iter() {
@@ -85,7 +84,7 @@ impl EthereumLogFilter {
             .map_err(|e| FilterError::ParseError(e.to_string()))
     }
 
-    pub fn filter_event_logs(
+    pub fn filter_events(
         &self,
         block: EthereumBlockFilter,
     ) -> Result<FilteredDataMessage, FilterError> {
@@ -138,13 +137,4 @@ impl EthereumLogFilter {
     //TODO: implement filter_block
 
     //TODO: implement filter_call_function
-}
-
-impl FilterTrait for EthereumLogFilter {
-    fn filter_events(
-        &self,
-        input_data: SerializedDataMessage,
-    ) -> Result<FilteredDataMessage, FilterError> {
-        self.filter_event_logs(EthereumBlockFilter::from(input_data))
-    }
 }

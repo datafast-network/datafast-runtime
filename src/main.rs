@@ -39,7 +39,7 @@ async fn main() -> Result<(), SwrError> {
     let serializer = Serializer::new(config.clone())?;
 
     // TODO: impl subgraph filter
-    let subgraph_filter = SubgraphFilter::new(&manifest)?;
+    let subgraph_filter = SubgraphFilter::new(manifest.clone())?;
 
     // TODO: impl Actual DB Connection
     let database = Database::new(&config).await?;
