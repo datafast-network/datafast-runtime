@@ -1,0 +1,10 @@
+chain = "ethereum"
+source = "readline"
+subgraph_name = "mysub"
+subgraph_id = "xxxxxx"
+manifest = "fs://User/vutr/mysub/build"
+
+[transform.ethereum]
+block = "transform_block"
+logs = "transform_logs"
+transactions = "transform_tx"

@@ -112,6 +112,12 @@ pub enum SerializerError {
 }
 
 #[derive(Debug, Error)]
+pub enum SourceErr {
+    #[error("Send data failed: {0}")]
+    ChannelSendError(#[from] SendError),
+}
+
+#[derive(Debug, Error)]
 pub enum SwrError {
     #[error(transparent)]
     ManifestLoader(#[from] ManifestLoaderError),
@@ -127,4 +133,6 @@ pub enum SwrError {
     FilterError(#[from] FilterError),
     #[error(transparent)]
     SerializerError(#[from] SerializerError),
+    #[error(transparent)]
+    SourceErr(#[from] SourceErr),
 }
