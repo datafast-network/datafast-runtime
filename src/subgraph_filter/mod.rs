@@ -1,19 +1,14 @@
 mod chain;
 mod data_source_reader;
 
+use crate::common::Chain;
 use crate::errors::FilterError;
 use crate::manifest_loader::ManifestLoader;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
-use chain::EthereumBlockFilter;
 use chain::EthereumLogFilter;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
-
-#[derive(Debug, Clone)]
-pub enum FilterData {
-    Events(EthereumBlockFilter),
-}
 
 #[derive(Debug, Clone)]
 enum Filter {
@@ -36,12 +31,11 @@ pub struct SubgraphFilter {
 }
 
 impl SubgraphFilter {
-    pub fn new(manifest: ManifestLoader) -> Result<Self, FilterError> {
-        //TODO: Create filter based on chain from manifest or env
-        let ethereum_filter = EthereumLogFilter::new(manifest.clone())?;
-        Ok(Self {
-            filter: Filter::Ethereum(ethereum_filter),
-        })
+    pub fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
+        let filter = match chain {
+            Chain::Ethereum => Filter::Ethereum(EthereumLogFilter::new(manifest.clone())?),
+        };
+        Ok(Self { filter })
     }
 
     pub async fn run_async(
