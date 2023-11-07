@@ -6,13 +6,13 @@ use std::collections::HashMap;
 use web3::types::Log;
 
 #[derive(Debug, Clone)]
-pub enum SourceInputMessage {
+pub enum SourceDataMessage {
     JSON(serde_json::Value),
     Protobuf,
 }
 
 #[derive(Debug)]
-pub enum TransformedDataMessage {
+pub enum SerializedDataMessage {
     Ethereum {
         block: EthereumBlockData,
         transactions: Vec<EthereumTransactionData>,

@@ -9,8 +9,8 @@ use crate::config::Config;
 use crate::database::DatabaseAgent;
 use crate::errors::SerializerError;
 use crate::errors::TransformError;
-use crate::messages::SourceInputMessage;
-use crate::messages::TransformedDataMessage;
+use crate::messages::SerializedDataMessage;
+use crate::messages::SourceDataMessage;
 use crate::wasm_host::create_wasm_host;
 
 pub enum Serializer {
@@ -45,8 +45,8 @@ impl Serializer {
 
     pub async fn run_async(
         self,
-        source_recv: AsyncReceiver<SourceInputMessage>,
-        result_sender: AsyncSender<TransformedDataMessage>,
+        source_recv: AsyncReceiver<SourceDataMessage>,
+        result_sender: AsyncSender<SerializedDataMessage>,
     ) -> Result<(), SerializerError> {
         match self {
             Self::Transform(mut transform) => {

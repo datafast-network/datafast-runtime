@@ -16,6 +16,9 @@ use database::Database;
 use errors::SwrError;
 use manifest_loader::LoaderTrait;
 use manifest_loader::ManifestLoader;
+use messages::FilteredDataMessage;
+use messages::SerializedDataMessage;
+use messages::SourceDataMessage;
 use serializer::Serializer;
 use subgraph::Subgraph;
 use wasm_host::create_wasm_host;
@@ -51,14 +54,18 @@ async fn main() -> Result<(), SwrError> {
         subgraph.create_source(wasm_host, datasource)?;
     }
 
-    let (_subgraph_msg_sender, subgraph_receiver) = kanal::bounded_async(1);
+    let (_sender1, recv1) = kanal::bounded_async::<SourceDataMessage>(1);
+    let (sender2, _recv2) = kanal::bounded_async::<SerializedDataMessage>(1);
+    let (_sender3, recv3) = kanal::bounded_async::<FilteredDataMessage>(1);
 
     let subscriber_run = async move { Ok::<(), SwrError>(()) };
-    let swr_run = subgraph.run_async(subgraph_receiver);
+    let serializer_run = serializer.run_async(recv1, sender2);
+    let swr_run = subgraph.run_async(recv3);
 
     ::tokio::select! {
         result = subscriber_run => result,
         result = swr_run => result.map_err(SwrError::from),
+        result = serializer_run => result.map_err(SwrError::from),
         // TODO: impl prometheus
     }
 }

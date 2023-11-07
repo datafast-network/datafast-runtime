@@ -12,8 +12,8 @@ use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
 use crate::config::TransformConfig;
 use crate::errors::TransformError;
-use crate::messages::SourceInputMessage;
-use crate::messages::TransformedDataMessage;
+use crate::messages::SerializedDataMessage;
+use crate::messages::SourceDataMessage;
 use crate::wasm_host::AscHost;
 use std::collections::HashMap;
 use wasmer::Function;
@@ -74,7 +74,7 @@ impl Transform {
 
     fn generic_transform_data<P: AscType + AscIndexId, R: FromAscObj<P>>(
         &mut self,
-        source: SourceInputMessage,
+        source: SourceDataMessage,
         function_name: &str,
     ) -> Result<R, TransformError> {
         let func = self
@@ -85,11 +85,11 @@ impl Transform {
             ))?;
 
         let asc_ptr = match source {
-            SourceInputMessage::JSON(json_data) => {
+            SourceDataMessage::JSON(json_data) => {
                 let asc_json = asc_new(&mut self.host, &json_data)?;
                 asc_json.wasm_ptr() as i32
             }
-            SourceInputMessage::Protobuf => {
+            SourceDataMessage::Protobuf => {
                 unimplemented!()
             }
         };
@@ -105,8 +105,8 @@ impl Transform {
 
     pub fn handle_source_input(
         &mut self,
-        source: SourceInputMessage,
-    ) -> Result<TransformedDataMessage, TransformError> {
+        source: SourceDataMessage,
+    ) -> Result<SerializedDataMessage, TransformError> {
         match (self.chain.clone(), self.config.clone()) {
             (
                 Chain::Ethereum,
@@ -126,7 +126,7 @@ impl Transform {
                         &transactions,
                     )?;
                 let logs = self.generic_transform_data::<AscLogArray, Vec<Log>>(source, &logs)?;
-                Ok(TransformedDataMessage::Ethereum {
+                Ok(SerializedDataMessage::Ethereum {
                     block,
                     transactions,
                     logs,
