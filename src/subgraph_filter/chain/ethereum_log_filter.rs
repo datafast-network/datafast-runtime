@@ -103,15 +103,15 @@ impl EthereumLogFilter {
 
         let mut events = Vec::new();
         for log in logs_filtered.into_iter() {
-            //Get the source that matches the log
             //Unwrap is safe because we already filtered the logs
             let source = self.addresses.get(&log.address).unwrap();
 
             //Get the handler for the log
-            let handler = source.mapping.get_handler_for_log(log.topics[0]).map_or(
+            let event_handler = source.mapping.get_handler_for_log(log.topics[0]).map_or(
                 Err(FilterError::ParseError("No handler found".to_string())),
                 Ok,
             )?;
+
             let contract = self
                 .contracts
                 .get(&source.name)
@@ -119,13 +119,10 @@ impl EthereumLogFilter {
 
             //Parse the event
             let event = self.parse_event(contract, &log)?;
-
-            //TODO: Handle new pool creation event and add new Address to addresses
-
             events.push(EthereumFilteredEvent {
                 datasource: source.name.clone(),
-                handler: handler.handler.clone(),
-                event: event.clone(),
+                handler: event_handler.handler.clone(),
+                event,
             })
         }
         Ok(FilteredDataMessage::Ethereum {
