@@ -75,6 +75,10 @@ pub enum TransformError {
     AscError(#[from] AscError),
     #[error("Chain mismatched")]
     ChainMismatched,
+    #[error("Missing Transform Wasm module")]
+    MissingTransformWASM,
+    #[error("Bad Transform Wasm module: {0}")]
+    BadTransformWasm(String),
 }
 
 #[derive(Debug, Error)]

@@ -8,6 +8,7 @@ use transform::Transform;
 use crate::config::Config;
 use crate::database::DatabaseAgent;
 use crate::errors::SerializerError;
+use crate::errors::TransformError;
 use crate::messages::SourceInputMessage;
 use crate::messages::TransformedDataMessage;
 use crate::wasm_host::create_wasm_host;
@@ -21,9 +22,18 @@ impl Serializer {
     pub fn new(config: Config) -> Result<Self, SerializerError> {
         match config.transform {
             Some(transform_cfg) => {
+                if config.transform_wasm.is_none() {
+                    return Err(SerializerError::TransformError(
+                        TransformError::MissingTransformWASM,
+                    ));
+                }
+
+                let transform_wasm = config.transform_wasm.clone().unwrap();
+                let wasm_bytes = std::fs::read(config.transform_wasm.unwrap())
+                    .map_err(|_| TransformError::BadTransformWasm(transform_wasm))?;
                 let empty_db = DatabaseAgent::default();
                 let wasm_version = Version::new(0, 0, 5);
-                let host = create_wasm_host(wasm_version, vec![], empty_db)?;
+                let host = create_wasm_host(wasm_version, wasm_bytes, empty_db)?;
                 let transform = Transform::new(host, config.chain, transform_cfg)?;
                 Ok(Self::Transform(transform))
             }

@@ -79,9 +79,6 @@ impl Subgraph {
             FilteredDataMessage::Ethereum { events, block } => {
                 self.handle_ethereum_filtered_data(events, block)
             }
-            _ => {
-                unimplemented!()
-            }
         }
     }
 

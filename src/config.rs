@@ -13,6 +13,7 @@ pub struct Config {
     pub subgraph_id: Option<String>,
     pub manifest: String,
     pub transform: Option<TransformConfig>,
+    pub transform_wasm: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
