@@ -8,7 +8,7 @@ mod errors;
 mod from_to;
 mod manifest_loader;
 mod messages;
-mod source_serializer;
+mod serializer;
 mod subgraph;
 mod wasm_host;
 
@@ -17,7 +17,7 @@ use database::Database;
 use errors::SwrError;
 use manifest_loader::LoaderTrait;
 use manifest_loader::ManifestLoader;
-use source_serializer::SourceSerializer;
+use serializer::Serializer;
 use subgraph::DatasourceWasmInstance;
 use subgraph::Subgraph;
 use wasm_host::create_wasm_host;
@@ -33,7 +33,7 @@ async fn main() -> Result<(), SwrError> {
     let manifest = ManifestLoader::new(&config.manifest).await?;
 
     // TODO: impl raw-data serializer
-    let serializer = SourceSerializer::new(config.clone())?;
+    let serializer = Serializer::new(config.clone())?;
 
     // TODO: impl Actual DB Connection
     let database = Database::new(&config).await?;

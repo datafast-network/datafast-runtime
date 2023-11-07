@@ -12,12 +12,12 @@ use crate::{
     wasm_host::create_wasm_host,
 };
 
-pub enum SourceSerializer {
+pub enum Serializer {
     Transform(Transform),
-    Serializer,
+    DirectSerializer,
 }
 
-impl SourceSerializer {
+impl Serializer {
     pub fn new(config: Config) -> Result<Self, SerializerError> {
         match config.transforms {
             Some(transform_cfg) => {
@@ -47,7 +47,7 @@ impl SourceSerializer {
                 }
             }
 
-            Self::Serializer => {
+            Self::DirectSerializer => {
                 todo!("implement raw data serialization")
             }
         };
