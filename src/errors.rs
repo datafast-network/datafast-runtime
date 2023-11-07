@@ -67,20 +67,24 @@ pub enum DatabaseError {
 pub enum TransformError {
     #[error("No transformer function with name={0}")]
     InvalidFunctionName(String),
-    #[error("Failed to allocate memory for input data")]
-    InputAllocationFail(#[from] AscError),
-    #[error("Transfor failed: {0}")]
-    TransformFail(#[from] RuntimeError),
-    #[error("Forwarding data fail")]
-    ForwardDataFail(#[from] SendError),
-    #[error("Export error {0}")]
-    ExportError(#[from] wasmer::ExportError),
-    #[error("Invalid transform {0}")]
-    InitTransformFail(String),
+    #[error("Transform function returns no value")]
+    TransformReturnNoValue,
+    #[error("Transform RuntimeError: {0}")]
+    RuntimeError(#[from] RuntimeError),
+    #[error("Transform AscError: {0}")]
+    AscError(#[from] AscError),
+    #[error("Chain mismatched")]
+    ChainMismatched,
+}
+
+#[derive(Debug, Error)]
+pub enum SerializerError {
     #[error(transparent)]
-    WasmHostError(#[from] WasmHostError),
-    #[error("Invalid name")]
-    InvalidChain,
+    TransformError(#[from] TransformError),
+    #[error(transparent)]
+    WasmHost(#[from] WasmHostError),
+    #[error("Send result failed: {0}")]
+    ChannelSendError(#[from] SendError),
 }
 
 #[derive(Debug, Error)]
@@ -96,5 +100,5 @@ pub enum SwrError {
     #[error(transparent)]
     DatabaseError(#[from] DatabaseError),
     #[error(transparent)]
-    TransformError(#[from] TransformError),
+    SerializerError(#[from] SerializerError),
 }

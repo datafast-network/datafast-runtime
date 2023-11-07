@@ -1,14 +1,12 @@
 use crate::common::Chain;
+use crate::errors::SwrError;
 use figment::providers::Env;
 use figment::providers::Format;
 use figment::providers::Toml;
 use figment::Figment;
 use serde::Deserialize;
-use std::collections::HashMap;
 
-use crate::errors::SwrError;
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Config {
     pub chain: Chain,
     pub subgraph_name: String,

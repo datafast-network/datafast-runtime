@@ -10,22 +10,13 @@ use crate::chain::ethereum::log::AscLogArray;
 use crate::chain::ethereum::transaction::AscTransactionArray;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
-use crate::config::Config;
 use crate::config::TransformConfig;
-use crate::database::Database;
 use crate::errors::TransformError;
 use crate::messages::SourceInputMessage;
 use crate::messages::TransformedDataMessage;
-use crate::wasm_host::create_wasm_host;
 use crate::wasm_host::AscHost;
-use kanal::AsyncReceiver;
-use kanal::AsyncSender;
-use semver::Version;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
 use wasmer::Function;
-use wasmer::RuntimeError;
 use wasmer::Value;
 use web3::types::Log;
 
@@ -37,14 +28,18 @@ pub struct Transform {
 }
 
 impl Transform {
-    pub fn new(host: AscHost, conf: &Config) -> Self {
-        assert!(conf.transforms.is_some());
-        Transform {
+    pub fn new(
+        host: AscHost,
+        chain: Chain,
+        config: TransformConfig,
+    ) -> Result<Self, TransformError> {
+        let this = Transform {
             host,
             funcs: HashMap::new(),
-            config: conf.transforms.clone().unwrap(),
-            chain: conf.chain.clone(),
-        }
+            config,
+            chain,
+        };
+        Ok(this.bind_transform_functions()?)
     }
 
     pub fn bind_transform_functions(mut self) -> Result<Self, TransformError> {
@@ -54,10 +49,20 @@ impl Transform {
                 transactions,
                 logs,
             } => {
-                let block_transform_fn = self.host.instance.exports.get_function(&block)?;
-                let txs_transform_fn = self.host.instance.exports.get_function(&transactions)?;
-                let logs_transform_fn = self.host.instance.exports.get_function(&logs)?;
-                self.funcs.insert(block, block_transform_fn.to_owned());
+                let exports = &self.host.instance.exports;
+                let block_transform_fn = exports
+                    .get_function(&block)
+                    .map_err(|_| TransformError::InvalidFunctionName(block.to_owned()))?
+                    .to_owned();
+                let txs_transform_fn = exports
+                    .get_function(&transactions)
+                    .map_err(|_| TransformError::InvalidFunctionName(transactions.to_owned()))?
+                    .to_owned();
+                let logs_transform_fn = exports
+                    .get_function(&logs)
+                    .map_err(|_| TransformError::InvalidFunctionName(logs.to_owned()))?
+                    .to_owned();
+                self.funcs.insert(block, block_transform_fn);
                 self.funcs.insert(transactions, txs_transform_fn.to_owned());
                 self.funcs.insert(logs, logs_transform_fn.to_owned())
             }
@@ -82,25 +87,23 @@ impl Transform {
         let asc_ptr = match source {
             SourceInputMessage::JSON(json_data) => {
                 let asc_json = asc_new(&mut self.host, &json_data)?;
-                asc_json.wasm_ptr()
+                asc_json.wasm_ptr() as i32
             }
             SourceInputMessage::Protobuf => {
                 unimplemented!()
             }
         };
-        let result = func.call(&mut self.host.store, &[Value::I32(asc_ptr as i32)])?;
+        let result = func.call(&mut self.host.store, &[Value::I32(asc_ptr)])?;
         let result_ptr = result
             .first()
-            .ok_or(TransformError::TransformFail(RuntimeError::new(
-                "Invalid pointer",
-            )))?
+            .ok_or(TransformError::TransformReturnNoValue)?
             .unwrap_i32() as u32;
         let asc_ptr = AscPtr::<P>::new(result_ptr);
         let result = asc_get(&self.host, asc_ptr, 0)?;
         Ok(result)
     }
 
-    fn handle_source_input(
+    pub fn handle_source_input(
         &mut self,
         source: SourceInputMessage,
     ) -> Result<TransformedDataMessage, TransformError> {
@@ -129,63 +132,7 @@ impl Transform {
                     logs,
                 })
             }
-            _ => Err(TransformError::InvalidChain),
-        }
-    }
-    pub async fn run(
-        &mut self,
-        receiver: AsyncReceiver<SourceInputMessage>,
-        sender: AsyncSender<TransformedDataMessage>,
-    ) -> Result<(), TransformError> {
-        while let Ok(msg) = receiver.recv().await {
-            let result = self.handle_source_input(msg)?;
-            sender.send(result).await?
-        }
-        Ok(())
-    }
-}
-pub enum TransformType {
-    Transform(Transform),
-    Serialize,
-}
-
-pub struct TransformInstance {
-    pub transform: TransformType,
-}
-
-impl TransformInstance {
-    pub async fn new(config: &Config, wasm_path: Option<String>) -> Result<Self, TransformError> {
-        let transform = match (config.transforms.clone(), wasm_path) {
-            (Some(_transform_config), Some(wasm_path)) => {
-                let wasm_version = Version::new(0, 0, 5);
-                let wasm_file = File::open(wasm_path).map_err(|_| {
-                    TransformError::InitTransformFail("Failed to open wasm file".to_string())
-                })?;
-                let wasm_bytes = BufReader::new(wasm_file).buffer().to_vec();
-                let db_agent = Database::Memory(HashMap::new()).agent();
-                let transform_host = create_wasm_host(wasm_version, wasm_bytes, db_agent).unwrap();
-                let transform = Transform::new(transform_host, config);
-                let transform = transform.bind_transform_functions()?;
-                TransformType::Transform(transform)
-            }
-            (Some(_transform_config), None) => Err(TransformError::InitTransformFail(
-                "Missing wasm file".to_string(),
-            ))?,
-            (None, Some(_wasm_path)) => Err(TransformError::InitTransformFail(
-                "Missing transform_config".to_string(),
-            ))?,
-            (None, None) => TransformType::Serialize,
-        };
-        Ok(TransformInstance { transform })
-    }
-    pub async fn run(
-        &mut self,
-        receiver: AsyncReceiver<SourceInputMessage>,
-        sender: AsyncSender<TransformedDataMessage>,
-    ) -> Result<(), TransformError> {
-        match self.transform {
-            TransformType::Transform(ref mut transform) => transform.run(receiver, sender).await,
-            TransformType::Serialize => unimplemented!(),
+            _ => Err(TransformError::ChainMismatched),
         }
     }
 }
