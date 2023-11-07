@@ -60,12 +60,12 @@ async fn main() -> Result<(), SwrError> {
 
     let subscriber_run = async move { Ok::<(), SwrError>(()) };
     let serializer_run = serializer.run_async(recv1, sender2);
-    let swr_run = subgraph.run_async(recv3);
+    let subgraph_run = subgraph.run_async(recv3);
 
     ::tokio::select! {
         result = subscriber_run => result,
-        result = swr_run => result.map_err(SwrError::from),
         result = serializer_run => result.map_err(SwrError::from),
+        result = subgraph_run => result.map_err(SwrError::from),
         // TODO: impl prometheus
     }
 }

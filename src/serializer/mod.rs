@@ -1,10 +1,5 @@
 mod transform;
 
-use kanal::AsyncReceiver;
-use kanal::AsyncSender;
-use semver::Version;
-use transform::Transform;
-
 use crate::config::Config;
 use crate::database::DatabaseAgent;
 use crate::errors::SerializerError;
@@ -12,6 +7,10 @@ use crate::errors::TransformError;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use crate::wasm_host::create_wasm_host;
+use kanal::AsyncReceiver;
+use kanal::AsyncSender;
+use semver::Version;
+use transform::Transform;
 
 pub enum Serializer {
     Transform(Transform),
