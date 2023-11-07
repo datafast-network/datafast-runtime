@@ -19,7 +19,7 @@ pub enum Serializer {
 
 impl Serializer {
     pub fn new(config: Config) -> Result<Self, SerializerError> {
-        match config.transforms {
+        match config.transform {
             Some(transform_cfg) => {
                 let empty_db = DatabaseAgent::default();
                 let wasm_version = Version::new(0, 0, 5);

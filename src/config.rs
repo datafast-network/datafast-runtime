@@ -12,10 +12,11 @@ pub struct Config {
     pub subgraph_name: String,
     pub subgraph_id: Option<String>,
     pub manifest: String,
-    pub transforms: Option<TransformConfig>,
+    pub transform: Option<TransformConfig>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum TransformConfig {
     Ethereum {
         block: String,
@@ -38,9 +39,12 @@ impl Config {
 #[cfg(test)]
 mod test {
     use super::Config;
+    use env_logger;
 
     #[test]
     fn test_config() {
+        env_logger::try_init().unwrap_or_default();
+
         let config = Config::load().unwrap();
         ::log::info!("Config = {:?}", config);
     }
