@@ -30,7 +30,7 @@ async fn main() -> Result<(), SwrError> {
     // TODO: impl CLI
     let config = Config::load()?;
 
-    // TODO: impl Source Consumer
+    // TODO: impl Source Consumer with Nats
     let block_source = Source::new(&config)?;
     let block_stream = source::block_stream(block_source).await;
 
