@@ -48,7 +48,7 @@ impl SubgraphFilter {
         })
     }
 
-    pub async fn run(
+    pub async fn run_async(
         &self,
         data_receiver: AsyncReceiver<SerializedDataMessage>,
         event_sender: AsyncSender<FilteredDataMessage>,
