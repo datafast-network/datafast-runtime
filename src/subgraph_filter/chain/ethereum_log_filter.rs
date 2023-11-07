@@ -120,6 +120,7 @@ impl EthereumLogFilter {
 
             //Parse the event
             let event = self.parse_event(contract, &log)?;
+            //TODO: Handle new pool creation event and add new Address to addresses
             events.push(EthereumFilteredEvent {
                 datasource: source.name.clone(),
                 handler: handler.handler.clone(),

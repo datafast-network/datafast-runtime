@@ -39,7 +39,7 @@ async fn main() -> Result<(), SwrError> {
     let serializer = Serializer::new(config.clone())?;
 
     // TODO: impl subgraph filter
-    let filter = SubgraphFilterInstance::new(&manifest)?;
+    let subgraph_filter = SubgraphFilterInstance::new(&manifest)?;
 
     // TODO: impl Actual DB Connection
     let database = Database::new(&config).await?;
@@ -65,7 +65,7 @@ async fn main() -> Result<(), SwrError> {
 
     let subscriber_run = async move { Ok::<(), SwrError>(()) };
     let serializer_run = serializer.run_async(recv1, sender2);
-    let subgraph_filter_run = filter.run(recv2, sender3);
+    let subgraph_filter_run = subgraph_filter.run(recv2, sender3);
     let subgraph_run = subgraph.run_async(recv3);
 
     ::tokio::select! {
