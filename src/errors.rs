@@ -92,6 +92,9 @@ pub enum SerializerError {
 }
 
 #[derive(Debug, Error)]
+pub enum SourceErr {}
+
+#[derive(Debug, Error)]
 pub enum SwrError {
     #[error(transparent)]
     ManifestLoader(#[from] ManifestLoaderError),
