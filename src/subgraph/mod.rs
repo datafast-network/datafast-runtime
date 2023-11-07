@@ -3,6 +3,7 @@ use crate::asc::base::AscIndexId;
 use crate::asc::base::AscType;
 use crate::asc::base::ToAscObj;
 use crate::chain::ethereum::block::EthereumBlockData;
+use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
@@ -31,11 +32,6 @@ impl Handler {
     }
 }
 
-pub enum HandlerTypes {
-    EthereumBlock,
-    EthereumEvent,
-}
-
 pub struct EthereumHandlers {
     pub block: HashMap<String, Handler>,
     pub events: HashMap<String, Handler>,
@@ -58,6 +54,9 @@ impl DatasourceWasmInstance {
         let handler = match handler_type {
             HandlerTypes::EthereumBlock => self.ethereum_handlers.block.get(handler_name),
             HandlerTypes::EthereumEvent => self.ethereum_handlers.events.get(handler_name),
+            _ => {
+                unimplemented!()
+            }
         }
         .ok_or(SubgraphError::InvalidHandlerName(handler_name.to_owned()))?;
 

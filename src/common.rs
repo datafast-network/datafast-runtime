@@ -47,6 +47,15 @@ pub struct Datasource {
 pub struct SubgraphYaml {
     pub dataSources: Vec<Datasource>,
 }
+
+#[derive(Debug)]
+pub enum HandlerTypes {
+    EthereumBlock,
+    EthereumEvent,
+    // NOTE: we dont do `call`
+    EthereumCall,
+}
+
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 pub enum Chain {
     Ethereum,
