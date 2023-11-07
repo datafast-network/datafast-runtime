@@ -7,7 +7,7 @@ use crate::manifest_loader::ManifestLoader;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
-use crate::subgraph_filter::filter_instance::SubgraphFilter;
+use crate::subgraph_filter::filter::FilterTrait;
 use ethabi::Contract;
 use std::collections::HashMap;
 use web3::types::Log;
@@ -91,7 +91,7 @@ impl EthereumLogFilter {
     ) -> Result<FilteredDataMessage, FilterError> {
         let (block, _transactions, logs) = block;
 
-        //Filter the logs
+        //Filter the logs by address
         let logs_filtered = logs
             .into_iter()
             .filter(|log| self.addresses.iter().any(|(addr, _)| addr == &log.address))
@@ -120,7 +120,9 @@ impl EthereumLogFilter {
 
             //Parse the event
             let event = self.parse_event(contract, &log)?;
+
             //TODO: Handle new pool creation event and add new Address to addresses
+
             events.push(EthereumFilteredEvent {
                 datasource: source.name.clone(),
                 handler: handler.handler.clone(),
@@ -138,7 +140,7 @@ impl EthereumLogFilter {
     //TODO: implement filter_call_function
 }
 
-impl SubgraphFilter for EthereumLogFilter {
+impl FilterTrait for EthereumLogFilter {
     fn filter_events(
         &self,
         input_data: SerializedDataMessage,

@@ -1,5 +1,5 @@
 mod chain;
 mod data_source_reader;
-mod filter_instance;
+mod filter;
 
-pub use filter_instance::SubgraphFilterInstance;
+pub use filter::SubgraphFilter;

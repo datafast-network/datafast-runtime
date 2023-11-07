@@ -12,7 +12,7 @@ mod subgraph;
 mod subgraph_filter;
 mod wasm_host;
 
-use crate::subgraph_filter::SubgraphFilterInstance;
+use crate::subgraph_filter::SubgraphFilter;
 use config::Config;
 use database::Database;
 use errors::SwrError;
@@ -39,7 +39,7 @@ async fn main() -> Result<(), SwrError> {
     let serializer = Serializer::new(config.clone())?;
 
     // TODO: impl subgraph filter
-    let subgraph_filter = SubgraphFilterInstance::new(&manifest)?;
+    let subgraph_filter = SubgraphFilter::new(&manifest)?;
 
     // TODO: impl Actual DB Connection
     let database = Database::new(&config).await?;

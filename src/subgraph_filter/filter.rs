@@ -17,14 +17,14 @@ enum Filter {
     Ethereum(EthereumLogFilter),
 }
 
-pub trait SubgraphFilter {
+pub trait FilterTrait {
     fn filter_events(
         &self,
         filter_data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError>;
 }
 
-impl SubgraphFilter for Filter {
+impl FilterTrait for Filter {
     fn filter_events(
         &self,
         filter_data: SerializedDataMessage,
@@ -35,11 +35,11 @@ impl SubgraphFilter for Filter {
     }
 }
 
-pub struct SubgraphFilterInstance {
+pub struct SubgraphFilter {
     filter: Filter,
 }
 
-impl SubgraphFilterInstance {
+impl SubgraphFilter {
     pub fn new(manifest: &ManifestLoader) -> Result<Self, FilterError> {
         //TODO: Create filter based on chain from manifest or env
         let ethereum_filter = EthereumLogFilter::new(manifest)?;
