@@ -91,8 +91,8 @@ pub enum SerializerError {
 pub enum SwrError {
     #[error(transparent)]
     ManifestLoader(#[from] ManifestLoaderError),
-    #[error("Config load failed!")]
-    ConfigLoadFail,
+    #[error("Config load failed: {0}")]
+    ConfigLoadFail(String),
     #[error(transparent)]
     WasmHostError(#[from] WasmHostError),
     #[error(transparent)]

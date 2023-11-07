@@ -6,7 +6,7 @@ use figment::providers::Toml;
 use figment::Figment;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct Config {
     pub chain: Chain,
     pub subgraph_name: String,
@@ -31,6 +31,17 @@ impl Config {
             .merge(Toml::file("config.toml"))
             .merge(Env::prefixed("SWR_"))
             .extract()
-            .map_err(|_| SwrError::ConfigLoadFail)
+            .map_err(|e| SwrError::ConfigLoadFail(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Config;
+
+    #[test]
+    fn test_config() {
+        let config = Config::load().unwrap();
+        ::log::info!("Config = {:?}", config);
     }
 }
