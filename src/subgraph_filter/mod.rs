@@ -9,6 +9,7 @@ use crate::messages::SerializedDataMessage;
 use chain::EthereumLogFilter;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
+use tokio::time;
 
 #[derive(Debug, Clone)]
 enum Filter {
@@ -44,8 +45,10 @@ impl SubgraphFilter {
         result_sender: AsyncSender<FilteredDataMessage>,
     ) -> Result<(), FilterError> {
         while let Ok(filter_data) = data_receiver.recv().await {
+            let start = time::Instant::now();
             let result = self.filter.filter_events(filter_data)?;
             result_sender.send(result).await?;
+            log::info!("send filtered time {:?}", start.elapsed());
         }
         Ok(())
     }

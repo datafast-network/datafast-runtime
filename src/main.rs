@@ -29,9 +29,9 @@ use wasm_host::create_wasm_host;
 
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {
+    env_logger::try_init().unwrap_or_default();
     // TODO: impl CLI
     let config = Config::load()?;
-
     // TODO: impl Source Consumer with Nats
     let block_source = Source::new(&config)?;
     let block_stream = source::block_stream(block_source).await;
@@ -72,11 +72,19 @@ async fn main() -> Result<(), SwrError> {
     let subgraph_filter_run = subgraph_filter.run_async(recv2, sender3);
     let subgraph_run = subgraph.run_async(recv3);
 
-    ::tokio::select! {
-        result = stream_run => result.map_err(SwrError::from),
-        result = serializer_run => result.map_err(SwrError::from),
-        result = subgraph_filter_run => result.map_err(SwrError::from),
-        result = subgraph_run => result.map_err(SwrError::from),
-        // TODO: impl prometheus
-    }
+    // let result = ::tokio::select! {
+    //     result = stream_run => result.map_err(SwrError::from),
+    //     result = serializer_run => result.map_err(SwrError::from),
+    //     result = subgraph_filter_run => result.map_err(SwrError::from),
+    //     result = subgraph_run => result.map_err(SwrError::from),
+    //     // TODO: impl prometheus
+    // };
+    let result = ::tokio::join!(
+        stream_run,
+        serializer_run,
+        subgraph_filter_run,
+        subgraph_run,
+    );
+    log::warn!("main result {:?}", result);
+    Ok(())
 }
