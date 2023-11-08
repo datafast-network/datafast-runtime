@@ -53,7 +53,11 @@ impl Source {
                 }
             }
             Source::Nats(source) => {
-                source.consume(sender).await?;
+                let s = source.get_subscription_stream();
+                pin_mut!(s);
+                while let Some(data) = s.next().await {
+                    sender.send(data).await?;
+                }
             }
         };
 
