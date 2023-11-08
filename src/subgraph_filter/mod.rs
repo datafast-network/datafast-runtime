@@ -6,13 +6,13 @@ use crate::errors::FilterError;
 use crate::manifest_loader::ManifestLoader;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
-use chain::EthereumLogFilter;
+use chain::EthereumFilter;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 
 #[derive(Debug, Clone)]
 enum Filter {
-    Ethereum(EthereumLogFilter),
+    Ethereum(EthereumFilter),
 }
 
 impl Filter {
@@ -23,7 +23,8 @@ impl Filter {
         match self {
             Filter::Ethereum(filter) => match filter_data {
                 SerializedDataMessage::Ethereum { block, logs, .. } => {
-                    filter.filter_events(block, logs)
+                    let events = filter.filter_events(logs)?;
+                    Ok(FilteredDataMessage::Ethereum { events, block })
                 }
             },
         }
@@ -37,7 +38,7 @@ pub struct SubgraphFilter {
 impl SubgraphFilter {
     pub fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
         let filter = match chain {
-            Chain::Ethereum => Filter::Ethereum(EthereumLogFilter::new(manifest)?),
+            Chain::Ethereum => Filter::Ethereum(EthereumFilter::new(manifest)?),
         };
         Ok(Self { filter })
     }

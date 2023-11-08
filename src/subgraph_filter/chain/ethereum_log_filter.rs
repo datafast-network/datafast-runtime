@@ -1,10 +1,8 @@
-use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::common::Datasource;
 use crate::errors::FilterError;
 use crate::manifest_loader::ManifestLoader;
 use crate::messages::EthereumFilteredEvent;
-use crate::messages::FilteredDataMessage;
 use crate::subgraph_filter::data_source_reader::check_log_matches;
 use crate::subgraph_filter::data_source_reader::get_abi_name;
 use crate::subgraph_filter::data_source_reader::get_address;
@@ -15,12 +13,12 @@ use web3::types::Log;
 use web3::types::H160;
 
 #[derive(Debug, Clone)]
-pub struct EthereumLogFilter {
+pub struct EthereumFilter {
     contracts: HashMap<String, Contract>,
     addresses: HashMap<H160, Datasource>,
 }
 
-impl EthereumLogFilter {
+impl EthereumFilter {
     pub fn new(manifest: &ManifestLoader) -> Result<Self, FilterError> {
         let sources = manifest.datasources();
         let mut contracts = HashMap::new();
@@ -72,11 +70,7 @@ impl EthereumLogFilter {
             .map_err(|e| FilterError::ParseError(e.to_string()))
     }
 
-    pub fn filter_events(
-        &self,
-        block: EthereumBlockData,
-        logs: Vec<Log>,
-    ) -> Result<FilteredDataMessage, FilterError> {
+    pub fn filter_events(&self, logs: Vec<Log>) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
         let mut events = Vec::new();
         for log in logs.iter() {
             let check_log_valid = self
@@ -108,7 +102,7 @@ impl EthereumLogFilter {
                 event,
             })
         }
-        Ok(FilteredDataMessage::Ethereum { events, block })
+        Ok(events)
     }
 
     //TODO: implement filter_block
