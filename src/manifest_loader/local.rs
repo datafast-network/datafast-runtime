@@ -2,6 +2,7 @@ use super::LoaderTrait;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::io::BufReader;
@@ -9,7 +10,7 @@ use std::io::BufReader;
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
-    pub abis: HashMap<String, HashMap<String, serde_json::Value>>,
+    pub abis: HashMap<String, serde_json::Value>,
 }
 
 #[async_trait]
@@ -49,27 +50,29 @@ impl LoaderTrait for LocalFileLoader {
     }
 
     async fn load_abis(&mut self) -> Result<(), ManifestLoaderError> {
-        let mut self_abis = HashMap::new();
-
         for datasource in self.subgraph_yaml.dataSources.iter() {
             let datasource_name = datasource.name.to_owned();
-            let mut ds_abis = HashMap::new();
-
-            for abi in datasource.mapping.abis.iter() {
-                let abi_json =
-                    format!("{}/build/{datasource_name}/{}", self.subgraph_dir, abi.file);
-                let f = fs::File::open(&abi_json)
-                    .map_err(|_| ManifestLoaderError::InvalidABI(abi_json.to_owned()))?;
-                let reader = BufReader::new(f);
-                let value = serde_json::from_reader(reader)
-                    .map_err(|_| ManifestLoaderError::InvalidABI(abi_json))?;
-                ds_abis.insert(abi.name.to_owned(), value);
-            }
-
-            self_abis.insert(datasource_name, ds_abis);
+            let abi_name = datasource.source.abi.clone();
+            let abi_path = datasource
+                .mapping
+                .abis
+                .iter()
+                .find(|abi| abi.name == abi_name)
+                .map_or(
+                    Err(ManifestLoaderError::InvalidABI(abi_name.to_owned())),
+                    |abi| {
+                        Ok(format!(
+                            "{}/build/{datasource_name}/{}",
+                            self.subgraph_dir, abi.file
+                        ))
+                    },
+                )?;
+            let abi_file = fs::File::open(&abi_path)
+                .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
+            let contract = serde_json::from_reader(abi_file)
+                .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
+            self.abis.insert(datasource_name, contract);
         }
-
-        self.abis = self_abis;
         Ok(())
     }
 
@@ -94,6 +97,10 @@ impl LoaderTrait for LocalFileLoader {
             fs::read(&wasm_file).map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
 
         Ok(wasm_bytes)
+    }
+
+    fn get_abis(&self) -> &HashMap<String, Value> {
+        &self.abis
     }
 }
 
