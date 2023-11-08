@@ -31,8 +31,7 @@ async fn main() -> Result<(), SwrError> {
     let config = Config::load()?;
 
     // TODO: impl Source Consumer with Nats
-    let block_source = Source::new(&config)?;
-    let block_stream = source::block_stream(block_source).await;
+    let block_source = Source::new(&config).await?;
 
     // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.manifest).await?;
@@ -62,7 +61,7 @@ async fn main() -> Result<(), SwrError> {
     let (sender2, _recv2) = kanal::bounded_async::<SerializedDataMessage>(1);
     let (_sender3, recv3) = kanal::bounded_async::<FilteredDataMessage>(1);
 
-    let stream_run = source::stream_consume(block_stream, sender1);
+    let stream_run = block_source.run_async(sender1);
     let serializer_run = serializer.run_async(recv1, sender2);
     let subgraph_run = subgraph.run_async(recv3);
 

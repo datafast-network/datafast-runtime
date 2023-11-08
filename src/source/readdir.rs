@@ -72,7 +72,7 @@ mod test {
         ::env_logger::try_init().unwrap_or_default();
 
         let rd = ReadDir {
-            dir: std::env::var("JSON_DIR").unwrap_or("./tests".to_string()),
+            dir: std::env::var("JSON_DIR").unwrap_or("/Users/vutran/Downloads".to_string()),
         };
 
         let stream = rd.get_json_in_dir_as_stream();
