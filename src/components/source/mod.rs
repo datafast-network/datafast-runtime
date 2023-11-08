@@ -5,7 +5,7 @@ mod readline;
 use crate::components::source::nats::NatsConsumer;
 use crate::config::Config;
 use crate::config::SourceTypes;
-use crate::errors::SourceErr;
+use crate::errors::SourceError;
 use crate::messages::SourceDataMessage;
 use futures_util::pin_mut;
 use kanal::AsyncSender;
@@ -20,7 +20,7 @@ pub enum Source {
 }
 
 impl Source {
-    pub async fn new(config: &Config) -> Result<Self, SourceErr> {
+    pub async fn new(config: &Config) -> Result<Self, SourceError> {
         let source = match &config.source {
             SourceTypes::ReadLine => Source::Readline(Readline()),
             SourceTypes::ReadDir { source_dir } => Source::ReadDir(ReadDir::new(source_dir)),
@@ -29,7 +29,10 @@ impl Source {
         Ok(source)
     }
 
-    pub async fn run_async(self, sender: AsyncSender<SourceDataMessage>) -> Result<(), SourceErr> {
+    pub async fn run_async(
+        self,
+        sender: AsyncSender<SourceDataMessage>,
+    ) -> Result<(), SourceError> {
         match self {
             Source::Readline(source) => {
                 let s = source.get_user_input_as_stream();

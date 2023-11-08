@@ -3,7 +3,6 @@ use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
-use wasmer::RuntimeError;
 
 #[derive(Error, Debug)]
 pub enum BigIntOutOfRangeError {
@@ -54,9 +53,9 @@ pub enum AscError {
     BigNumberOutOfRange(#[from] BigNumberErr),
 }
 
-impl From<AscError> for RuntimeError {
+impl From<AscError> for wasmer::RuntimeError {
     fn from(err: AscError) -> Self {
-        RuntimeError::new(err.to_string())
+        wasmer::RuntimeError::new(err.to_string())
     }
 }
 
@@ -80,8 +79,6 @@ pub enum ManifestLoaderError {
     InvalidDataSource(String),
     #[error("Invalid `build` dir: {0}")]
     InvalidBuildDir(String),
-    #[error("Invalid build path: {0}")]
-    InvalidBuildPath(String),
     #[error("Invalid subgraph.yaml: {0}")]
     InvalidSubgraphYAML(String),
     #[error("Invalid abi: {0}")]
@@ -95,7 +92,7 @@ pub enum ManifestLoaderError {
 #[derive(Debug, Error)]
 pub enum SubgraphError {
     #[error(transparent)]
-    RuntimeError(#[from] RuntimeError),
+    RuntimeError(#[from] wasmer::RuntimeError),
     #[error(transparent)]
     AscError(#[from] AscError),
     #[error("Invalid datasource_id: {0}")]
@@ -143,7 +140,7 @@ pub enum TransformError {
     #[error("Transform function returns no value")]
     TransformReturnNoValue,
     #[error("Transform RuntimeError: {0}")]
-    RuntimeError(#[from] RuntimeError),
+    RuntimeError(#[from] wasmer::RuntimeError),
     #[error("Transform AscError: {0}")]
     AscError(#[from] AscError),
     #[error("Chain mismatched")]
@@ -165,13 +162,13 @@ pub enum SerializerError {
 }
 
 #[derive(Debug, Error)]
-pub enum SourceErr {
+pub enum SourceError {
     #[error("Send data failed: {0}")]
     ChannelSendError(#[from] SendError),
     #[error("Nats error: {0}")]
     NatsError(#[from] io::Error),
-    #[error(transparent)]
-    JsonParseError(#[from] serde_json::Error),
+    #[error("Nats parse message data failed: {0}")]
+    ParseMessageError(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Error)]
@@ -191,5 +188,5 @@ pub enum SwrError {
     #[error(transparent)]
     SerializerError(#[from] SerializerError),
     #[error(transparent)]
-    SourceErr(#[from] SourceErr),
+    SourceErr(#[from] SourceError),
 }
