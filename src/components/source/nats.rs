@@ -24,8 +24,7 @@ impl NatsConsumer {
         let sub = self
             .conn
             .subscribe(&self.subject)
-            .map_err(SourceError::NatsError)
-            .expect("Failed to subscribe");
+            .expect("Failed to subscribe to Nats subject");
 
         stream! {
             for msg in sub.messages() {
@@ -37,10 +36,9 @@ impl NatsConsumer {
     }
 
     fn serialize_message(&self, msg: &nats::Message) -> Result<SourceDataMessage, SourceError> {
-        let raw_data = msg.data.clone();
         match self.content_type {
             ContentType::JSON => {
-                let data = serde_json::from_slice(&raw_data)?;
+                let data = serde_json::from_slice(&msg.data)?;
                 Ok(SourceDataMessage::JSON(data))
             }
             ContentType::Protobuf => unimplemented!("Protobuf not implemented yet"),
