@@ -10,7 +10,6 @@ use futures_util::pin_mut;
 use kanal::AsyncSender;
 use readdir::ReadDir;
 use readline::Readline;
-use tokio::time;
 use tokio_stream::Stream;
 use tokio_stream::StreamExt;
 
@@ -44,10 +43,8 @@ pub async fn block_stream(source: Source) -> impl Stream<Item = SourceDataMessag
             Source::ReadDir(source) => {
                 let s = source.get_json_in_dir_as_stream();
                 pin_mut!(s);
-                let start = time::Instant::now();
                 while let Some(data) = s.next().await {
                     yield data;
-                    log::info!("elapsed read data: {:?}", start.elapsed());
                 };
             }
             _ => unimplemented!(),

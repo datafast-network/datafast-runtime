@@ -10,7 +10,6 @@ use crate::wasm_host::create_wasm_host;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 use semver::Version;
-use tokio::time;
 use transform::Transform;
 
 pub enum Serializer {
@@ -51,11 +50,9 @@ impl Serializer {
         match self {
             Self::Transform(mut transform) => {
                 while let Ok(source) = source_recv.recv().await {
-                    let start = time::Instant::now();
                     result_sender
                         .send(transform.handle_source_input(source)?)
                         .await?;
-                    log::info!("elapsed transform data: {:?}", start.elapsed());
                 }
             }
 
