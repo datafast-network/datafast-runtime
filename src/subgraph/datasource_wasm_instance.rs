@@ -78,7 +78,7 @@ impl TryFrom<(AscHost, Datasource)> for DatasourceWasmInstance {
         for event_handler in mapping.eventHandlers.unwrap_or_default().iter() {
             // FIXME: assuming handlers are ethereum-event handler, must fix later
             let handler = Handler::new(&host.instance.exports, &event_handler.handler)?;
-            eth_event_handlers.insert(event_handler.event.to_owned(), handler);
+            eth_event_handlers.insert(event_handler.handler.to_owned(), handler);
         }
 
         for block_handler in mapping.blockHandlers.unwrap_or_default().iter() {
