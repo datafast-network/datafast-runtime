@@ -3,6 +3,7 @@ use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
+use wasmer::RuntimeError;
 
 #[derive(Error, Debug)]
 pub enum BigIntOutOfRangeError {
@@ -24,13 +25,13 @@ pub enum BigNumberErr {
     ParseError(#[from] num_bigint::ParseBigIntError),
 }
 
-impl From<BigNumberErr> for wasmer::RuntimeError {
+impl From<BigNumberErr> for RuntimeError {
     fn from(value: BigNumberErr) -> Self {
         match value {
-            BigNumberErr::Parser => wasmer::RuntimeError::new("Parser Error"),
-            BigNumberErr::OutOfRange(_) => wasmer::RuntimeError::new("Out of range"),
-            BigNumberErr::NumberTooBig => wasmer::RuntimeError::new("Number too big"),
-            BigNumberErr::ParseError(_) => wasmer::RuntimeError::new("Parse Error"),
+            BigNumberErr::Parser => RuntimeError::new("Parser Error"),
+            BigNumberErr::OutOfRange(_) => RuntimeError::new("Out of range"),
+            BigNumberErr::NumberTooBig => RuntimeError::new("Number too big"),
+            BigNumberErr::ParseError(_) => RuntimeError::new("Parse Error"),
         }
     }
 }
@@ -53,9 +54,9 @@ pub enum AscError {
     BigNumberOutOfRange(#[from] BigNumberErr),
 }
 
-impl From<AscError> for wasmer::RuntimeError {
+impl From<AscError> for RuntimeError {
     fn from(err: AscError) -> Self {
-        wasmer::RuntimeError::new(err.to_string())
+        RuntimeError::new(err.to_string())
     }
 }
 
@@ -92,7 +93,7 @@ pub enum ManifestLoaderError {
 #[derive(Debug, Error)]
 pub enum SubgraphError {
     #[error(transparent)]
-    RuntimeError(#[from] wasmer::RuntimeError),
+    RuntimeError(#[from] RuntimeError),
     #[error(transparent)]
     AscError(#[from] AscError),
     #[error("Invalid datasource_id: {0}")]
@@ -140,7 +141,7 @@ pub enum TransformError {
     #[error("Transform function returns no value")]
     TransformReturnNoValue,
     #[error("Transform RuntimeError: {0}")]
-    RuntimeError(#[from] wasmer::RuntimeError),
+    RuntimeError(#[from] RuntimeError),
     #[error("Transform AscError: {0}")]
     AscError(#[from] AscError),
     #[error("Chain mismatched")]
