@@ -50,15 +50,15 @@ impl NatsConsumer {
 
 #[cfg(test)]
 mod tests {
-    use crate::components::source::nats::NatsConsumer;
+    use super::NatsConsumer;
     use crate::config::ContentType;
     use futures_util::future::join;
-    use futures_util::{pin_mut, StreamExt};
+    use futures_util::pin_mut;
     use std::fs::File;
+    use tokio_stream::StreamExt;
 
     #[tokio::test]
-
-    async fn test_send_message() {
+    async fn test_nats() {
         env_logger::try_init().unwrap_or_default();
 
         let block_data = File::open("./src/tests/blocks/block.json").unwrap();
