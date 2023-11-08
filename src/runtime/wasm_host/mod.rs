@@ -9,7 +9,7 @@ mod macros;
 mod store;
 mod types_conversion;
 
-use crate::database::DatabaseAgent;
+use crate::components::database::DatabaseAgent;
 use crate::errors::WasmHostError;
 use semver::Version;
 use wasmer::imports;
@@ -215,7 +215,7 @@ pub fn create_wasm_host(
 
 #[cfg(test)]
 pub mod test {
-    use crate::database::Database;
+    use crate::components::database::Database;
 
     use super::*;
     use std::path::PathBuf;

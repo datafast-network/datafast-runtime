@@ -1,30 +1,25 @@
 mod chain;
 mod common;
+mod components;
 mod config;
-mod database;
 mod errors;
-mod manifest_loader;
 mod messages;
 mod runtime;
-mod serializer;
-mod source;
-mod subgraph;
-mod subgraph_filter;
 
+use components::database::Database;
+use components::manifest_loader::LoaderTrait;
+use components::manifest_loader::ManifestLoader;
+use components::serializer::Serializer;
+use components::source::Source;
+use components::subgraph::Subgraph;
+use components::subgraph_filter::SubgraphFilter;
+use components::subgraph_filter::SubgraphFilterTrait;
 use config::Config;
-use database::Database;
 use errors::SwrError;
-use manifest_loader::LoaderTrait;
-use manifest_loader::ManifestLoader;
 use messages::FilteredDataMessage;
 use messages::SerializedDataMessage;
 use messages::SourceDataMessage;
 use runtime::wasm_host::create_wasm_host;
-use serializer::Serializer;
-use source::Source;
-use subgraph::Subgraph;
-use subgraph_filter::SubgraphFilter;
-use subgraph_filter::SubgraphFilterTrait;
 
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {

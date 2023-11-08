@@ -1,7 +1,7 @@
 mod transform;
 
+use super::database::DatabaseAgent;
 use crate::config::Config;
-use crate::database::DatabaseAgent;
 use crate::errors::SerializerError;
 use crate::errors::TransformError;
 use crate::messages::SerializedDataMessage;

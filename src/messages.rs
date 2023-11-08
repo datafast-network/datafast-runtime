@@ -1,7 +1,7 @@
+use super::components::database::abstract_types::Value;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::database::abstract_types::Value;
 use std::collections::HashMap;
 use web3::types::Log;
 
