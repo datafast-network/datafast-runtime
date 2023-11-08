@@ -1,10 +1,10 @@
+use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::common::Datasource;
 use crate::errors::FilterError;
 use crate::manifest_loader::ManifestLoader;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
-use crate::messages::SerializedDataMessage;
 use crate::subgraph_filter::data_source_reader::check_log_matches;
 use crate::subgraph_filter::data_source_reader::get_abi_name;
 use crate::subgraph_filter::data_source_reader::get_address;
@@ -74,56 +74,41 @@ impl EthereumLogFilter {
 
     pub fn filter_events(
         &self,
-        data: SerializedDataMessage,
+        block: EthereumBlockData,
+        logs: Vec<Log>,
     ) -> Result<FilteredDataMessage, FilterError> {
-        match data {
-            SerializedDataMessage::Ethereum { block, logs, .. } => {
-                let start = tokio::time::Instant::now();
-                let logs_len = logs.len();
-                //Filter the logs by address
-                let logs_filtered = logs
-                    .into_iter()
-                    .filter(|log| {
-                        self.addresses.iter().any(|(addr, source)| {
-                            addr == &log.address && check_log_matches(source, log)
-                        })
-                    })
-                    .collect::<Vec<_>>();
-
-                let mut events = Vec::new();
-                for log in logs_filtered.into_iter() {
-                    //Unwrap is safe because we already filtered the logs
-                    let source = self.addresses.get(&log.address).unwrap();
-
-                    //Get the handler for the log
-                    let event_handler = get_handler_for_log(source, &log.topics[0]).map_or(
-                        Err(FilterError::ParseError("No handler found".to_string())),
-                        Ok,
-                    )?;
-
-                    let contract = self
-                        .contracts
-                        .get(&source.name)
-                        .ok_or_else(|| FilterError::ParseError("No contract found".to_string()))?;
-
-                    //Parse the event
-                    let event = self.parse_event(contract, &log)?;
-                    events.push(EthereumFilteredEvent {
-                        datasource: source.name.clone(),
-                        handler: event_handler.handler.clone(),
-                        event,
-                    })
-                }
-                log::info!(
-                    "filtered {} events in {} logs for block_number {:?} - time: {:?}",
-                    events.len(),
-                    logs_len,
-                    block.number,
-                    start.elapsed()
-                );
-                Ok(FilteredDataMessage::Ethereum { events, block })
+        let mut events = Vec::new();
+        for log in logs.iter() {
+            let check_log_valid = self
+                .addresses
+                .iter()
+                .any(|(addr, source)| addr == &log.address && check_log_matches(source, log));
+            if !check_log_valid {
+                continue;
             }
+            //Unwrap is safe because we already filtered the logs
+            let source = self.addresses.get(&log.address).unwrap();
+
+            //Get the handler for the log
+            let event_handler = get_handler_for_log(source, &log.topics[0]).map_or(
+                Err(FilterError::ParseError("No handler found".to_string())),
+                Ok,
+            )?;
+
+            let contract = self
+                .contracts
+                .get(&source.name)
+                .ok_or_else(|| FilterError::ParseError("No contract found".to_string()))?;
+
+            //Parse the event
+            let event = self.parse_event(contract, log)?;
+            events.push(EthereumFilteredEvent {
+                datasource: source.name.clone(),
+                handler: event_handler.handler.clone(),
+                event,
+            })
         }
+        Ok(FilteredDataMessage::Ethereum { events, block })
     }
 
     //TODO: implement filter_block

@@ -15,7 +15,8 @@ pub struct LocalFileLoader {
 #[async_trait]
 impl LoaderTrait for LocalFileLoader {
     async fn new(subgraph_dir: &str) -> Result<Self, ManifestLoaderError> {
-        let md = fs::metadata(subgraph_dir).unwrap();
+        let md = fs::metadata(subgraph_dir)
+            .map_err(|_| ManifestLoaderError::InvalidSubgraphDir(subgraph_dir.to_string()))?;
 
         if !md.is_dir() {
             return Err(ManifestLoaderError::InvalidBuildDir(

@@ -33,6 +33,8 @@ pub enum ManifestLoaderError {
     InvalidABI(String),
     #[error("Invalid WASM: {0}")]
     InvalidWASM(String),
+    #[error("Invalid subgraph dir: {0}")]
+    InvalidSubgraphDir(String),
 }
 
 #[derive(Debug, Error)]

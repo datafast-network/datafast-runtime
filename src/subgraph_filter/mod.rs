@@ -21,7 +21,11 @@ impl Filter {
         filter_data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match self {
-            Filter::Ethereum(filter) => filter.filter_events(filter_data),
+            Filter::Ethereum(filter) => match filter_data {
+                SerializedDataMessage::Ethereum { block, logs, .. } => {
+                    filter.filter_events(block, logs)
+                }
+            },
         }
     }
 }
