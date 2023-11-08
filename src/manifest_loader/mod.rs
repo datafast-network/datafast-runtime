@@ -27,7 +27,7 @@ pub trait LoaderTrait: Sized {
                     datasource_name.to_owned(),
                 ))?;
         serde_json::from_value(abi.clone())
-            .map_err(|e| ManifestLoaderError::InvalidABI(datasource_name.to_owned()))
+            .map_err(|_| ManifestLoaderError::InvalidABI(datasource_name.to_owned()))
     }
 
     fn load_ethereum_contracts(
