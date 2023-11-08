@@ -2,7 +2,6 @@ use super::LoaderTrait;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::io::BufReader;
@@ -69,9 +68,9 @@ impl LoaderTrait for LocalFileLoader {
                 )?;
             let abi_file = fs::File::open(&abi_path)
                 .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
-            let contract = serde_json::from_reader(abi_file)
+            let value = serde_json::from_reader(abi_file)
                 .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
-            self.abis.insert(datasource_name, contract);
+            self.abis.insert(datasource_name, value);
         }
         Ok(())
     }
@@ -99,7 +98,7 @@ impl LoaderTrait for LocalFileLoader {
         Ok(wasm_bytes)
     }
 
-    fn get_abis(&self) -> &HashMap<String, Value> {
+    fn get_abis(&self) -> &HashMap<String, serde_json::Value> {
         &self.abis
     }
 }
