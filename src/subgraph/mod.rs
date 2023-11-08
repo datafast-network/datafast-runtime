@@ -6,7 +6,7 @@ use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
-use crate::wasm_host::AscHost;
+use crate::runtime::wasm_host::AscHost;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use kanal::AsyncReceiver;
 use std::collections::HashMap;
@@ -104,8 +104,8 @@ mod test {
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::messages::EthereumFilteredEvent;
     use crate::messages::FilteredDataMessage;
-    use crate::wasm_host::test::get_subgraph_testing_resource;
-    use crate::wasm_host::test::mock_wasm_host;
+    use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
+    use crate::runtime::wasm_host::test::mock_wasm_host;
     use async_std::task;
     use std::collections::HashMap;
 

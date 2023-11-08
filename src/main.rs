@@ -1,5 +1,3 @@
-mod asc;
-mod bignumber;
 mod chain;
 mod common;
 mod config;
@@ -7,11 +5,11 @@ mod database;
 mod errors;
 mod manifest_loader;
 mod messages;
+mod runtime;
 mod serializer;
 mod source;
 mod subgraph;
 mod subgraph_filter;
-mod wasm_host;
 
 use config::Config;
 use database::Database;
@@ -21,12 +19,12 @@ use manifest_loader::ManifestLoader;
 use messages::FilteredDataMessage;
 use messages::SerializedDataMessage;
 use messages::SourceDataMessage;
+use runtime::wasm_host::create_wasm_host;
 use serializer::Serializer;
 use source::Source;
 use subgraph::Subgraph;
 use subgraph_filter::SubgraphFilter;
 use subgraph_filter::SubgraphFilterTrait;
-use wasm_host::create_wasm_host;
 
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {

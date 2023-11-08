@@ -1,11 +1,11 @@
-use crate::asc::base::asc_new;
-use crate::asc::base::AscIndexId;
-use crate::asc::base::AscType;
-use crate::asc::base::ToAscObj;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
-use crate::wasm_host::AscHost;
+use crate::runtime::asc::base::asc_new;
+use crate::runtime::asc::base::AscIndexId;
+use crate::runtime::asc::base::AscType;
+use crate::runtime::asc::base::ToAscObj;
+use crate::runtime::wasm_host::AscHost;
 use std::collections::HashMap;
 use wasmer::Exports;
 use wasmer::Function;

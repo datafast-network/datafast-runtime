@@ -1,9 +1,63 @@
-use crate::asc::errors::AscError;
 use kanal::SendError;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
 use wasmer::RuntimeError;
+
+#[derive(Error, Debug)]
+pub enum BigIntOutOfRangeError {
+    #[error("Cannot convert negative BigInt into type")]
+    Negative,
+    #[error("BigInt value is too large for type")]
+    Overflow,
+}
+
+#[derive(Error, Debug)]
+pub enum BigNumberErr {
+    #[error("Parser Error")]
+    Parser,
+    #[error(transparent)]
+    OutOfRange(#[from] BigIntOutOfRangeError),
+    #[error("Number too big")]
+    NumberTooBig,
+    #[error(transparent)]
+    ParseError(#[from] num_bigint::ParseBigIntError),
+}
+
+impl From<BigNumberErr> for wasmer::RuntimeError {
+    fn from(value: BigNumberErr) -> Self {
+        match value {
+            BigNumberErr::Parser => wasmer::RuntimeError::new("Parser Error"),
+            BigNumberErr::OutOfRange(_) => wasmer::RuntimeError::new("Out of range"),
+            BigNumberErr::NumberTooBig => wasmer::RuntimeError::new("Number too big"),
+            BigNumberErr::ParseError(_) => wasmer::RuntimeError::new("Parse Error"),
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum AscError {
+    #[error("Size not fit")]
+    SizeNotFit,
+    #[error("Value overflow: {0}")]
+    Overflow(u32),
+    #[error("Error: {0}")]
+    Plain(String),
+    #[error("Bad boolean value: {0}")]
+    IncorrectBool(usize),
+    #[error("Size does not match")]
+    SizeNotMatch,
+    #[error("Maximum Recursion Depth reached!")]
+    MaxRecursion,
+    #[error(transparent)]
+    BigNumberOutOfRange(#[from] BigNumberErr),
+}
+
+impl From<AscError> for RuntimeError {
+    fn from(err: AscError) -> Self {
+        RuntimeError::new(err.to_string())
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum HostExportErrors {
