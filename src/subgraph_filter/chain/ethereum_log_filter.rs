@@ -33,7 +33,7 @@ pub struct EthereumLogFilter {
 }
 
 impl EthereumLogFilter {
-    pub fn new(manifest: ManifestLoader) -> Result<Self, FilterError> {
+    pub fn new(manifest: &ManifestLoader) -> Result<Self, FilterError> {
         let sources = manifest.datasources().clone();
         let mut contracts = HashMap::new();
         for source in sources.iter() {

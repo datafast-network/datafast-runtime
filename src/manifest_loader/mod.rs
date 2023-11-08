@@ -4,7 +4,6 @@ use crate::common::Datasource;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use local::LocalFileLoader;
-use log;
 
 #[async_trait]
 pub trait LoaderTrait: Sized {
@@ -14,7 +13,6 @@ pub trait LoaderTrait: Sized {
     // Load-Wasm is lazy, we only execute it when we need it
     async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
 }
-#[derive(Clone)]
 pub enum ManifestLoader {
     Local(LocalFileLoader),
 }
@@ -71,9 +69,9 @@ impl ManifestLoader {
         }
     }
 
-    pub fn get_abi(&self, datasource_name: &str, abi_name: &str) -> Option<&serde_json::Value> {
+    pub fn get_abi(&self, datasource_name: &str, abi_name: &str) -> Option<serde_json::Value> {
         match self {
-            Self::Local(loader) => loader.abis.get(datasource_name)?.get(abi_name),
+            Self::Local(loader) => loader.abis.get(datasource_name)?.get(abi_name).cloned(),
         }
     }
 }

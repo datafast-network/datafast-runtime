@@ -34,7 +34,7 @@ pub struct SubgraphFilter {
 impl SubgraphFilter {
     pub fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
         let filter = match chain {
-            Chain::Ethereum => Filter::Ethereum(EthereumLogFilter::new(manifest.clone())?),
+            Chain::Ethereum => Filter::Ethereum(EthereumLogFilter::new(manifest)?),
         };
         Ok(Self { filter })
     }

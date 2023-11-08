@@ -72,13 +72,6 @@ async fn main() -> Result<(), SwrError> {
     let subgraph_filter_run = subgraph_filter.run_async(recv2, sender3);
     let subgraph_run = subgraph.run_async(recv3);
 
-    // let result = ::tokio::select! {
-    //     result = stream_run => result.map_err(SwrError::from),
-    //     result = serializer_run => result.map_err(SwrError::from),
-    //     result = subgraph_filter_run => result.map_err(SwrError::from),
-    //     result = subgraph_run => result.map_err(SwrError::from),
-    //     // TODO: impl prometheus
-    // };
     let result = ::tokio::join!(
         stream_run,
         serializer_run,

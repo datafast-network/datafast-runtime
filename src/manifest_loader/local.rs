@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::BufReader;
 
-#[derive(Clone)]
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
@@ -16,7 +15,7 @@ pub struct LocalFileLoader {
 #[async_trait]
 impl LoaderTrait for LocalFileLoader {
     async fn new(subgraph_dir: &str) -> Result<Self, ManifestLoaderError> {
-        let md = fs::metadata(&subgraph_dir).unwrap();
+        let md = fs::metadata(subgraph_dir).unwrap();
 
         if !md.is_dir() {
             return Err(ManifestLoaderError::InvalidBuildDir(
@@ -78,7 +77,7 @@ impl LoaderTrait for LocalFileLoader {
             .subgraph_yaml
             .dataSources
             .iter()
-            .find(|ds| &ds.name == datasource_name);
+            .find(|ds| ds.name == datasource_name);
 
         if datasource.is_none() {
             return Err(ManifestLoaderError::InvalidDataSource(
@@ -90,8 +89,8 @@ impl LoaderTrait for LocalFileLoader {
             "{}/build/{datasource_name}/{datasource_name}.wasm",
             self.subgraph_dir
         );
-        let wasm_bytes = fs::read(wasm_file.to_owned())
-            .map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
+        let wasm_bytes =
+            fs::read(&wasm_file).map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
 
         Ok(wasm_bytes)
     }
@@ -100,7 +99,6 @@ impl LoaderTrait for LocalFileLoader {
 #[cfg(test)]
 mod test {
     use super::*;
-    use env_logger;
 
     #[tokio::test]
     async fn test_local_file_loader() {
