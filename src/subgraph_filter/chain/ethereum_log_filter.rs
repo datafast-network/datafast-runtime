@@ -22,11 +22,11 @@ pub struct EthereumLogFilter {
 
 impl EthereumLogFilter {
     pub fn new(manifest: &ManifestLoader) -> Result<Self, FilterError> {
-        let sources = manifest.datasources().clone();
+        let sources = manifest.datasources();
         let mut contracts = HashMap::new();
         for source in sources.iter() {
             if let Some(abi) = manifest.get_abi(&source.name, &get_abi_name(source)) {
-                let contract = serde_json::from_value(abi.clone())?;
+                let contract = serde_json::from_value(abi)?;
                 contracts.insert(source.name.clone(), contract);
             }
         }
