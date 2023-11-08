@@ -1,6 +1,4 @@
-use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
-use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Datasource;
 use crate::errors::FilterError;
 use crate::manifest_loader::ManifestLoader;
@@ -75,12 +73,9 @@ impl EthereumLogFilter {
         data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match data {
-            SerializedDataMessage::Ethereum {
-                block,
-                transactions,
-                logs,
-            } => {
+            SerializedDataMessage::Ethereum { block, logs, .. } => {
                 let start = tokio::time::Instant::now();
+                let logs_len = logs.len();
                 //Filter the logs by address
                 let logs_filtered = logs
                     .into_iter()
@@ -115,10 +110,10 @@ impl EthereumLogFilter {
                         event,
                     })
                 }
-                log::debug!(
-                    "elapsed filtered events: {} logs: {} block: {:?} time: {:?}",
+                log::info!(
+                    "filtered {} events in {} logs for block_number {:?} - time: {:?}",
                     events.len(),
-                    logs.len(),
+                    logs_len,
                     block.number,
                     start.elapsed()
                 );

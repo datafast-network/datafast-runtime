@@ -78,6 +78,6 @@ async fn main() -> Result<(), SwrError> {
         subgraph_filter_run,
         subgraph_run,
     );
-    log::warn!("main result {:?}", result);
+    log::debug!("main result: {:?}", result);
     Ok(())
 }
