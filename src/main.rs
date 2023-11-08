@@ -30,7 +30,7 @@ async fn main() -> Result<(), SwrError> {
     let block_source = Source::new(&config).await?;
 
     // TODO: impl IPFS Loader
-    let manifest = ManifestLoader::new(&config.manifest).await?;
+    let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
 
     // TODO: impl raw-data serializer
     let serializer = Serializer::new(config.clone())?;

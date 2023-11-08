@@ -2,15 +2,16 @@ chain = "ethereum"
 source = "readline"
 subgraph_name = "mysub"
 subgraph_id = "xxxxxx"
-manifest = "fs://User/vutr/mysub/build"
+subgraph_dir = "fs://User/vutr/mysub"
 
 [transform.ethereum]
 block = "transform_block"
 logs = "transform_logs"
 transactions = "transform_tx"
 
-#[source.readdir]
-#source_dir = "/Users/quannguyen/blocks/blocks_ingestor"
+# [source.readdir]
+# source_dir = "/Users/quannguyen/blocks/blocks_ingestor"
+
 [source.nats]
 uri = "nats://localhost:4222"
 subject = "ethereum"

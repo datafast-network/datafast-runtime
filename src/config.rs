@@ -33,7 +33,7 @@ pub struct Config {
     pub source: SourceTypes,
     pub subgraph_name: String,
     pub subgraph_id: Option<String>,
-    pub manifest: String,
+    pub subgraph_dir: String,
     pub transform: Option<TransformConfig>,
     pub transform_wasm: Option<String>,
 }
