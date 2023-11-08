@@ -70,6 +70,7 @@ impl Subgraph {
                 .ok_or(SubgraphError::InvalidSourceID(event.datasource.to_owned()))?;
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
         }
+
         Ok(())
     }
 
