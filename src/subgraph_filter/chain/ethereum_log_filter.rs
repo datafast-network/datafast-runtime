@@ -5,6 +5,10 @@ use crate::manifest_loader::ManifestLoader;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
+use crate::subgraph_filter::data_source_reader::check_log_matches;
+use crate::subgraph_filter::data_source_reader::get_abi_name;
+use crate::subgraph_filter::data_source_reader::get_address;
+use crate::subgraph_filter::data_source_reader::get_handler_for_log;
 use ethabi::Contract;
 use std::collections::HashMap;
 use web3::types::Log;
@@ -21,7 +25,7 @@ impl EthereumLogFilter {
         let sources = manifest.datasources().clone();
         let mut contracts = HashMap::new();
         for source in sources.iter() {
-            if let Some(abi) = manifest.get_abi(&source.name, &source.get_abi_name()) {
+            if let Some(abi) = manifest.get_abi(&source.name, &get_abi_name(source)) {
                 let contract = serde_json::from_value(abi.clone())?;
                 contracts.insert(source.name.clone(), contract);
             }
@@ -30,7 +34,7 @@ impl EthereumLogFilter {
         //Map addresses to sources
         let addresses = sources
             .iter()
-            .map(|source| (source.get_address(), source))
+            .map(|source| (get_address(source), source))
             .flat_map(|(address, source)| address.map(|address| (address, source.clone())))
             .collect();
 
@@ -81,7 +85,7 @@ impl EthereumLogFilter {
                     .into_iter()
                     .filter(|log| {
                         self.addresses.iter().any(|(addr, source)| {
-                            addr == &log.address && source.check_log_matches(log)
+                            addr == &log.address && check_log_matches(source, log)
                         })
                     })
                     .collect::<Vec<_>>();
@@ -92,7 +96,7 @@ impl EthereumLogFilter {
                     let source = self.addresses.get(&log.address).unwrap();
 
                     //Get the handler for the log
-                    let event_handler = source.mapping.get_handler_for_log(log.topics[0]).map_or(
+                    let event_handler = get_handler_for_log(source, &log.topics[0]).map_or(
                         Err(FilterError::ParseError("No handler found".to_string())),
                         Ok,
                     )?;
