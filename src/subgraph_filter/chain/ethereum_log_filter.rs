@@ -80,6 +80,7 @@ impl EthereumLogFilter {
                 transactions,
                 logs,
             } => {
+                let start = tokio::time::Instant::now();
                 //Filter the logs by address
                 let logs_filtered = logs
                     .into_iter()
@@ -114,6 +115,13 @@ impl EthereumLogFilter {
                         event,
                     })
                 }
+                log::debug!(
+                    "elapsed filtered events: {} logs: {} block: {:?} time: {:?}",
+                    events.len(),
+                    logs.len(),
+                    block.number,
+                    start.elapsed()
+                );
                 Ok(FilteredDataMessage::Ethereum {
                     events,
                     block: block.clone(),
