@@ -1,3 +1,3 @@
-mod ethereum_log_filter;
+mod ethereum_filter;
 
-pub use ethereum_log_filter::EthereumFilter;
+pub use ethereum_filter::EthereumFilter;
