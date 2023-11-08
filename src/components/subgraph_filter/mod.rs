@@ -1,12 +1,12 @@
-mod chain;
+mod ethereum_filter;
 mod utils;
 
+use super::manifest_loader::ManifestLoader;
 use crate::common::Chain;
 use crate::errors::FilterError;
-use crate::manifest_loader::ManifestLoader;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
-use chain::EthereumFilter;
+use ethereum_filter::EthereumFilter;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 

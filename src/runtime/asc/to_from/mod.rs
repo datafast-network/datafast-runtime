@@ -22,7 +22,7 @@ use super::native_types::typed_array::Uint8Array;
 use super::native_types::typed_map::AscEntity;
 use super::native_types::typed_map::AscTypedMap;
 use super::native_types::typed_map::AscTypedMapEntry;
-use crate::database::abstract_types::Value;
+use crate::components::database::abstract_types::Value;
 use crate::errors::AscError;
 use crate::runtime::bignumber::bigint::BigInt;
 use std::collections::HashMap;

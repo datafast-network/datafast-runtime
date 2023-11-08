@@ -1,5 +1,5 @@
 use super::Env;
-use crate::database::abstract_types::Value;
+use crate::components::database::abstract_types::Value;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::base::asc_get;
@@ -107,7 +107,7 @@ pub fn store_load_related(
 #[cfg(test)]
 mod test {
     use super::super::test::*;
-    use crate::database::abstract_types::Value;
+    use super::components::database::abstract_types::Value;
     use crate::host_fn_test;
     use crate::messages::StoreOperationMessage;
     use crate::messages::StoreRequestResult;
