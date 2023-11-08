@@ -30,7 +30,7 @@ impl NatsConsumer {
             for msg in sub.messages() {
                 let serialized_msg = self.serialize_message(&msg).unwrap();
                 yield serialized_msg;
-                msg.ack().unwrap();
+                msg.ack().expect("Ack Nats message failed");
             }
         }
     }
