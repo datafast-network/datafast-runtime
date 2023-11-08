@@ -1,6 +1,8 @@
+mod nats;
 mod readdir;
 mod readline;
 
+use crate::components::source::nats::NatsConsumer;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceErr;
@@ -14,7 +16,7 @@ use tokio_stream::StreamExt;
 pub enum Source {
     Readline(Readline),
     ReadDir(ReadDir),
-    Nats,
+    Nats(NatsConsumer),
 }
 
 impl Source {
@@ -43,7 +45,9 @@ impl Source {
                     sender.send(data).await?;
                 }
             }
-            _ => unimplemented!(),
+            Source::Nats(source) => {
+                source.run_async(sender).await?;
+            }
         };
 
         Ok(())

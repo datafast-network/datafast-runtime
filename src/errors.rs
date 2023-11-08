@@ -1,4 +1,5 @@
 use kanal::SendError;
+use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
@@ -167,6 +168,10 @@ pub enum SerializerError {
 pub enum SourceErr {
     #[error("Send data failed: {0}")]
     ChannelSendError(#[from] SendError),
+    #[error("Nats error: {0}")]
+    NatsError(#[from] io::Error),
+    #[error(transparent)]
+    JsonParseError(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Error)]
