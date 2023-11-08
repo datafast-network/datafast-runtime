@@ -8,3 +8,15 @@ manifest = "fs://User/vutr/mysub/build"
 block = "transform_block"
 logs = "transform_logs"
 transactions = "transform_tx"
+
+#[source.readdir]
+#source_dir = "/Users/quannguyen/blocks/blocks_ingestor"
+[source.nats]
+uri = "nats://localhost:4222"
+subject = "ethereum"
+content_type = "json"
+
+[transform.ethereum]
+block = "transformEthereumBlock"
+logs = "transformEthereumLogs"
+transactions = "transformEthereumTxs"
