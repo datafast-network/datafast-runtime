@@ -1,11 +1,11 @@
 use super::Env;
-use crate::components::database::abstract_types::Value;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::native_types::array::Array;
+use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::asc::native_types::string::AscString;
 use crate::runtime::asc::native_types::typed_map::AscEntity;
 use std::collections::HashMap;
@@ -107,12 +107,12 @@ pub fn store_load_related(
 #[cfg(test)]
 mod test {
     use super::super::test::*;
-    use super::components::database::abstract_types::Value;
     use crate::host_fn_test;
     use crate::messages::StoreOperationMessage;
     use crate::messages::StoreRequestResult;
     use crate::runtime::asc::base::asc_get;
     use crate::runtime::asc::base::AscPtr;
+    use crate::runtime::asc::native_types::store::Value;
     use crate::runtime::asc::native_types::typed_map::AscEntity;
     use crate::runtime::bignumber::bigdecimal::BigDecimal;
     use crate::runtime::bignumber::bigint::BigInt;

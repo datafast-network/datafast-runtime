@@ -1,11 +1,10 @@
-use super::abstract_types;
 use super::DatabaseTrait;
 use super::RawEntity;
 use crate::errors::DatabaseError;
+use crate::runtime::asc::native_types::store::Value;
 use std::collections::HashMap;
 
-pub type InMemoryDataStore =
-    HashMap<String, HashMap<String, HashMap<String, abstract_types::Value>>>;
+pub type InMemoryDataStore = HashMap<String, HashMap<String, HashMap<String, Value>>>;
 
 impl DatabaseTrait for InMemoryDataStore {
     fn handle_load(
@@ -38,9 +37,7 @@ impl DatabaseTrait for InMemoryDataStore {
         }
 
         let table = store.get_mut(&entity_type).unwrap();
-        if let abstract_types::Value::String(entity_id) =
-            data.get("id").ok_or(DatabaseError::MissingID)?
-        {
+        if let Value::String(entity_id) = data.get("id").ok_or(DatabaseError::MissingID)? {
             table.insert(entity_id.to_owned(), data);
             Ok(())
         } else {

@@ -1,15 +1,15 @@
-pub mod abstract_types;
 mod in_memmory;
 
 use crate::config::Config;
 use crate::errors::DatabaseError;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
+use crate::runtime::asc;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-type RawEntity = HashMap<String, abstract_types::Value>;
+type RawEntity = HashMap<String, asc::native_types::store::Value>;
 
 #[derive(Clone)]
 pub enum Database {
