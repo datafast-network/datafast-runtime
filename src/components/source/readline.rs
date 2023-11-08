@@ -45,21 +45,25 @@ impl Readline {
 mod test {
     use super::*;
     use futures_util::pin_mut;
+    use tokio_stream::StreamExt;
 
     // NOTE: Interactive test only, not for CI
     #[tokio::test]
-    async fn test_source() {
-        ::env_logger::try_init().unwrap_or_default();
+    async fn test_readline() {
+        env_logger::try_init().unwrap_or_default();
 
         let rl = Readline();
         let stream = rl.get_user_input_as_stream();
         pin_mut!(stream);
         ::log::info!("Setup stream done");
 
-        // Enable the below lines for interactive testing
-        // use tokio_stream::StreamExt;
-        // while let Some(data) = stream.next().await {
-        //     ::log::info!("Received: {:?}", data);
-        // }
+        let t1 = async move {
+            while let Some(data) = stream.next().await {
+                ::log::info!("Received: {:?}", data);
+            }
+        };
+
+        let _timeout = tokio::time::timeout(std::time::Duration::from_secs(3), t1);
+        // timeout.await.unwrap();
     }
 }
