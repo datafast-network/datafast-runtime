@@ -121,10 +121,7 @@ impl EthereumLogFilter {
                     block.number,
                     start.elapsed()
                 );
-                Ok(FilteredDataMessage::Ethereum {
-                    events,
-                    block: block.clone(),
-                })
+                Ok(FilteredDataMessage::Ethereum { events, block })
             }
         }
     }
