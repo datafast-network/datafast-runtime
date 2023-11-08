@@ -12,20 +12,6 @@ use std::collections::HashMap;
 use web3::types::Log;
 use web3::types::H160;
 
-pub type EthereumBlockFilter = (EthereumBlockData, Vec<EthereumTransactionData>, Vec<Log>);
-
-impl From<SerializedDataMessage> for EthereumBlockFilter {
-    fn from(data: SerializedDataMessage) -> Self {
-        match data {
-            SerializedDataMessage::Ethereum {
-                block,
-                transactions,
-                logs,
-            } => (block, transactions, logs),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct EthereumLogFilter {
     contracts: HashMap<String, Contract>,
@@ -86,49 +72,54 @@ impl EthereumLogFilter {
 
     pub fn filter_events(
         &self,
-        block: EthereumBlockFilter,
+        data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
-        let (block, _transactions, logs) = block;
+        match data {
+            SerializedDataMessage::Ethereum {
+                block,
+                transactions,
+                logs,
+            } => {
+                //Filter the logs by address
+                let logs_filtered = logs
+                    .into_iter()
+                    .filter(|log| {
+                        self.addresses.iter().any(|(addr, source)| {
+                            addr == &log.address && source.check_log_matches(log)
+                        })
+                    })
+                    .collect::<Vec<_>>();
 
-        //Filter the logs by address
-        let logs_filtered = logs
-            .into_iter()
-            .filter(|log| self.addresses.iter().any(|(addr, _)| addr == &log.address))
-            .filter(|log| {
-                self.addresses
-                    .get(&log.address)
-                    .map_or(false, |source| source.check_log_matches(log))
-            })
-            .collect::<Vec<_>>();
+                let mut events = Vec::new();
+                for log in logs_filtered.into_iter() {
+                    //Unwrap is safe because we already filtered the logs
+                    let source = self.addresses.get(&log.address).unwrap();
 
-        let mut events = Vec::new();
-        for log in logs_filtered.into_iter() {
-            //Unwrap is safe because we already filtered the logs
-            let source = self.addresses.get(&log.address).unwrap();
+                    //Get the handler for the log
+                    let event_handler = source.mapping.get_handler_for_log(log.topics[0]).map_or(
+                        Err(FilterError::ParseError("No handler found".to_string())),
+                        Ok,
+                    )?;
 
-            //Get the handler for the log
-            let event_handler = source.mapping.get_handler_for_log(log.topics[0]).map_or(
-                Err(FilterError::ParseError("No handler found".to_string())),
-                Ok,
-            )?;
+                    let contract = self
+                        .contracts
+                        .get(&source.name)
+                        .ok_or_else(|| FilterError::ParseError("No contract found".to_string()))?;
 
-            let contract = self
-                .contracts
-                .get(&source.name)
-                .ok_or_else(|| FilterError::ParseError("No contract found".to_string()))?;
-
-            //Parse the event
-            let event = self.parse_event(contract, &log)?;
-            events.push(EthereumFilteredEvent {
-                datasource: source.name.clone(),
-                handler: event_handler.handler.clone(),
-                event,
-            })
+                    //Parse the event
+                    let event = self.parse_event(contract, &log)?;
+                    events.push(EthereumFilteredEvent {
+                        datasource: source.name.clone(),
+                        handler: event_handler.handler.clone(),
+                        event,
+                    })
+                }
+                Ok(FilteredDataMessage::Ethereum {
+                    events,
+                    block: block.clone(),
+                })
+            }
         }
-        Ok(FilteredDataMessage::Ethereum {
-            events,
-            block: block.clone(),
-        })
     }
 
     //TODO: implement filter_block

@@ -22,7 +22,7 @@ impl Filter {
         filter_data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match self {
-            Filter::Ethereum(filter) => filter.filter_events(filter_data.into()),
+            Filter::Ethereum(filter) => filter.filter_events(filter_data),
         }
     }
 }
