@@ -1,4 +1,5 @@
 use kanal::SendError;
+use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
@@ -24,13 +25,13 @@ pub enum BigNumberErr {
     ParseError(#[from] num_bigint::ParseBigIntError),
 }
 
-impl From<BigNumberErr> for wasmer::RuntimeError {
+impl From<BigNumberErr> for RuntimeError {
     fn from(value: BigNumberErr) -> Self {
         match value {
-            BigNumberErr::Parser => wasmer::RuntimeError::new("Parser Error"),
-            BigNumberErr::OutOfRange(_) => wasmer::RuntimeError::new("Out of range"),
-            BigNumberErr::NumberTooBig => wasmer::RuntimeError::new("Number too big"),
-            BigNumberErr::ParseError(_) => wasmer::RuntimeError::new("Parse Error"),
+            BigNumberErr::Parser => RuntimeError::new("Parser Error"),
+            BigNumberErr::OutOfRange(_) => RuntimeError::new("Out of range"),
+            BigNumberErr::NumberTooBig => RuntimeError::new("Number too big"),
+            BigNumberErr::ParseError(_) => RuntimeError::new("Parse Error"),
         }
     }
 }
@@ -79,8 +80,6 @@ pub enum ManifestLoaderError {
     InvalidDataSource(String),
     #[error("Invalid `build` dir: {0}")]
     InvalidBuildDir(String),
-    #[error("Invalid build path: {0}")]
-    InvalidBuildPath(String),
     #[error("Invalid subgraph.yaml: {0}")]
     InvalidSubgraphYAML(String),
     #[error("Invalid abi: {0}")]
@@ -164,9 +163,13 @@ pub enum SerializerError {
 }
 
 #[derive(Debug, Error)]
-pub enum SourceErr {
+pub enum SourceError {
     #[error("Send data failed: {0}")]
     ChannelSendError(#[from] SendError),
+    #[error("Nats error: {0}")]
+    NatsError(#[from] io::Error),
+    #[error("Nats parse message data failed: {0}")]
+    ParseMessageError(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Error)]
@@ -186,5 +189,5 @@ pub enum SwrError {
     #[error(transparent)]
     SerializerError(#[from] SerializerError),
     #[error(transparent)]
-    SourceErr(#[from] SourceErr),
+    SourceErr(#[from] SourceError),
 }

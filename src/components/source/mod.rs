@@ -1,9 +1,11 @@
+mod nats;
 mod readdir;
 mod readline;
 
+use crate::components::source::nats::NatsConsumer;
 use crate::config::Config;
 use crate::config::SourceTypes;
-use crate::errors::SourceErr;
+use crate::errors::SourceError;
 use crate::messages::SourceDataMessage;
 use futures_util::pin_mut;
 use kanal::AsyncSender;
@@ -14,20 +16,27 @@ use tokio_stream::StreamExt;
 pub enum Source {
     Readline(Readline),
     ReadDir(ReadDir),
-    Nats,
+    Nats(NatsConsumer),
 }
 
 impl Source {
-    pub async fn new(config: &Config) -> Result<Self, SourceErr> {
+    pub async fn new(config: &Config) -> Result<Self, SourceError> {
         let source = match &config.source {
             SourceTypes::ReadLine => Source::Readline(Readline()),
             SourceTypes::ReadDir { source_dir } => Source::ReadDir(ReadDir::new(source_dir)),
-            _ => unimplemented!(),
+            SourceTypes::Nats {
+                uri,
+                subject,
+                content_type,
+            } => Source::Nats(NatsConsumer::new(uri, subject, content_type.clone())?),
         };
         Ok(source)
     }
 
-    pub async fn run_async(self, sender: AsyncSender<SourceDataMessage>) -> Result<(), SourceErr> {
+    pub async fn run_async(
+        self,
+        sender: AsyncSender<SourceDataMessage>,
+    ) -> Result<(), SourceError> {
         match self {
             Source::Readline(source) => {
                 let s = source.get_user_input_as_stream();
@@ -43,7 +52,9 @@ impl Source {
                     sender.send(data).await?;
                 }
             }
-            _ => unimplemented!(),
+            Source::Nats(source) => {
+                source.consume(sender).await?;
+            }
         };
 
         Ok(())
