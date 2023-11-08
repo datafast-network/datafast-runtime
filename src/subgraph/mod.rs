@@ -10,7 +10,6 @@ use crate::wasm_host::AscHost;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use kanal::AsyncReceiver;
 use std::collections::HashMap;
-use tokio::time;
 
 pub struct Subgraph {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
@@ -43,7 +42,6 @@ impl Subgraph {
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
     ) -> Result<(), SubgraphError> {
-        let start = time::Instant::now();
         let mut block_handlers = HashMap::new();
 
         for (source_name, source_instance) in self.sources.iter() {
@@ -72,7 +70,6 @@ impl Subgraph {
                 .ok_or(SubgraphError::InvalidSourceID(event.datasource.to_owned()))?;
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
         }
-        log::info!("elapsed executor data: {:?}", start.elapsed());
         Ok(())
     }
 
