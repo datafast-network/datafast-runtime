@@ -1,7 +1,6 @@
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -38,8 +37,16 @@ pub struct Datasource {
     pub kind: String,
     pub name: String,
     pub network: String,
-    pub source: HashMap<String, String>,
+    pub source: Source,
     pub mapping: Mapping,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[allow(non_snake_case)]
+pub struct Source {
+    pub address: Option<String>,
+    pub abi: String,
+    pub startBlock: Option<u64>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]

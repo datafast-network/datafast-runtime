@@ -2527,6 +2527,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "thiserror",
+ "tiny-keccak",
  "tokio",
  "tokio-stream",
  "wasmer",

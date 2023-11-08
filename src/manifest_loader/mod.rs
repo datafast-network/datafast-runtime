@@ -4,7 +4,8 @@ use crate::common::Datasource;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use local::LocalFileLoader;
-use log;
+use serde_json::Value;
+use std::collections::HashMap;
 
 #[async_trait]
 pub trait LoaderTrait: Sized {
@@ -13,8 +14,39 @@ pub trait LoaderTrait: Sized {
     async fn load_abis(&mut self) -> Result<(), ManifestLoaderError>;
     // Load-Wasm is lazy, we only execute it when we need it
     async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
-}
+    fn get_abis(&self) -> &HashMap<String, serde_json::Value>;
 
+    fn load_ethereum_contract(
+        &self,
+        datasource_name: &str,
+    ) -> Result<ethabi::Contract, ManifestLoaderError> {
+        let abi =
+            self.get_abis()
+                .get(datasource_name)
+                .ok_or(ManifestLoaderError::InvalidDataSource(
+                    datasource_name.to_owned(),
+                ))?;
+        serde_json::from_value(abi.clone())
+            .map_err(|e| ManifestLoaderError::InvalidABI(datasource_name.to_owned()))
+    }
+
+    fn load_ethereum_contracts(
+        &self,
+    ) -> Result<HashMap<String, ethabi::Contract>, ManifestLoaderError> {
+        let contracts = self
+            .get_abis()
+            .iter()
+            .filter_map(
+                |(source_name, abi)| match self.load_ethereum_contract(source_name) {
+                    Ok(contract) => Some((source_name.clone(), contract)),
+                    Err(_) => None,
+                },
+            )
+            .collect();
+
+        Ok(contracts)
+    }
+}
 pub enum ManifestLoader {
     Local(LocalFileLoader),
 }
@@ -62,12 +94,23 @@ impl LoaderTrait for ManifestLoader {
             ManifestLoader::Local(loader) => loader.load_wasm(datasource_name).await,
         }
     }
+    fn get_abis(&self) -> &HashMap<String, Value> {
+        match self {
+            ManifestLoader::Local(loader) => loader.get_abis(),
+        }
+    }
 }
 
 impl ManifestLoader {
     pub fn datasources(&self) -> Vec<Datasource> {
         match self {
             Self::Local(loader) => loader.subgraph_yaml.dataSources.to_vec(),
+        }
+    }
+
+    pub fn get_abi(&self, datasource_name: &str, abi_name: &str) -> Option<serde_json::Value> {
+        match self {
+            Self::Local(loader) => loader.abis.get(datasource_name)?.get(abi_name).cloned(),
         }
     }
 }

@@ -33,6 +33,8 @@ pub enum ManifestLoaderError {
     InvalidABI(String),
     #[error("Invalid WASM: {0}")]
     InvalidWASM(String),
+    #[error("Invalid subgraph dir: {0}")]
+    InvalidSubgraphDir(String),
 }
 
 #[derive(Debug, Error)]
@@ -61,6 +63,22 @@ pub enum DatabaseError {
     SendReplyFailed(#[from] SendError),
     #[error("Database Mutex-lock failed")]
     MutexLockFailed,
+}
+
+#[derive(Debug, Error)]
+pub enum FilterError {
+    #[error(transparent)]
+    EthAbiError(#[from] ethabi::Error),
+    #[error("Parse error: {0}")]
+    ParseError(String),
+    #[error(transparent)]
+    Web3Error(#[from] web3::Error),
+    #[error(transparent)]
+    SendReplyFailed(#[from] SendError),
+    #[error(transparent)]
+    JsonParseError(#[from] serde_json::Error),
+    #[error(transparent)]
+    ManifestLoaderError(#[from] ManifestLoaderError),
 }
 
 #[derive(Debug, Error)]
@@ -109,6 +127,8 @@ pub enum SwrError {
     SubgraphError(#[from] SubgraphError),
     #[error(transparent)]
     DatabaseError(#[from] DatabaseError),
+    #[error(transparent)]
+    FilterError(#[from] FilterError),
     #[error(transparent)]
     SerializerError(#[from] SerializerError),
     #[error(transparent)]
