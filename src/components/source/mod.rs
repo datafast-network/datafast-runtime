@@ -24,7 +24,11 @@ impl Source {
         let source = match &config.source {
             SourceTypes::ReadLine => Source::Readline(Readline()),
             SourceTypes::ReadDir { source_dir } => Source::ReadDir(ReadDir::new(source_dir)),
-            _ => unimplemented!(),
+            SourceTypes::Nats {
+                uri,
+                subject,
+                content_type,
+            } => Source::Nats(NatsConsumer::new(uri, subject, content_type.clone())?),
         };
         Ok(source)
     }
@@ -49,7 +53,7 @@ impl Source {
                 }
             }
             Source::Nats(source) => {
-                source.run_async(sender).await?;
+                source.consume(sender).await?;
             }
         };
 
