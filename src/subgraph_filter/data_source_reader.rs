@@ -29,24 +29,14 @@ pub fn get_handler_for_log(source: &Datasource, topic0: &H256) -> Option<EventHa
 }
 
 fn get_start_block(source: &Datasource) -> Option<U64> {
-    source
-        .source
-        .get("startBlock")
-        .map(|block| block.parse::<u64>().unwrap_or_default())
-        .map(U64::from)
+    source.source.startBlock.map(U64::from)
 }
 
 pub fn get_address(source: &Datasource) -> Option<Address> {
-    source
-        .source
-        .get("address")
-        .unwrap()
-        .parse::<Address>()
-        .ok()
-}
-
-pub fn get_abi_name(source: &Datasource) -> String {
-    source.source.get("abi").expect("ABI not found").clone()
+    match source.source.address.clone() {
+        None => None,
+        Some(address) => address.parse().ok(),
+    }
 }
 
 fn parse_topic0_event(handler: &str) -> H256 {

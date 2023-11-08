@@ -1,7 +1,6 @@
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]

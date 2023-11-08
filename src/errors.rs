@@ -77,6 +77,8 @@ pub enum FilterError {
     SendReplyFailed(#[from] SendError),
     #[error(transparent)]
     JsonParseError(#[from] serde_json::Error),
+    #[error(transparent)]
+    ManifestLoaderError(#[from] ManifestLoaderError),
 }
 
 #[derive(Debug, Error)]

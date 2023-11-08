@@ -25,6 +25,7 @@ use serializer::Serializer;
 use source::Source;
 use subgraph::Subgraph;
 use subgraph_filter::SubgraphFilter;
+use subgraph_filter::SubgraphFilterTrait;
 use wasm_host::create_wasm_host;
 
 #[tokio::main]

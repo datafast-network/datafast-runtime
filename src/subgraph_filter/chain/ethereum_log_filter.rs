@@ -1,12 +1,16 @@
 use crate::chain::ethereum::event::EthereumEventData;
+use crate::common::Chain;
 use crate::common::Datasource;
 use crate::errors::FilterError;
+use crate::manifest_loader::LoaderTrait;
 use crate::manifest_loader::ManifestLoader;
 use crate::messages::EthereumFilteredEvent;
+use crate::messages::FilteredDataMessage;
+use crate::messages::SerializedDataMessage;
 use crate::subgraph_filter::data_source_reader::check_log_matches;
-use crate::subgraph_filter::data_source_reader::get_abi_name;
 use crate::subgraph_filter::data_source_reader::get_address;
 use crate::subgraph_filter::data_source_reader::get_handler_for_log;
+use crate::subgraph_filter::SubgraphFilterTrait;
 use ethabi::Contract;
 use std::collections::HashMap;
 use web3::types::Log;
@@ -19,29 +23,6 @@ pub struct EthereumFilter {
 }
 
 impl EthereumFilter {
-    pub fn new(manifest: &ManifestLoader) -> Result<Self, FilterError> {
-        let sources = manifest.datasources();
-        let mut contracts = HashMap::new();
-        for source in sources.iter() {
-            if let Some(abi) = manifest.get_abi(&source.name, &get_abi_name(source)) {
-                let contract = serde_json::from_value(abi)?;
-                contracts.insert(source.name.clone(), contract);
-            }
-        }
-
-        //Map addresses to sources
-        let addresses = sources
-            .iter()
-            .map(|source| (get_address(source), source))
-            .flat_map(|(address, source)| address.map(|address| (address, source.clone())))
-            .collect();
-
-        Ok(Self {
-            contracts,
-            addresses,
-        })
-    }
-
     fn parse_event(
         &self,
         contract: &Contract,
@@ -70,7 +51,7 @@ impl EthereumFilter {
             .map_err(|e| FilterError::ParseError(e.to_string()))
     }
 
-    pub fn filter_events(&self, logs: Vec<Log>) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
+    fn filter_events(&self, logs: Vec<Log>) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
         let mut events = Vec::new();
         for log in logs.iter() {
             let check_log_valid = self
@@ -108,4 +89,33 @@ impl EthereumFilter {
     //TODO: implement filter_block
 
     //TODO: implement filter_call_function
+}
+
+impl SubgraphFilterTrait for EthereumFilter {
+    fn new(_chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
+        let addresses = manifest
+            .datasources()
+            .iter()
+            .map(|source| (get_address(source), source))
+            .flat_map(|(address, source)| address.map(|address| (address, source.clone())))
+            .collect();
+        let contracts = manifest.load_ethereum_contracts()?;
+        let filter = EthereumFilter {
+            contracts,
+            addresses,
+        };
+        Ok(filter)
+    }
+
+    fn handle_serialize_message(
+        &self,
+        data: SerializedDataMessage,
+    ) -> Result<FilteredDataMessage, FilterError> {
+        match data {
+            SerializedDataMessage::Ethereum { block, logs, .. } => {
+                let events = self.filter_events(logs)?;
+                Ok(FilteredDataMessage::Ethereum { events, block })
+            }
+        }
+    }
 }
