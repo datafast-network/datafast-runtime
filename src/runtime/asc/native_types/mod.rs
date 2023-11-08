@@ -13,6 +13,7 @@ use r#enum::AscEnum;
 use semver::Version;
 use typed_array::TypedArray;
 
+use crate::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscIndexId;
@@ -21,7 +22,6 @@ use crate::runtime::asc::base::AscValue;
 use crate::runtime::asc::base::FromAscObj;
 use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::asc::base::ToAscObj;
-use crate::runtime::asc::errors::AscError;
 
 pub type Uint8Array = TypedArray<u8>;
 

@@ -8,8 +8,8 @@ use super::base::AscPtr;
 use super::base::FromAscObj;
 use super::base::IndexForAscTypeId;
 use super::base::ToAscObj;
-use super::errors::AscError;
 use super::native_types::Uint8Array;
+use crate::errors::AscError;
 
 use crate::impl_asc_type_struct;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;

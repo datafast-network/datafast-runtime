@@ -1,4 +1,5 @@
 use super::asc::*;
+use crate::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_get_optional;
@@ -9,7 +10,6 @@ use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::base::FromAscObj;
 use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::asc::base::ToAscObj;
-use crate::runtime::asc::errors::AscError;
 use crate::runtime::asc::native_types::array::Array;
 use crate::runtime::asc::native_types::Uint8Array;
 use crate::runtime::bignumber::bigint::BigInt;

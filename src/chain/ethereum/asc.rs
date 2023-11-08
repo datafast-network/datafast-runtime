@@ -1,6 +1,7 @@
 use semver::Version;
 use web3::types as w3;
 
+use crate::errors::AscError;
 use crate::impl_asc_type_enum;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_new;
@@ -11,7 +12,6 @@ use crate::runtime::asc::base::AscValue;
 use crate::runtime::asc::base::FromAscObj;
 use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::asc::base::ToAscObj;
-use crate::runtime::asc::errors::AscError;
 use crate::runtime::asc::native_types::array::Array;
 use crate::runtime::asc::native_types::r#enum::AscEnum;
 use crate::runtime::asc::native_types::r#enum::AscEnumArray;

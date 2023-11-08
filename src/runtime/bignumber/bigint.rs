@@ -1,3 +1,5 @@
+use crate::errors::BigIntOutOfRangeError;
+use crate::errors::BigNumberErr;
 use num_bigint;
 use serde::Deserialize;
 use serde::Serialize;
@@ -23,8 +25,6 @@ use std::ops::Shl;
 use std::ops::Shr;
 use std::ops::Sub;
 use std::str::FromStr;
-
-use super::errors::*;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BigInt(num_bigint::BigInt);

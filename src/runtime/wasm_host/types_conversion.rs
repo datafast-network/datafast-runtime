@@ -1,8 +1,8 @@
+use crate::errors::AscError;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::bignumber::AscBigInt;
-use crate::runtime::asc::errors::AscError;
 use crate::runtime::asc::native_types::string::AscString;
 use crate::runtime::asc::native_types::AscH160;
 use crate::runtime::asc::native_types::Uint8Array;

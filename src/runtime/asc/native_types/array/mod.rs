@@ -1,6 +1,7 @@
 pub mod v0_0_4;
 pub mod v0_0_5;
 
+use crate::errors::AscError;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscIndexId;
 use crate::runtime::asc::base::AscPtr;
@@ -8,7 +9,6 @@ use crate::runtime::asc::base::AscType;
 use crate::runtime::asc::base::AscValue;
 use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::asc::bignumber::AscBigDecimal;
-use crate::runtime::asc::errors::AscError;
 use crate::runtime::asc::native_types::json::JsonValueKind;
 use crate::runtime::asc::native_types::r#enum::AscEnum;
 use crate::runtime::asc::native_types::store::StoreValueKind;

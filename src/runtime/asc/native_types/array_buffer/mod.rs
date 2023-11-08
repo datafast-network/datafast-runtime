@@ -1,12 +1,12 @@
 pub mod v0_0_4;
 pub mod v0_0_5;
 
+use crate::errors::AscError;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscIndexId;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::base::AscType;
 use crate::runtime::asc::base::IndexForAscTypeId;
-use crate::runtime::asc::errors::AscError;
 use semver::Version;
 
 pub enum ArrayBuffer {
