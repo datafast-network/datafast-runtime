@@ -22,7 +22,7 @@ pub fn get_handler_for_log(source: &Datasource, topic0: &H256) -> Option<EventHa
     if let Some(event_handlers) = source.mapping.eventHandlers.clone() {
         return event_handlers
             .iter()
-            .find(|handler| &parse_topic0_event_handler(&handler.handler) == topic0)
+            .find(|handler| &parse_topic0_event(&handler.event) == topic0)
             .cloned();
     }
     None
@@ -49,7 +49,7 @@ pub fn get_abi_name(source: &Datasource) -> String {
     source.source.get("abi").expect("ABI not found").clone()
 }
 
-fn parse_topic0_event_handler(handler: &str) -> H256 {
+fn parse_topic0_event(handler: &str) -> H256 {
     let mut result = [0u8; 32];
     let data = handler.replace("indexed", "").replace(' ', "").into_bytes();
     let mut sponge = tiny_keccak::Keccak::v256();
@@ -70,7 +70,7 @@ mod tests {
             handler: "handleTransfer".to_string(),
         };
         assert_eq!(
-            parse_topic0_event_handler(event_handler.handler.as_str()),
+            parse_topic0_event(event_handler.event.as_str()),
             H256::from_str("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
                 .unwrap()
         );
