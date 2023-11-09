@@ -50,7 +50,7 @@ impl Transform {
                 transactions,
                 logs,
             } => {
-                log_info!("Transform", "Transform initialized";
+                log_info!(Transform, "Transform initialized";
                     "chain" => format!("{:?}", self.chain),
                     "block" => block,
                     "transactions" => transactions,

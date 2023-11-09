@@ -52,7 +52,7 @@ impl Serializer {
         match self {
             Self::Transform(mut transform) => {
                 while let Ok(source) = source_recv.recv().await {
-                    log_debug!("Transform", "Received source data");
+                    log_debug!(Transform, "Received source data");
                     result_sender
                         .send(transform.handle_source_input(source)?)
                         .await?

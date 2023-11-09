@@ -168,7 +168,7 @@ pub fn create_wasm_host(
 
     if data_mut.memory_allocate.is_none() {
         log_warn!(
-            "wasm_host",
+            wasm_host,
             "MemoryAllocate function is not available in host-exports"
         );
     }
@@ -183,7 +183,7 @@ pub fn create_wasm_host(
 
     if data_mut.id_of_type.is_none() {
         log_warn!(
-            "wasm_host",
+            wasm_host,
             "id_of_type function is not available in host-exports"
         );
     }
@@ -191,12 +191,12 @@ pub fn create_wasm_host(
     match data_mut.api_version.clone() {
         version if version <= Version::new(0, 0, 4) => {}
         _ => {
-            log_warn!("wasm_host", "Try calling '_start' if possible");
+            log_warn!(wasm_host, "Try calling '_start' if possible");
             instance
                 .exports
                 .get_function("_start")
                 .map(|f| {
-                    log_info!("wasm_host"; "Calling" => "`_start`");
+                    log_info!(wasm_host; "Calling" => "`_start`");
                     f.call(&mut store_mut, &[]).unwrap();
                 })
                 .ok();

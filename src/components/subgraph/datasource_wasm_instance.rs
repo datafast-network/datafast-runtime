@@ -63,7 +63,7 @@ impl DatasourceWasmInstance {
             &mut self.host.store,
             &[Value::I32(asc_data.wasm_ptr() as i32)],
         )?;
-        log_info!("DatasourceWasmInstance", "Handler invoked";
+        log_info!(DatasourceWasmInstance, "Handler invoked";
             "handler" => handler.name.clone(),
             "handler_type" => format!("{:?}", handler_type));
         Ok(())

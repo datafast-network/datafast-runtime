@@ -38,7 +38,7 @@ impl EthereumFilter {
                 log.address
             )))?;
 
-        log_debug!("EthereumFilter", "Event found";
+        log_debug!(EthereumFilter, "Event found";
             "event" => format!("{:?}", event),
             "log" => format!("{:?}", log));
 
@@ -111,7 +111,7 @@ impl SubgraphFilterTrait for EthereumFilter {
             contracts,
             addresses,
         };
-        log_info!("EthereumFilter", "Init success";
+        log_info!(EthereumFilter, "Init success";
             "Addresses:" => filter.addresses.len(),
             "Contracts:" => filter.contracts.len()
         );
@@ -125,7 +125,7 @@ impl SubgraphFilterTrait for EthereumFilter {
         match data {
             SerializedDataMessage::Ethereum { block, logs, .. } => {
                 let events = self.filter_events(logs)?;
-                log_info!("EthereumFilter", "Filtered events";
+                log_info!(EthereumFilter, "Filtered events";
                     "events:" => events.len(),
                     "Block number:" => format!("{:?}", block.number)
                 );
