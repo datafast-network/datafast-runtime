@@ -31,16 +31,16 @@ pub fn log_log(
             ));
         }
         1 => {
-            log_error!(wasm_host, message; sounrce => datasource_name);
+            log_error!(wasm_host, message; datasource => datasource_name);
         }
         2 => {
-            log_warn!(wasm_host, message; sounrce => datasource_name);
+            log_warn!(wasm_host, message; datasource => datasource_name);
         }
         3 => {
-            log_info!(wasm_host, message; sounrce => datasource_name);
+            log_info!(wasm_host, message; datasource => datasource_name);
         }
         4 => {
-            log_debug!(wasm_host, message; sounrce => datasource_name);
+            log_debug!(wasm_host, message; datasource => datasource_name);
         }
         _ => return Err(RuntimeError::new("Invalid log level!!")),
     }
