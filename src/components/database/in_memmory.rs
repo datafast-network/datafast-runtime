@@ -22,7 +22,27 @@ impl DatabaseTrait for InMemoryDataStore {
         entity_type: String,
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError> {
-        self.handle_load_latest(entity_type, entity_id)
+        let store = self;
+        let table = store.get(&entity_type);
+
+        if table.is_none() {
+            return Ok(None);
+        }
+
+        let table = table.unwrap();
+        let entity = table.get(&entity_id);
+
+        if entity.is_none() {
+            return Ok(None);
+        }
+
+        for row in entity.unwrap() {
+            if row.0 == block_ptr.number && row.1 == block_ptr.hash {
+                return Ok(Some(row.3.to_owned()));
+            }
+        }
+
+        return Ok(None);
     }
 
     fn handle_load_latest(
@@ -72,7 +92,7 @@ impl DatabaseTrait for InMemoryDataStore {
 
             Ok(())
         } else {
-            unimplemented!()
+            Err(DatabaseError::InvalidValue("id".to_string()))
         }
     }
 
