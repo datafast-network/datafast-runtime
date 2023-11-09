@@ -36,6 +36,7 @@ pub struct Config {
     pub subgraph_dir: String,
     pub transform: Option<TransformConfig>,
     pub transform_wasm: Option<String>,
+    pub max_block_snapshots: Option<u64>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
