@@ -14,6 +14,14 @@ impl DatabaseTrait for InMemoryDataStore {
         entity_type: String,
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError> {
+        self.handle_load_latest(entity_type, entity_id)
+    }
+
+    fn handle_load_latest(
+        &self,
+        entity_type: String,
+        entity_id: String,
+    ) -> Result<Option<RawEntity>, DatabaseError> {
         let store = self;
         let table = store.get(&entity_type);
 
@@ -55,6 +63,15 @@ impl DatabaseTrait for InMemoryDataStore {
     fn handle_update(
         &mut self,
         block_ptr: BlockPtr,
+        entity_type: String,
+        entity_id: String,
+        data: RawEntity,
+    ) -> Result<(), DatabaseError> {
+        self.handle_update_latest(entity_type, entity_id, data)
+    }
+
+    fn handle_update_latest(
+        &mut self,
         entity_type: String,
         entity_id: String,
         data: RawEntity,

@@ -230,7 +230,12 @@ pub mod test {
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
         let db = Database::new_memory_db();
-        create_wasm_host(api_version, wasm_bytes, db.agent()).unwrap()
+        let mut db_agent = db.agent();
+        db_agent.block_ptr = Some(crate::common::BlockPtr {
+            number: 0,
+            hash: "example-test-hash".to_string(),
+        });
+        create_wasm_host(api_version, wasm_bytes, db_agent).unwrap()
     }
 
     pub fn get_subgraph_testing_resource(
