@@ -64,8 +64,8 @@ impl DatasourceWasmInstance {
             &[Value::I32(asc_data.wasm_ptr() as i32)],
         )?;
         log_info!(DatasourceWasmInstance, "Handler invoked";
-            "handler" => handler.name.clone(),
-            "handler_type" => format!("{:?}", handler_type));
+            handler => handler.name.clone(),
+            handler_type => format!("{:?}", handler_type));
         Ok(())
     }
 }

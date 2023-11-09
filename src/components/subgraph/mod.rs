@@ -78,7 +78,7 @@ impl Subgraph {
     fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
-                log_info!(Subgraph, "Received ethereum filtered data"; "events" => events.len(), "block" => format!("{:?}", block.number));
+                log_info!(Subgraph, "Received ethereum filtered data"; events => events.len(), block => format!("{:?}", block.number));
                 self.handle_ethereum_filtered_data(events, block)
             }
         }

@@ -16,9 +16,9 @@ impl NatsConsumer {
     pub fn new(uri: &str, subject: &str, content_type: ContentType) -> Result<Self, SourceError> {
         let conn = nats::connect(uri)?;
         log_info!(NatsConsumer,"Connected to Nats";
-            "url" => uri,
-            "subject" => subject,
-            "content_type" => format!("{:?}", content_type)
+            uri => uri,
+            subject => subject,
+            content_type => format!("{:?}", content_type)
         );
         Ok(NatsConsumer {
             conn,
@@ -45,7 +45,7 @@ impl NatsConsumer {
     }
 
     fn serialize_message(&self, msg: &nats::Message) -> Result<SourceDataMessage, SourceError> {
-        log_info!(NatsConsumer, "Serialize message"; "subject" => &msg.subject);
+        log_info!(NatsConsumer, "Serialize message"; subject => &msg.subject);
         match self.content_type {
             ContentType::JSON => {
                 let data = serde_json::from_slice(&msg.data)?;

@@ -51,10 +51,10 @@ impl Transform {
                 logs,
             } => {
                 log_info!(Transform, "Transform initialized";
-                    "chain" => format!("{:?}", self.chain),
-                    "block" => block,
-                    "transactions" => transactions,
-                    "logs" => logs);
+                    chain => format!("{:?}", self.chain),
+                    block => block,
+                    transactions => transactions,
+                    logs => logs);
 
                 let exports = &self.host.instance.exports;
                 let block_transform_fn = exports
