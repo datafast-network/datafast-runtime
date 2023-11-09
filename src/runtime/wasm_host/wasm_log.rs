@@ -16,14 +16,11 @@ pub fn log_log(
     log_level: i32,
     msg_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
-    let datasource_name = format!(
-        "[wasm-host]datasource: <{}>",
-        fenv.data().datasource_name.clone()
-    );
+    let datasource_name = format!("<{}>", fenv.data().datasource_name.clone());
     let message: String = asc_get(&fenv, msg_ptr, 0)?;
     match log_level {
         0 => {
-            log_critical!(datasource_name, message);
+            log_critical!(wasm_host, message; sounrce => datasource_name);
             if env::var("SUBGRAPH_WASM_RUNTIME_TEST").is_ok() {
                 // NOTE: if testing, just don't throw anything
                 return Ok(());
@@ -34,16 +31,16 @@ pub fn log_log(
             ));
         }
         1 => {
-            log_error!(datasource_name, message);
+            log_error!(wasm_host, message; sounrce => datasource_name);
         }
         2 => {
-            log_warn!(datasource_name, message);
+            log_warn!(wasm_host, message; sounrce => datasource_name);
         }
         3 => {
-            log_info!(datasource_name, message);
+            log_info!(wasm_host, message; sounrce => datasource_name);
         }
         4 => {
-            log_debug!(datasource_name, message);
+            log_debug!(wasm_host, message; sounrce => datasource_name);
         }
         _ => return Err(RuntimeError::new("Invalid log level!!")),
     }
