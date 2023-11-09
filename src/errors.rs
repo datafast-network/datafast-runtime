@@ -118,6 +118,8 @@ pub enum DatabaseError {
     MutexLockFailed,
     #[error("BlockPointer is missing")]
     MissingBlockPtr,
+    #[error("Wasm-Host sent an invalid request")]
+    WasmSendInvalidRequest,
 }
 
 #[derive(Debug, Error)]

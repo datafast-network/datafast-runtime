@@ -122,30 +122,54 @@ impl Database {
         Self::Memory(HashMap::new())
     }
 
-    pub fn handle_request(
+    pub fn handle_wasm_host_request(
         &mut self,
         block_ptr: BlockPtr,
         request: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
         match request {
-            StoreOperationMessage::Create(data) => {
-                self.handle_create(block_ptr, data.0.clone(), data.1)?;
-                Ok(StoreRequestResult::Create(data.0))
-            }
             StoreOperationMessage::Load(data) => {
-                match self.handle_load(block_ptr, data.0, data.1)? {
+                // When Wasm-Host ask for a load action, it is always ask for the latest snapshot
+                match self.handle_load_latest(data.0, data.1)? {
                     Some(e) => Ok(StoreRequestResult::Load(Some(e))),
                     None => Ok(StoreRequestResult::Load(None)),
                 }
             }
             StoreOperationMessage::Update(data) => {
+                /* When wasm-host send an update request, that means user wants either
+                 - To save a total new data record
+                 - To update an existing data record
+                So it is basically an Upsert request.
+                Therefore, the flow to handle this should be:
+                1/ Load latest entity with the given Entity-ID
+                2/ If entity found, update it along with the new block-pointer
+                - The new block-ptr might be a final block or not, we don't know
+                - The easy way is to always create a new snapshot
+                - The correct way is, find a way to know what is the current chain-head, compare it with the max-block-snapshot (it is quite like reorg threshold).
+                ---> If (chain-head - block-ptr) > max-block-snapshots, it means we are out of reorg threshold, we can mutate the current data, or, insert the new row, and delete the old row
+                ---> Else, just insert the new row
+                >>>> Conclusion: we always should create a new snapshot,
+                then later we shall determine if we need to remove the previous snapshot or not.
+                3/ If entity not found, create it with the current block-pointer
+                */
                 assert!(!data.1.is_empty());
                 self.handle_update(block_ptr, data.0, data.1, data.2)?;
                 Ok(StoreRequestResult::Update)
             }
-            _ => {
-                unimplemented!()
+            StoreOperationMessage::Delete(data) => {
+                /*
+                - If we are out of reorg-threshold, we can safely HARD-DELETE all snapshots of this Entity
+                - If we are within the reorg-threshold, we can only SOFT-DELETE all the snapshots
+                - If reorg happen, how do we know if the soft-delete action should be reverted or not?
+                - To handle this, we can make SOFT-DELETE column a Numeric value, and when soft-delete happens,
+                we add block-ptr's block-number to the SOFT-DELETE column
+                - When reorg happen, we know the reorg-block, then...
+                - If the reorg-block is > SOFT-DELETE's block, we do nothing
+                - Else, we clear the SOFT-DELETE column
+                */
+                todo!()
             }
+            _ => Err(DatabaseError::WasmSendInvalidRequest),
         }
     }
 
@@ -158,7 +182,7 @@ impl Database {
 }
 
 impl DatabaseAgent {
-    pub fn send_store_request(
+    pub fn wasm_send_store_request(
         self,
         request: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
@@ -171,7 +195,7 @@ impl DatabaseAgent {
             return Err(DatabaseError::MissingBlockPtr);
         }
 
-        db.handle_request(self.block_ptr.to_owned().unwrap(), request)
+        db.handle_wasm_host_request(self.block_ptr.to_owned().unwrap(), request)
     }
 }
 
