@@ -1,5 +1,6 @@
 use super::DatabaseTrait;
 use super::RawEntity;
+use crate::common::BlockPtr;
 use crate::errors::DatabaseError;
 use crate::runtime::asc::native_types::store::Value;
 use std::collections::HashMap;
@@ -9,6 +10,7 @@ pub type InMemoryDataStore = HashMap<String, HashMap<String, HashMap<String, Val
 impl DatabaseTrait for InMemoryDataStore {
     fn handle_load(
         &self,
+        block_ptr: BlockPtr,
         entity_type: String,
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError> {
@@ -30,7 +32,12 @@ impl DatabaseTrait for InMemoryDataStore {
         Ok(Some(entity))
     }
 
-    fn handle_create(&mut self, entity_type: String, data: RawEntity) -> Result<(), DatabaseError> {
+    fn handle_create(
+        &mut self,
+        block_ptr: BlockPtr,
+        entity_type: String,
+        data: RawEntity,
+    ) -> Result<(), DatabaseError> {
         let store = self;
         if !store.contains_key(&entity_type) {
             store.insert(entity_type.clone(), HashMap::new());
@@ -47,6 +54,7 @@ impl DatabaseTrait for InMemoryDataStore {
 
     fn handle_update(
         &mut self,
+        block_ptr: BlockPtr,
         entity_type: String,
         entity_id: String,
         data: RawEntity,

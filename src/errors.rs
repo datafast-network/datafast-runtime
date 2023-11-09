@@ -116,6 +116,8 @@ pub enum DatabaseError {
     SendReplyFailed(#[from] SendError),
     #[error("Database Mutex-lock failed")]
     MutexLockFailed,
+    #[error("BlockPointer is missing")]
+    MissingBlockPtr,
 }
 
 #[derive(Debug, Error)]
