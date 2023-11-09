@@ -39,13 +39,13 @@ pub trait DatabaseTrait {
     ) -> Result<Option<RawEntity>, DatabaseError>;
 
     fn soft_delete(
-        &self,
+        &mut self,
         block_ptr: BlockPtr,
         entity_type: String,
         entity_id: String,
     ) -> Result<(), DatabaseError>;
 
-    fn hard_delete(&self, entity_type: String, entity_id: String) -> Result<(), DatabaseError>;
+    fn hard_delete(&mut self, entity_type: String, entity_id: String) -> Result<(), DatabaseError>;
 }
 
 impl DatabaseTrait for Database {
@@ -82,7 +82,7 @@ impl DatabaseTrait for Database {
     }
 
     fn soft_delete(
-        &self,
+        &mut self,
         block_ptr: BlockPtr,
         entity_type: String,
         entity_id: String,
@@ -92,7 +92,7 @@ impl DatabaseTrait for Database {
         }
     }
 
-    fn hard_delete(&self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
+    fn hard_delete(&mut self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
         match self {
             Self::Memory(store) => store.hard_delete(entity_type, entity_id),
         }

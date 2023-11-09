@@ -170,7 +170,7 @@ mod test {
         entity_data.insert("id".to_string(), Value::String(entity_id.clone()));
 
         let db = host.dbstore_agent.clone();
-        db.wasm_send_store_request(StoreOperationMessage::Create((entity_type.clone(), entity_data))).unwrap();
+        db.wasm_send_store_request(StoreOperationMessage::Update((entity_type.clone(), entity_id,entity_data))).unwrap();
         []
     } {
         let asc_entity = AscPtr::<AscEntity>::new(result.first().unwrap().unwrap_i32() as u32);

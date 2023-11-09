@@ -56,9 +56,6 @@ impl DatasourceWasmInstance {
         let handler = match handler_type {
             HandlerTypes::EthereumBlock => self.ethereum_handlers.block.get(handler_name),
             HandlerTypes::EthereumEvent => self.ethereum_handlers.events.get(handler_name),
-            _ => {
-                unimplemented!()
-            }
         }
         .ok_or(SubgraphError::InvalidHandlerName(handler_name.to_owned()))?;
 

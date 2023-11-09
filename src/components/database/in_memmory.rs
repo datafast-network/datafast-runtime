@@ -67,7 +67,7 @@ impl DatabaseTrait for InMemoryDataStore {
             };
 
             // Push new record
-            let mut snapshots = table.get_mut(entity_id).unwrap();
+            let snapshots = table.get_mut(entity_id).unwrap();
             snapshots.push((block_ptr.number, block_ptr.hash, None, data));
 
             Ok(())
@@ -77,13 +77,13 @@ impl DatabaseTrait for InMemoryDataStore {
     }
 
     fn soft_delete(
-        &self,
+        &mut self,
         block_ptr: BlockPtr,
         entity_type: String,
         entity_id: String,
     ) -> Result<(), DatabaseError> {
         let store = self;
-        let table = store.get(&entity_type);
+        let table = store.get_mut(&entity_type);
 
         if table.is_none() {
             return Err(DatabaseError::EntityTypeNotExists(entity_type));
@@ -96,7 +96,7 @@ impl DatabaseTrait for InMemoryDataStore {
             return Err(DatabaseError::EntityIDNotExists(entity_type, entity_id));
         }
 
-        let mut snapshots = entity.unwrap();
+        let snapshots = entity.unwrap();
         for snapshot in snapshots.iter_mut() {
             snapshot.2 = Some(block_ptr.number);
         }
@@ -104,9 +104,9 @@ impl DatabaseTrait for InMemoryDataStore {
         Ok(())
     }
 
-    fn hard_delete(&self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
+    fn hard_delete(&mut self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
         let store = self;
-        let table = store.get(&entity_type);
+        let table = store.get_mut(&entity_type);
 
         if table.is_none() {
             return Err(DatabaseError::EntityTypeNotExists(entity_type));

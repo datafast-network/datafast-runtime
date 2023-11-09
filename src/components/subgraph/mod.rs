@@ -85,7 +85,7 @@ impl Subgraph {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
                 let block_ptr = BlockPtr {
-                    number: block.number.as_u64() as u128,
+                    number: block.number.as_u64(),
                     hash: block.hash.to_string(),
                 };
                 self.set_block_ptr(block_ptr);
