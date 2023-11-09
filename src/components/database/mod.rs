@@ -1,4 +1,4 @@
-mod in_memmory;
+mod in_memory;
 
 use crate::config::Config;
 use crate::errors::DatabaseError;
@@ -13,7 +13,7 @@ type RawEntity = HashMap<String, asc::native_types::store::Value>;
 
 #[derive(Clone)]
 pub enum Database {
-    Memory(in_memmory::InMemoryDataStore),
+    Memory(in_memory::InMemoryDataStore),
 }
 
 pub trait DatabaseTrait {

@@ -4,6 +4,7 @@ use super::database::DatabaseAgent;
 use crate::config::Config;
 use crate::errors::SerializerError;
 use crate::errors::TransformError;
+use crate::log_debug;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use crate::runtime::wasm_host::create_wasm_host;
@@ -32,7 +33,8 @@ impl Serializer {
                     .map_err(|_| TransformError::BadTransformWasm(transform_wasm))?;
                 let empty_db = DatabaseAgent::default();
                 let wasm_version = Version::new(0, 0, 5);
-                let host = create_wasm_host(wasm_version, wasm_bytes, empty_db)?;
+                let host =
+                    create_wasm_host(wasm_version, wasm_bytes, empty_db, "Serializer".to_string())?;
                 let transform = Transform::new(host, config.chain, transform_cfg)?;
                 Ok(Self::Transform(transform))
             }
@@ -50,6 +52,7 @@ impl Serializer {
         match self {
             Self::Transform(mut transform) => {
                 while let Ok(source) = source_recv.recv().await {
+                    log_debug!("Transform", "Received source data");
                     result_sender
                         .send(transform.handle_source_input(source)?)
                         .await?

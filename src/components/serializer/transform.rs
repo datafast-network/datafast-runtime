@@ -6,6 +6,7 @@ use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
 use crate::config::TransformConfig;
 use crate::errors::TransformError;
+use crate::log_info;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use crate::runtime::asc::base::asc_get;
@@ -39,7 +40,7 @@ impl Transform {
             config,
             chain,
         };
-        Ok(this.bind_transform_functions()?)
+        this.bind_transform_functions()
     }
 
     pub fn bind_transform_functions(mut self) -> Result<Self, TransformError> {
@@ -49,6 +50,12 @@ impl Transform {
                 transactions,
                 logs,
             } => {
+                log_info!("Transform", "Transform initialized";
+                    "chain" => format!("{:?}", self.chain),
+                    "block" => block,
+                    "transactions" => transactions,
+                    "logs" => logs);
+
                 let exports = &self.host.instance.exports;
                 let block_transform_fn = exports
                     .get_function(&block)
@@ -64,7 +71,7 @@ impl Transform {
                     .to_owned();
                 self.funcs.insert(block, block_transform_fn);
                 self.funcs.insert(transactions, txs_transform_fn.to_owned());
-                self.funcs.insert(logs, logs_transform_fn.to_owned())
+                self.funcs.insert(logs, logs_transform_fn.to_owned());
             }
             _ => unimplemented!(),
         };

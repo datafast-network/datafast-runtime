@@ -5,6 +5,8 @@ mod config;
 mod errors;
 mod messages;
 mod runtime;
+#[macro_use]
+mod logger_macros;
 
 use components::database::Database;
 use components::manifest_loader::LoaderTrait;
@@ -52,7 +54,12 @@ async fn main() -> Result<(), SwrError> {
         let api_version = datasource.mapping.apiVersion.to_owned();
         let wasm_bytes = manifest.load_wasm(&datasource.name).await?;
         let dbstore_agent = database.agent();
-        let wasm_host = create_wasm_host(api_version, wasm_bytes, dbstore_agent)?;
+        let wasm_host = create_wasm_host(
+            api_version,
+            wasm_bytes,
+            dbstore_agent,
+            datasource.name.clone(),
+        )?;
         subgraph.create_source(wasm_host, datasource)?;
     }
 
@@ -65,12 +72,12 @@ async fn main() -> Result<(), SwrError> {
     let subgraph_filter_run = subgraph_filter.run_async(recv2, sender3);
     let subgraph_run = subgraph.run_async(recv3);
 
-    let result = ::tokio::join!(
+    let results = ::tokio::join!(
         stream_run,
         serializer_run,
         subgraph_filter_run,
         subgraph_run,
     );
-    log::info!("main result: {:?}", result);
+    log::info!("Results: {:?}", results);
     Ok(())
 }
