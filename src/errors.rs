@@ -110,6 +110,10 @@ pub enum DatabaseError {
     MissingID,
     #[error("Invalid operation")]
     Invalid,
+    #[error("No such entity `{0}`")]
+    EntityTypeNotExists(String),
+    #[error("No such entity `{0}` with id=`{1}`")]
+    EntityIDNotExists(String, String),
     #[error("Something wrong: {0}")]
     Plain(String),
     #[error("Result-reply sending failed: {0}")]

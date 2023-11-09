@@ -24,30 +24,28 @@ pub trait DatabaseTrait {
         entity_type: String,
         data: RawEntity,
     ) -> Result<(), DatabaseError>;
+
     fn handle_load(
         &self,
         block_ptr: BlockPtr,
         entity_type: String,
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError>;
+
     fn handle_load_latest(
         &self,
         entity_type: String,
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError>;
-    fn handle_update(
-        &mut self,
+
+    fn soft_delete(
+        &self,
         block_ptr: BlockPtr,
         entity_type: String,
         entity_id: String,
-        data: RawEntity,
     ) -> Result<(), DatabaseError>;
-    fn handle_update_latest(
-        &mut self,
-        entity_type: String,
-        entity_id: String,
-        data: RawEntity,
-    ) -> Result<(), DatabaseError>;
+
+    fn hard_delete(&self, entity_type: String, entity_id: String) -> Result<(), DatabaseError>;
 }
 
 impl DatabaseTrait for Database {
@@ -83,26 +81,20 @@ impl DatabaseTrait for Database {
         }
     }
 
-    fn handle_update(
-        &mut self,
+    fn soft_delete(
+        &self,
         block_ptr: BlockPtr,
         entity_type: String,
         entity_id: String,
-        data: RawEntity,
     ) -> Result<(), DatabaseError> {
         match self {
-            Self::Memory(store) => store.handle_update(block_ptr, entity_type, entity_id, data),
+            Self::Memory(store) => store.soft_delete(block_ptr, entity_type, entity_id),
         }
     }
 
-    fn handle_update_latest(
-        &mut self,
-        entity_type: String,
-        entity_id: String,
-        data: RawEntity,
-    ) -> Result<(), DatabaseError> {
+    fn hard_delete(&self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
         match self {
-            Self::Memory(store) => store.handle_update_latest(entity_type, entity_id, data),
+            Self::Memory(store) => store.hard_delete(entity_type, entity_id),
         }
     }
 }
@@ -128,35 +120,19 @@ impl Database {
         request: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
         match request {
-            StoreOperationMessage::Load(data) => {
+            StoreOperationMessage::Load((entity_type, entity_id)) => {
                 // When Wasm-Host ask for a load action, it is always ask for the latest snapshot
-                match self.handle_load_latest(data.0, data.1)? {
+                match self.handle_load_latest(entity_type, entity_id)? {
                     Some(e) => Ok(StoreRequestResult::Load(Some(e))),
                     None => Ok(StoreRequestResult::Load(None)),
                 }
             }
-            StoreOperationMessage::Update(data) => {
-                /* When wasm-host send an update request, that means user wants either
-                 - To save a total new data record
-                 - To update an existing data record
-                So it is basically an Upsert request.
-                Therefore, the flow to handle this should be:
-                1/ Load latest entity with the given Entity-ID
-                2/ If entity found, update it along with the new block-pointer
-                - The new block-ptr might be a final block or not, we don't know
-                - The easy way is to always create a new snapshot
-                - The correct way is, find a way to know what is the current chain-head, compare it with the max-block-snapshot (it is quite like reorg threshold).
-                ---> If (chain-head - block-ptr) > max-block-snapshots, it means we are out of reorg threshold, we can mutate the current data, or, insert the new row, and delete the old row
-                ---> Else, just insert the new row
-                >>>> Conclusion: we always should create a new snapshot,
-                then later we shall determine if we need to remove the previous snapshot or not.
-                3/ If entity not found, create it with the current block-pointer
-                */
-                assert!(!data.1.is_empty());
-                self.handle_update(block_ptr, data.0, data.1, data.2)?;
+            StoreOperationMessage::Update((entity_type, _entity_id, data)) => {
+                // Any Update request will always lead to a new snapshot creation
+                self.handle_create(block_ptr, entity_type, data)?;
                 Ok(StoreRequestResult::Update)
             }
-            StoreOperationMessage::Delete(data) => {
+            StoreOperationMessage::Delete((entity_type, entity_id)) => {
                 /*
                 - If we are out of reorg-threshold, we can safely HARD-DELETE all snapshots of this Entity
                 - If we are within the reorg-threshold, we can only SOFT-DELETE all the snapshots
@@ -167,7 +143,8 @@ impl Database {
                 - If the reorg-block is > SOFT-DELETE's block, we do nothing
                 - Else, we clear the SOFT-DELETE column
                 */
-                todo!()
+                self.soft_delete(block_ptr, entity_type, entity_id)?;
+                Ok(StoreRequestResult::Delete)
             }
             _ => Err(DatabaseError::WasmSendInvalidRequest),
         }

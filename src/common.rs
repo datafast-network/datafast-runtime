@@ -69,6 +69,6 @@ pub enum Chain {
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
 pub struct BlockPtr {
-    pub number: u128,
+    pub number: u64,
     pub hash: String,
 }
