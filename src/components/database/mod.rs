@@ -1,5 +1,6 @@
 mod in_memmory;
 
+use crate::common::BlockPtr;
 use crate::config::Config;
 use crate::errors::DatabaseError;
 use crate::messages::StoreOperationMessage;
@@ -63,6 +64,7 @@ impl DatabaseTrait for Database {
 #[derive(Clone)]
 pub struct DatabaseAgent {
     db: Arc<RwLock<Database>>,
+    pub block_ptr: Option<BlockPtr>,
 }
 
 impl Database {
@@ -101,6 +103,7 @@ impl Database {
     pub fn agent(&self) -> DatabaseAgent {
         DatabaseAgent {
             db: Arc::new(RwLock::new(self.to_owned())),
+            block_ptr: None,
         }
     }
 }
@@ -122,6 +125,7 @@ impl Default for DatabaseAgent {
     fn default() -> Self {
         Self {
             db: Arc::new(RwLock::new(Database::new_memory_db())),
+            block_ptr: None,
         }
     }
 }
