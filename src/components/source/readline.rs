@@ -30,7 +30,7 @@ impl Readline {
                 }
 
                 match serde_json::from_str(&input) {
-                    Ok(value) => yield SourceDataMessage::JSON(value),
+                    Ok(value) => yield SourceDataMessage::Json(value),
                     Err(_) => {
                         ::log::error!("Not json!");
                         continue;

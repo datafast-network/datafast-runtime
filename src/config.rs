@@ -23,7 +23,7 @@ pub enum SourceTypes {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ContentType {
-    JSON,
+    Json,
     Protobuf,
 }
 
@@ -64,7 +64,6 @@ impl Config {
 #[cfg(test)]
 mod test {
     use super::Config;
-    
 
     #[test]
     fn test_config() {

@@ -15,6 +15,7 @@ use transform::Transform;
 
 pub enum Serializer {
     Transform(Transform),
+    #[allow(dead_code)]
     DirectSerializer,
 }
 

@@ -29,8 +29,8 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::FromIterator;
 
-///! Implementations of `ToAscObj` and `FromAscObj` for Rust types.
-///! Standard Rust types go in `mod.rs` and external types in `external.rs`.
+/// Implementations of `ToAscObj` and `FromAscObj` for Rust types.
+/// Standard Rust types go in `mod.rs` and external types in `external.rs`.
 
 impl<T: AscValue> ToAscObj<TypedArray<T>> for [T] {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<TypedArray<T>, AscError> {
@@ -68,19 +68,13 @@ impl<T: AscValue + Send + Sync, const LEN: usize> FromAscObj<TypedArray<T>> for 
 
 impl ToAscObj<AscString> for str {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
-        AscString::new(
-            &self.encode_utf16().collect::<Vec<_>>(),
-            heap.api_version(),
-        )
+        AscString::new(&self.encode_utf16().collect::<Vec<_>>(), heap.api_version())
     }
 }
 
 impl ToAscObj<AscString> for &str {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
-        AscString::new(
-            &self.encode_utf16().collect::<Vec<_>>(),
-            heap.api_version(),
-        )
+        AscString::new(&self.encode_utf16().collect::<Vec<_>>(), heap.api_version())
     }
 }
 

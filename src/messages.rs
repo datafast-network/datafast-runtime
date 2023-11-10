@@ -7,7 +7,8 @@ use web3::types::Log;
 
 #[derive(Debug, Clone)]
 pub enum SourceDataMessage {
-    JSON(serde_json::Value),
+    Json(serde_json::Value),
+    #[allow(dead_code)]
     Protobuf,
 }
 

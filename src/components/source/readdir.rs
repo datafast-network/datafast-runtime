@@ -48,7 +48,7 @@ impl ReadDir {
                 let file = File::open(file).unwrap();
 
                 match serde_json::from_reader(&file) {
-                    Ok(value) => yield SourceDataMessage::JSON(value),
+                    Ok(value) => yield SourceDataMessage::Json(value),
                     Err(_) => {
                         ::log::error!("Not json!");
                         continue;

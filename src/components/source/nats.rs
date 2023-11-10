@@ -47,9 +47,9 @@ impl NatsConsumer {
     fn serialize_message(&self, msg: &nats::Message) -> Result<SourceDataMessage, SourceError> {
         info!(NatsConsumer, "Serialize message"; subject => &msg.subject);
         match self.content_type {
-            ContentType::JSON => {
+            ContentType::Json => {
                 let data = serde_json::from_slice(&msg.data)?;
-                Ok(SourceDataMessage::JSON(data))
+                Ok(SourceDataMessage::Json(data))
             }
             ContentType::Protobuf => unimplemented!("Protobuf not implemented yet"),
         }

@@ -61,17 +61,11 @@ impl From<AscError> for RuntimeError {
 }
 
 #[derive(Error, Debug)]
-pub enum HostExportErrors {
-    #[error("Somethig wrong: {0}")]
-    Plain(String),
-}
-
-#[derive(Error, Debug)]
 pub enum WasmHostError {
-    #[error("Compiling failed: {0}")]
-    WasmCompileError(#[from] CompileError),
-    #[error("Wasm Instantiation Error: {0}")]
-    WasmInstanceError(#[from] InstantiationError),
+    #[error("Wasm Compiling failed: {0}")]
+    Compile(#[from] CompileError),
+    #[error("Wasm Instantiation Failed: {0}")]
+    Instantiation(#[from] InstantiationError),
 }
 
 #[derive(Debug, Error)]
@@ -93,15 +87,13 @@ pub enum ManifestLoaderError {
 #[derive(Debug, Error)]
 pub enum SubgraphError {
     #[error(transparent)]
-    RuntimeError(#[from] RuntimeError),
+    Runtime(#[from] RuntimeError),
     #[error(transparent)]
-    AscError(#[from] AscError),
+    Asc(#[from] AscError),
     #[error("Invalid datasource_id: {0}")]
     InvalidSourceID(String),
     #[error("Invalid handler_name: {0}")]
     InvalidHandlerName(String),
-    #[error("Something wrong: {0}")]
-    Plain(String),
 }
 
 #[derive(Debug, Error)]
@@ -166,20 +158,20 @@ pub enum TransformError {
 pub enum SerializerError {
     #[error(transparent)]
     TransformError(#[from] TransformError),
-    #[error(transparent)]
+    #[error("WasmHost error = {0}")]
     WasmHost(#[from] WasmHostError),
     #[error("Send result failed: {0}")]
-    ChannelSendError(#[from] SendError),
+    ChannelSendFail(#[from] SendError),
 }
 
 #[derive(Debug, Error)]
 pub enum SourceError {
     #[error("Send data failed: {0}")]
-    ChannelSendError(#[from] SendError),
+    ChannelSendFail(#[from] SendError),
     #[error("Nats error: {0}")]
-    NatsError(#[from] io::Error),
+    Nats(#[from] io::Error),
     #[error("Nats parse message data failed: {0}")]
-    ParseMessageError(#[from] serde_json::Error),
+    ParseMessageFail(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Error)]

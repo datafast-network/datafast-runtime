@@ -92,7 +92,7 @@ impl Transform {
             ))?;
 
         let asc_ptr = match source {
-            SourceDataMessage::JSON(json_data) => {
+            SourceDataMessage::Json(json_data) => {
                 let asc_json = asc_new(&mut self.host, &json_data)?;
                 asc_json.wasm_ptr() as i32
             }
