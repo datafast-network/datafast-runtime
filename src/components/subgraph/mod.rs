@@ -5,6 +5,7 @@ use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
+use crate::info;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::runtime::wasm_host::AscHost;
@@ -89,6 +90,12 @@ impl Subgraph {
                     hash: block.hash.to_string(),
                 };
                 self.set_block_ptr(block_ptr);
+                info!(
+                    Subgraph,
+                    "Received ethereum filtered data";
+                    events => events.len(),
+                    block => format!("{:?}", block.number),
+                );
                 self.handle_ethereum_filtered_data(events, block)
             }
         }

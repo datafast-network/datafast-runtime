@@ -1,5 +1,7 @@
 use crate::config::ContentType;
+use crate::debug;
 use crate::errors::SourceError;
+use crate::info;
 use crate::messages::SourceDataMessage;
 use async_stream::stream;
 use tokio_stream::Stream;
@@ -13,6 +15,11 @@ pub struct NatsConsumer {
 impl NatsConsumer {
     pub fn new(uri: &str, subject: &str, content_type: ContentType) -> Result<Self, SourceError> {
         let conn = nats::connect(uri)?;
+        info!(NatsConsumer,"Connected to Nats";
+            uri => uri,
+            subject => subject,
+            content_type => format!("{:?}", content_type)
+        );
         Ok(NatsConsumer {
             conn,
             subject: subject.to_string(),
@@ -29,13 +36,16 @@ impl NatsConsumer {
         stream! {
             for msg in sub.messages() {
                 let serialized_msg = self.serialize_message(&msg).unwrap();
+                debug!(NatsConsumer, "Received data");
                 yield serialized_msg;
                 msg.ack().expect("Ack Nats message failed");
+                debug!(NatsConsumer, "Acked message");
             }
         }
     }
 
     fn serialize_message(&self, msg: &nats::Message) -> Result<SourceDataMessage, SourceError> {
+        info!(NatsConsumer, "Serialize message"; subject => &msg.subject);
         match self.content_type {
             ContentType::JSON => {
                 let data = serde_json::from_slice(&msg.data)?;

@@ -1,7 +1,12 @@
 use super::Env;
+use crate::critical;
+use crate::debug;
+use crate::error;
+use crate::info;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::native_types::string::AscString;
+use crate::warn;
 use std::env;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
@@ -11,15 +16,11 @@ pub fn log_log(
     log_level: i32,
     msg_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
-    use colored::Colorize;
-
+    let datasource_name = format!("<{}>", fenv.data().datasource_name.clone());
     let message: String = asc_get(&fenv, msg_ptr, 0)?;
-
     match log_level {
         0 => {
-            let crit_msg = format!("CRITICAL: {message}").red();
-            log::log!(target: "wasm-host", log::Level::Warn, "{crit_msg}");
-
+            critical!(wasm_host, message; sounrce => datasource_name);
             if env::var("SUBGRAPH_WASM_RUNTIME_TEST").is_ok() {
                 // NOTE: if testing, just don't throw anything
                 return Ok(());
@@ -30,16 +31,16 @@ pub fn log_log(
             ));
         }
         1 => {
-            log::log!(target: "wasm-host", log::Level::Error, "{}", message.truecolor(140, 140, 140))
+            error!(wasm_host, message; datasource => datasource_name);
         }
         2 => {
-            log::log!(target: "wasm-host", log::Level::Warn, "{}", message.truecolor(140, 140, 140))
+            warn!(wasm_host, message; datasource => datasource_name);
         }
         3 => {
-            log::log!(target: "wasm-host", log::Level::Info, "{}", message.truecolor(140, 140, 140))
+            info!(wasm_host, message; datasource => datasource_name);
         }
         4 => {
-            log::log!(target: "wasm-host", log::Level::Debug, "{}", message.truecolor(140, 140, 140))
+            debug!(wasm_host, message; datasource => datasource_name);
         }
         _ => return Err(RuntimeError::new("Invalid log level!!")),
     }

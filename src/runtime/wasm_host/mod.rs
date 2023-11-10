@@ -4,10 +4,10 @@ mod bigint;
 mod chain;
 mod global;
 mod json;
-mod log;
 mod macros;
 mod store;
 mod types_conversion;
+mod wasm_log;
 
 use crate::components::database::DatabaseAgent;
 use crate::errors::WasmHostError;
@@ -21,6 +21,8 @@ use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
 
+use crate::info;
+use crate::warn;
 pub use asc::AscHost;
 
 #[derive(Clone)]
@@ -32,12 +34,14 @@ pub struct Env {
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
     pub db_agent: DatabaseAgent,
+    pub datasource_name: String,
 }
 
 pub fn create_wasm_host(
     api_version: Version,
     wasm_bytes: Vec<u8>,
     dbstore_agent: DatabaseAgent,
+    datasource_name: String,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -52,6 +56,7 @@ pub fn create_wasm_host(
             arena_start_ptr: 0,
             arena_free_size: 0,
             db_agent: dbstore_agent.clone(),
+            datasource_name,
         },
     );
 
@@ -107,7 +112,7 @@ pub fn create_wasm_host(
             "typeConversion.stringToH160" => Function::new_typed_with_env(&mut store, &env, types_conversion::string_to_h160),
             "typeConversion.bytesToBase58" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_base58),
             //Log
-            "log.log" => Function::new_typed_with_env(&mut store, &env, log::log_log),
+            "log.log" => Function::new_typed_with_env(&mut store, &env, wasm_log::log_log),
             // BigInt
             "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus),
             "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),
@@ -162,7 +167,10 @@ pub fn create_wasm_host(
     };
 
     if data_mut.memory_allocate.is_none() {
-        ::log::warn!("MemoryAllocate function is not available in host-exports");
+        warn!(
+            wasm_host,
+            "MemoryAllocate function is not available in host-exports"
+        );
     }
 
     data_mut.id_of_type = match api_version.clone() {
@@ -174,18 +182,21 @@ pub fn create_wasm_host(
     };
 
     if data_mut.id_of_type.is_none() {
-        ::log::warn!("id_of_type function is not available in host-exports");
+        warn!(
+            wasm_host,
+            "id_of_type function is not available in host-exports"
+        );
     }
 
     match data_mut.api_version.clone() {
         version if version <= Version::new(0, 0, 4) => {}
         _ => {
-            ::log::warn!("Try calling `_start` if possible");
+            warn!(wasm_host, "Try calling '_start' if possible");
             instance
                 .exports
                 .get_function("_start")
                 .map(|f| {
-                    ::log::info!("Calling `_start`");
+                    warn!(wasm_host, "Try calling ...");
                     f.call(&mut store_mut, &[]).unwrap();
                 })
                 .ok();
@@ -215,9 +226,9 @@ pub fn create_wasm_host(
 
 #[cfg(test)]
 pub mod test {
-    use crate::components::database::Database;
-
     use super::*;
+    use crate::common::BlockPtr;
+    use crate::components::database::Database;
     use std::path::PathBuf;
 
     pub fn mock_wasm_host(api_version: Version, wasm_path: &str) -> AscHost {
@@ -231,11 +242,11 @@ pub mod test {
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
         let db = Database::new_memory_db();
         let mut db_agent = db.agent();
-        db_agent.block_ptr = Some(crate::common::BlockPtr {
+        db_agent.block_ptr = Some(BlockPtr {
             number: 0,
             hash: "example-test-hash".to_string(),
         });
-        create_wasm_host(api_version, wasm_bytes, db_agent).unwrap()
+        create_wasm_host(api_version, wasm_bytes, db.agent(), "Test".to_string()).unwrap()
     }
 
     pub fn get_subgraph_testing_resource(
