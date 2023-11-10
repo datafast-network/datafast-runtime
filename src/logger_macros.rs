@@ -8,9 +8,9 @@ macro_rules! generate_log_message {
     ($log_level:ident, $target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
         let keys_message = vec![
             $(
-                format!("{} = {}", stringify!($key), $value),
+                format!("{}={}", stringify!($key), $value),
             )*
-        ].join("\n ");
+        ].join(", ");
         let result_message = format!("{}\n \x1b[96m{}\x1b[0m", $msg, keys_message);
         log::$log_level!(target: &format!("{}",stringify!($target)), "{}", result_message);
     };

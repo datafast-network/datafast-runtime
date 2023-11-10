@@ -77,7 +77,7 @@ mod tests {
 
         let (sender, receive) = kanal::bounded_async::<crate::messages::SourceDataMessage>(1);
 
-        let sub = NatsConsumer::new("nats://localhost:4222", subject, ContentType::JSON).unwrap();
+        let sub = NatsConsumer::new("nats://localhost:4222", subject, ContentType::Json).unwrap();
 
         log::info!("Setup tasks");
 
