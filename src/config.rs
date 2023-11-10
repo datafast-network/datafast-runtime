@@ -64,7 +64,7 @@ impl Config {
 #[cfg(test)]
 mod test {
     use super::Config;
-    use env_logger;
+    
 
     #[test]
     fn test_config() {

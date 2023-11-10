@@ -37,7 +37,7 @@ pub trait LoaderTrait: Sized {
             .get_abis()
             .iter()
             .filter_map(
-                |(source_name, abi)| match self.load_ethereum_contract(source_name) {
+                |(source_name, _abi)| match self.load_ethereum_contract(source_name) {
                     Ok(contract) => Some((source_name.clone(), contract)),
                     Err(_) => None,
                 },

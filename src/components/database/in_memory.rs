@@ -42,7 +42,7 @@ impl DatabaseTrait for InMemoryDataStore {
             }
         }
 
-        return Ok(None);
+        Ok(None)
     }
 
     fn handle_load_latest(

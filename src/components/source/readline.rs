@@ -13,17 +13,17 @@ impl Readline {
             loop {
                 let mut input = String::new();
                 ::log::info!("Paste block data here...");
-                let mut lines = io::stdin().lock().lines();
+                let lines = io::stdin().lock().lines();
 
-                while let Some(line) = lines.next() {
+                for line in lines {
                     let last_input = line.unwrap();
 
-                    if last_input.len() == 0 {
+                    if last_input.is_empty() {
                         break;
                     }
 
-                    if input.len() > 0 {
-                        input.push_str("\n");
+                    if !input.is_empty() {
+                        input.push('\n');
                     }
 
                     input.push_str(&last_input);

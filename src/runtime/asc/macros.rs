@@ -26,8 +26,8 @@ macro_rules! impl_asc_type {
 #[macro_export]
 macro_rules! impl_asc_type_struct {
     ($struct_name:ident; $($field_name:ident => $field_type:ty),*) => {
-        impl crate::runtime::asc::base::AscType for $struct_name  {
-            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::errors::AscError> {
+        impl $crate::runtime::asc::base::AscType for $struct_name  {
+            fn to_asc_bytes(&self) -> Result<Vec<u8>, $crate::errors::AscError> {
                 let in_memory_byte_count = std::mem::size_of::<Self>();
                 let mut bytes = Vec::with_capacity(in_memory_byte_count);
 
@@ -82,13 +82,13 @@ macro_rules! impl_asc_type_struct {
 
             #[allow(unused_variables)]
             #[allow(unused_assignments)]
-            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, crate::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, $crate::errors::AscError> {
                 // Sanity check
                 let content_size = std::mem::size_of::<Self>();
-                let aligned_size = crate::runtime::asc::base::padding_to_16(content_size);
+                let aligned_size = $crate::runtime::asc::base::padding_to_16(content_size);
 
-                if crate::runtime::asc::base::HEADER_SIZE + asc_obj.len() == aligned_size + content_size {
-                    return Err(crate::errors::AscError::SizeNotMatch);
+                if $crate::runtime::asc::base::HEADER_SIZE + asc_obj.len() == aligned_size + content_size {
+                    return Err($crate::errors::AscError::SizeNotMatch);
                 }
 
                 let mut offset = 0;
@@ -105,9 +105,9 @@ macro_rules! impl_asc_type_struct {
 
                     let field_size = std::mem::size_of::<$field_type>();
                     let field_data = asc_obj.get(offset..(offset + field_size)).ok_or_else(|| {
-                        crate::errors::AscError::Plain("Attempted to read past end of array".to_string())
+                        $crate::errors::AscError::Plain("Attempted to read past end of array".to_string())
                     })?;
-                    let $field_name = crate::runtime::asc::base::AscType::from_asc_bytes(&field_data, api_version)?;
+                    let $field_name = $crate::runtime::asc::base::AscType::from_asc_bytes(&field_data, api_version)?;
                     offset += field_size;
                 )*
 
@@ -118,8 +118,8 @@ macro_rules! impl_asc_type_struct {
         }
     };
     ($struct_name:ident $(< $( $generic_name:tt $( : $generic_type:tt $(+ $generic_type_n:tt )* )? ),+ >)?; $($field_name:ident => $field_type:ty),*) => {
-        impl $(< $( $generic_name $( : $generic_type $(+ $generic_type_n )* )? ),+ >)? crate::runtime::asc::base::AscType for $struct_name  $(< $( $generic_name ),+ >)? {
-            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::errors::AscError> {
+        impl $(< $( $generic_name $( : $generic_type $(+ $generic_type_n )* )? ),+ >)? $crate::runtime::asc::base::AscType for $struct_name  $(< $( $generic_name ),+ >)? {
+            fn to_asc_bytes(&self) -> Result<Vec<u8>, $crate::errors::AscError> {
                 let in_memory_byte_count = std::mem::size_of::<Self>();
                 let mut bytes = Vec::with_capacity(in_memory_byte_count);
 
@@ -174,13 +174,13 @@ macro_rules! impl_asc_type_struct {
 
             #[allow(unused_variables)]
             #[allow(unused_assignments)]
-            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, crate::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, $crate::errors::AscError> {
                 // Sanity check
                 let content_size = std::mem::size_of::<Self>();
-                let aligned_size = crate::runtime::asc::base::padding_to_16(content_size);
+                let aligned_size = $crate::runtime::asc::base::padding_to_16(content_size);
 
-                if crate::runtime::asc::base::HEADER_SIZE + asc_obj.len() == aligned_size + content_size {
-                    return Err(crate::errors::AscError::SizeNotMatch);
+                if $crate::runtime::asc::base::HEADER_SIZE + asc_obj.len() == aligned_size + content_size {
+                    return Err($crate::errors::AscError::SizeNotMatch);
                 }
 
                 let mut offset = 0;
@@ -197,9 +197,9 @@ macro_rules! impl_asc_type_struct {
 
                     let field_size = std::mem::size_of::<$field_type>();
                     let field_data = asc_obj.get(offset..(offset + field_size)).ok_or_else(|| {
-                        crate::errors::AscError::Plain("Attempted to read past end of array".to_string())
+                        $crate::errors::AscError::Plain("Attempted to read past end of array".to_string())
                     })?;
-                    let $field_name = crate::runtime::asc::base::AscType::from_asc_bytes(&field_data, api_version)?;
+                    let $field_name = $crate::runtime::asc::base::AscType::from_asc_bytes(&field_data, api_version)?;
                     offset += field_size;
                 )*
 
@@ -214,43 +214,43 @@ macro_rules! impl_asc_type_struct {
 #[macro_export]
 macro_rules! impl_asc_type_enum {
     ($enum_name:ident; $($variant_name:ident => $variant_index:tt),*) => {
-        impl crate::runtime::asc::base::AscType for $enum_name  {
-            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::errors::AscError> {
+        impl $crate::runtime::asc::base::AscType for $enum_name  {
+            fn to_asc_bytes(&self) -> Result<Vec<u8>, $crate::errors::AscError> {
                let discriminant: u32 = match self {
                     $($enum_name::$variant_name => $variant_index,)*
                 };
                 discriminant.to_asc_bytes()
             }
 
-            fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, crate::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, $crate::errors::AscError> {
                 let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
-                    .map_err(|_| crate::errors::AscError::Plain("invalid Kind".to_string()))?;
+                    .map_err(|_| $crate::errors::AscError::Plain("invalid Kind".to_string()))?;
                 let discriminant = u32::from_le_bytes(u32_bytes);
                 match discriminant {
                     $($variant_index => Ok($enum_name::$variant_name),)*
-                    _ => Err(crate::errors::AscError::Plain("invalid Kind".to_string()))
+                    _ => Err($crate::errors::AscError::Plain("invalid Kind".to_string()))
                 }
             }
         }
     };
     //enum with tuple
     ($enum_name:ident $(< $( $generic_name:tt $( : $generic_type:tt $(+ $generic_type_n:tt )* )? ),+ >)?; $($variant_name:ident($variant_type:tt) => $variant_index:tt),*) => {
-        impl $(< $( $generic_name $( : $generic_type $(+ $generic_type_n )* )? ),+ >)? crate::runtime::asc::base::AscType
-        for $enum_name  $(< $( $generic_name ),+ >)? where $($variant_type: crate::runtime::asc::base::AscType),+
+        impl $(< $( $generic_name $( : $generic_type $(+ $generic_type_n )* )? ),+ >)? $crate::runtime::asc::base::AscType
+        for $enum_name  $(< $( $generic_name ),+ >)? where $($variant_type: $crate::runtime::asc::base::AscType),+
         {
-            fn to_asc_bytes(&self) -> Result<Vec<u8>, crate::errors::AscError> {
+            fn to_asc_bytes(&self) -> Result<Vec<u8>, $crate::errors::AscError> {
                 match self {
                     $($enum_name::$variant_name(value) => value.to_asc_bytes(),)*
                 }
             }
 
-            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, crate::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, $crate::errors::AscError> {
                 let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
-                    .map_err(|_| crate::errors::AscError::Plain("invalid enum type".to_string()))?;
+                    .map_err(|_| $crate::errors::AscError::Plain("invalid enum type".to_string()))?;
                 let discriminant = u32::from_le_bytes(u32_bytes);
                 match discriminant {
                     $($variant_index => Ok($enum_name::$variant_name($variant_type::from_asc_bytes(asc_obj, api_version)?)),)*
-                    _ => Err(crate::errors::AscError::Plain("invalid enum type".to_string()))
+                    _ => Err($crate::errors::AscError::Plain("invalid enum type".to_string()))
                 }
             }
         }

@@ -245,7 +245,7 @@ impl<C: AscType> AscPtr<C> {
         let start_of_rt_size = self
             .0
             .checked_sub(SIZE_OF_RT_SIZE)
-            .ok_or_else(|| AscError::Overflow(self.0))?;
+            .ok_or(AscError::Overflow(self.0))?;
 
         heap.read_u32(start_of_rt_size)
     }

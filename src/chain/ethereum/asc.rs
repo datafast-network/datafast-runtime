@@ -28,7 +28,9 @@ pub type AscH160 = Uint8Array;
 
 #[repr(u32)]
 #[derive(Copy, Clone)]
+#[derive(Default)]
 pub enum EthereumValueKind {
+    #[default]
     Address,
     FixedBytes,
     Bytes,
@@ -72,11 +74,7 @@ impl_asc_type_enum!(
     Tuple => 9
 );
 
-impl Default for EthereumValueKind {
-    fn default() -> Self {
-        EthereumValueKind::Address
-    }
-}
+
 
 impl AscValue for EthereumValueKind {}
 

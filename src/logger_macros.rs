@@ -19,39 +19,39 @@ macro_rules! generate_log_message {
 #[macro_export]
 macro_rules! info {
     ($target:ident, $msg:expr) => {
-         crate::generate_log_message!(info, $target, $msg);
+         $crate::generate_log_message!(info, $target, $msg);
     };
     ($target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
-         crate::generate_log_message!(info, $target, $msg; $($key => $value),*);
+         $crate::generate_log_message!(info, $target, $msg; $($key => $value),*);
     };
     ($target:ident; $($key:ident => $value:expr),*) => {
-         crate::generate_log_message!(info, $target, ""; $($key => $value),*);
+         $crate::generate_log_message!(info, $target, ""; $($key => $value),*);
     };
 }
 
 #[macro_export]
 macro_rules! error {
     ($target:ident, $msg:expr) => {
-         crate::generate_log_message!(error, $target, $msg);
+         $crate::generate_log_message!(error, $target, $msg);
     };
     ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
-         crate::generate_log_message!(error, $target, $msg; $($key => $value),*);
+         $crate::generate_log_message!(error, $target, $msg; $($key => $value),*);
     };
     ($target:ident; $($key:ident => $value:expr),*) => {
-         crate::generate_log_message!(error, $target, ""; $($key => $value),*);
+         $crate::generate_log_message!(error, $target, ""; $($key => $value),*);
     };
 }
 
 #[macro_export]
 macro_rules! warn {
     ($target:ident, $msg:expr) => {
-        crate::generate_log_message!(warn, $target, $msg);
+        $crate::generate_log_message!(warn, $target, $msg);
     };
     ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
-        crate::generate_log_message!(warn, $target, $msg; $($key => $value),*);
+        $crate::generate_log_message!(warn, $target, $msg; $($key => $value),*);
     };
     ($target:ident; $($key:ident => $value:expr),*) => {
-        crate::generate_log_message!(warn, $target, ""; $($key => $value),*);
+        $crate::generate_log_message!(warn, $target, ""; $($key => $value),*);
     };
 }
 
@@ -61,10 +61,10 @@ macro_rules! debug {
         log::debug!(target: &format!("{}", stringify!($target)), "{}", $msg);
     };
     ($target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
-         crate::generate_log_message!(debug, $target, $msg; $($key => $value),*);
+         $crate::generate_log_message!(debug, $target, $msg; $($key => $value),*);
     };
     ($target:ident; $($key:ident => $value:expr),*) => {
-        crate::generate_log_message!(debug, $target, ""; $($key => $value),*);
+        $crate::generate_log_message!(debug, $target, ""; $($key => $value),*);
     };
 }
 
@@ -72,14 +72,14 @@ macro_rules! debug {
 macro_rules! critical {
     ($target:ident, $msg:expr) => {
          let msg = format!("!!![CRITICAL]!!! {}", $msg);
-         crate::generate_log_message!(error, $target, msg);
+         $crate::generate_log_message!(error, $target, msg);
     };
     ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
         let msg = format!("!!![CRITICAL]!!! {}", $msg);
-        crate::generate_log_message!(error, $target, msg; $($key => $value),*);
+        $crate::generate_log_message!(error, $target, msg; $($key => $value),*);
     };
     ($target:ident; $($key:ident => $value:expr),*) => {
-       crate::generate_log_message!(error, $target, ""; $($key => $value),*);
+        $crate::generate_log_message!(error, $target, ""; $($key => $value),*);
     };
 }
 

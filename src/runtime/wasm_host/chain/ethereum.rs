@@ -16,27 +16,27 @@ mod test {
     use web3::types::Address;
 
     host_fn_test!("TestTypes", test_ethereum_block, host, result {
-        let mut block = EthereumBlockData {
+        let block = EthereumBlockData {
             number: U64::from(153453),
             hash: H256::from_str("0xfe52a399d93c48b67bb147432aff55873576997d9d05de2c97087027609ae440")
                 .unwrap(),
             ..Default::default()
         };
-        let asc_block = asc_new(&mut host, &mut block).unwrap();
+        let asc_block = asc_new(&mut host, &block).unwrap();
         let block_ptr = asc_block.wasm_ptr() as i32;
 
-        let mut tx = EthereumTransactionData {
+        let tx = EthereumTransactionData {
             hash: H256::from_str("0x65077e1060e4d159d053afd8f3edc6fd1f56a06b94aab2987607e6850c9d5af4").unwrap(),
             ..Default::default()
         };
-        let asc_tx = asc_new(&mut host, &mut tx).unwrap();
+        let asc_tx = asc_new(&mut host, &tx).unwrap();
         let tx_ptr = asc_tx.wasm_ptr() as i32;
 
-        let mut event = EthereumEventData {
+        let event = EthereumEventData {
             address: Address::from_str("0x388c818ca8b9251b393131c08a736a67ccb19297").unwrap(),
             ..Default::default()
         };
-        let asc_event = asc_new(&mut host, &mut event).unwrap();
+        let asc_event = asc_new(&mut host, &event).unwrap();
         let event_ptr = asc_event.wasm_ptr() as i32;
 
         [Value::I32(block_ptr), Value::I32(tx_ptr), Value::I32(event_ptr)]

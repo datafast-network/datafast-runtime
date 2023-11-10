@@ -107,12 +107,14 @@ pub enum Value {
 }
 #[repr(u32)]
 #[derive(Copy, Clone, Debug)]
+#[derive(Default)]
 pub enum StoreValueKind {
     String,
     Int,
     BigDecimal,
     Bool,
     Array,
+    #[default]
     Null,
     Bytes,
     BigInt,
@@ -148,10 +150,6 @@ impl StoreValueKind {
     }
 }
 
-impl Default for StoreValueKind {
-    fn default() -> Self {
-        StoreValueKind::Null
-    }
-}
+
 
 impl AscValue for StoreValueKind {}

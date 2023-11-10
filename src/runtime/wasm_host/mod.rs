@@ -21,7 +21,7 @@ use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
 
-use crate::info;
+
 use crate::warn;
 pub use asc::AscHost;
 

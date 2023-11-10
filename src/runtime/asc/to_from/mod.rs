@@ -68,19 +68,19 @@ impl<T: AscValue + Send + Sync, const LEN: usize> FromAscObj<TypedArray<T>> for 
 
 impl ToAscObj<AscString> for str {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
-        Ok(AscString::new(
+        AscString::new(
             &self.encode_utf16().collect::<Vec<_>>(),
             heap.api_version(),
-        )?)
+        )
     }
 }
 
 impl ToAscObj<AscString> for &str {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscString, AscError> {
-        Ok(AscString::new(
+        AscString::new(
             &self.encode_utf16().collect::<Vec<_>>(),
             heap.api_version(),
-        )?)
+        )
     }
 }
 
