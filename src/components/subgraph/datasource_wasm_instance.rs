@@ -1,6 +1,7 @@
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
+use crate::info;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscIndexId;
 use crate::runtime::asc::base::AscType;
@@ -62,6 +63,9 @@ impl DatasourceWasmInstance {
             &mut self.host.store,
             &[Value::I32(asc_data.wasm_ptr() as i32)],
         )?;
+        info!(DatasourceWasmInstance, "Handler invoked";
+            handler => handler.name.clone(),
+            handler_type => format!("{:?}", handler_type));
         Ok(())
     }
 }

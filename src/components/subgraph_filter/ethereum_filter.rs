@@ -7,7 +7,9 @@ use crate::common::Chain;
 use crate::common::Datasource;
 use crate::components::manifest_loader::LoaderTrait;
 use crate::components::manifest_loader::ManifestLoader;
+use crate::debug;
 use crate::errors::FilterError;
+use crate::info;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
@@ -35,6 +37,12 @@ impl EthereumFilter {
                 "Invalid signature event {}",
                 log.address
             )))?;
+
+        debug!(EthereumFilter, "Event found";
+            event => format!("{:?}", event),
+            log => format!("{:?}", log)
+        );
+
         event
             .parse_log(ethabi::RawLog {
                 topics: log.topics.clone(),
@@ -104,6 +112,10 @@ impl SubgraphFilterTrait for EthereumFilter {
             contracts,
             addresses,
         };
+        info!(EthereumFilter, "Init success";
+            Addresses => filter.addresses.len(),
+            Contracts => filter.contracts.len()
+        );
         Ok(filter)
     }
 
@@ -114,6 +126,10 @@ impl SubgraphFilterTrait for EthereumFilter {
         match data {
             SerializedDataMessage::Ethereum { block, logs, .. } => {
                 let events = self.filter_events(logs)?;
+                info!(EthereumFilter, "Filtered events";
+                    events => events.len(),
+                    block_number => format!("{:?}", block.number)
+                );
                 Ok(FilteredDataMessage::Ethereum { events, block })
             }
         }

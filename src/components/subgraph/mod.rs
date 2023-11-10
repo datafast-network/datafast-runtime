@@ -4,6 +4,7 @@ use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
+use crate::info;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::runtime::wasm_host::AscHost;
@@ -77,6 +78,7 @@ impl Subgraph {
     fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
+                info!(Subgraph, "Received ethereum filtered data"; events => events.len(), block => format!("{:?}", block.number));
                 self.handle_ethereum_filtered_data(events, block)
             }
         }
