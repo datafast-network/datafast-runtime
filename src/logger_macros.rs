@@ -1,106 +1,102 @@
 /// Colors:
 /// https://gist.github.com/raghav4/48716264a0f426cf95e4342c21ada8e7
 #[macro_export]
-macro_rules! log_info {
+macro_rules! generate_log_message {
+    ($log_level:ident, $target:ident, $msg: expr) => {
+        log::$log_level!(target: &format!("{}",stringify!($target)), "{}", $msg);
+    };
+    ($log_level:ident, $target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
+        let keys_message = vec![
+            $(
+                format!("{} = {}", stringify!($key), $value),
+            )*
+        ].join("\n ");
+        let result_message = format!("{}\n \x1b[96m{}\x1b[0m", $msg, keys_message);
+        log::$log_level!(target: &format!("{}",stringify!($target)), "{}", result_message);
+    };
+}
+
+#[macro_export]
+macro_rules! info {
     ($target:ident, $msg:expr) => {
-        log::info!(target: &format!("\x1b[32m{}",stringify!($target)), "{}\x1B[0m", $msg);
+         crate::generate_log_message!(info, $target, $msg);
     };
     ($target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("{}{}", $msg, keys_message.replace("Object", ""));
-        log::info!(target: &format!("\x1b[32m{}\x1B[0m",stringify!($target)), "{}", result_message);
+         crate::generate_log_message!(info, $target, $msg; $($key => $value),*);
     };
-    ($target:ident; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("{}",keys_message.replace("Object", ""));
-        log::info!(target: &format!("\x1b[32m{}\x1B[0m",stringify!($target)), "{}", result_message);
+    ($target:ident; $($key:ident => $value:expr),*) => {
+         crate::generate_log_message!(info, $target, ""; $($key => $value),*);
     };
 }
 
 #[macro_export]
-macro_rules! log_error {
+macro_rules! error {
     ($target:ident, $msg:expr) => {
-        log::error!(target: &format!("\x1b[31m{}",stringify!($target)), "{}\x1B[0m", $msg);
+        log::error!(target: &format!("{}",stringify!($target)), "{}", $msg);
     };
-    ($target:ident,$msg:expr; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("{}{}", $msg, keys_message.replace("Object", ""));
-        log::error!(target: &format!("\x1b[31m{}\x1B[0m",stringify!($target)), "{}", result_message);
+    ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
+         crate::generate_log_message!(error, $target, $msg; $($key => $value),*);
     };
-    ($target:ident; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("{}",keys_message.replace("Object", ""));
-        log::error!(target: &format!("\x1b[31m{}\x1B[0m",stringify!($target)), "{}", result_message);
+    ($target:ident; $($key:ident => $value:expr),*) => {
+         crate::generate_log_message!(error, $target, ""; $($key => $value),*);
     };
 }
 
 #[macro_export]
-macro_rules! log_warn {
+macro_rules! warn {
     ($target:ident, $msg:expr) => {
-        log::warn!(target: &format!("\x1b[33m{}",stringify!($target)), "{}\x1B[0m", $msg);
+        log::warn!(target: &format!("{}",stringify!($target)), "{}", $msg);
     };
-    ($target:ident,$msg:expr; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("{}{}", $msg, keys_message.replace("Object", ""));
-        log::warn!(target: &format!("\x1b[33m{}\x1B[0m",stringify!($target)), "{}", result_message);
+    ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
+        crate::generate_log_message!(warn, $target, $msg; $($key => $value),*);
     };
-    ($target:ident; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("{}",keys_message.replace("Object", ""));
-        log::warn!(target: &format!("\x1b[33m{}\x1B[0m",stringify!($target)), "{}", result_message);
+    ($target:ident; $($key:ident => $value:expr),*) => {
+        crate::generate_log_message!(warn, $target, ""; $($key => $value),*);
     };
 }
 
 #[macro_export]
-macro_rules! log_debug {
+macro_rules! debug {
     ($target:ident, $msg:expr) => {
-        log::debug!(target: &format!("\x1b[90m{}", stringify!($target)), "{}\x1B[0m", $msg);
+        log::debug!(target: &format!("{}", stringify!($target)), "{}", $msg);
     };
-    ($target:ident,$msg:expr; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("{}{}", $msg, keys_message.replace("Object", ""));
-        log::debug!(target: &format!("\x1b[90m{}\x1B[0m",stringify!($target)), "{}", result_message);
+    ($target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
+         crate::generate_log_message!(debug, $target, $msg; $($key => $value),*);
     };
-    ($target:ident; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("{}",keys_message.replace("Object", ""));
-        log::debug!(target: &format!("\x1b[90m{}\x1B[0m",stringify!($target)), "{}", result_message);
+    ($target:ident; $($key:ident => $value:expr),*) => {
+        crate::generate_log_message!(debug, $target, ""; $($key => $value),*);
     };
 }
 
 #[macro_export]
-macro_rules! log_critical {
+macro_rules! critical {
     ($target:ident, $msg:expr) => {
-        log::error!(target: &format!("\x1b[31m{}",stringify!($target)), "\x1b[31m[CRITICAL]!\x1B[0m {}", $msg);
+        log::error!(target: &format!("{}",stringify!($target)), "!!![CRITICAL]!!! {}", $msg);
     };
-    ($target:ident,$msg:expr; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("\x1b[31m!!!CRITICAL!!!\x1B[0m {}{}", $msg, keys_message.replace("Object", ""));
-        log::error!(target: &format!("\x1b[31m{}",stringify!($target)), "{}", result_message);
+    ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
+        let msg = format!("!!![CRITICAL]!!! {}", $msg);
+        crate::generate_log_message!(error, $target, msg; $($key => $value),*);
     };
-    ($target:ident; $($key:expr => $value:expr),*) => {
-        let keys_message = format!("{:?}", serde_json::json!({$(stringify!($key): $value),*}));
-        let result_message = format!("\x1b[31m!!!CRITICAL!!!\x1B[0m{}",keys_message.replace("Object", ""));
-        log::error!(target: &format!("\x1b[31m{}",stringify!($target)), "{}", result_message);
+    ($target:ident; $($key:ident => $value:expr),*) => {
+       crate::generate_log_message!(error, $target, ""; $($key => $value),*);
     };
 }
+
 #[cfg(test)]
 mod tests {
     #[test]
     fn test_loggers_macros() {
         env_logger::try_init().unwrap_or_default();
-        log_info!(test_loggers_macros, "message only");
-        log_info!(test_loggers_macros, "KeyValue"; key => "value1", key2 => "value2");
-        log_info!(test_loggers_macros; key1 => "value1", key2 => "value2");
-        log_warn!(test_loggers_macros, "message only");
-        log_warn!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
-        log_warn!(test_loggers_macros; key1 => "value1", key2 => "value2");
-        log_error!(test_loggers_macros, "message only");
-        log_error!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
-        log_error!(test_loggers_macros; key1 => "value1", key2 => "value2");
-        log_critical!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
-        log::info!("Default");
-        log::warn!("Default");
-        log::error!("Default");
+        info!(test_loggers_macros, "message only");
+        info!(test_loggers_macros, "KeyValue"; key => "value1", key2 => "value2");
+        info!(test_loggers_macros; key1 => 1, key2 => 2);
+        warn!(test_loggers_macros, "message only");
+        warn!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
+        warn!(test_loggers_macros; key1 => "value1", key2 => "value2");
+        error!(test_loggers_macros, "message only");
+        error!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
+        error!(test_loggers_macros; key1 => "value1", key2 => "value2");
+        debug!(test_loggers_macros; key1 => "value1", key2 => "value2");
+        critical!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
     }
 }

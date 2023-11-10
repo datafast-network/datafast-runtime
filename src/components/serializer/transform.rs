@@ -6,7 +6,7 @@ use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
 use crate::config::TransformConfig;
 use crate::errors::TransformError;
-use crate::log_info;
+use crate::info;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use crate::runtime::asc::base::asc_get;
@@ -50,7 +50,7 @@ impl Transform {
                 transactions,
                 logs,
             } => {
-                log_info!(Transform, "Transform initialized";
+                info!(Transform, "Transform initialized";
                     chain => format!("{:?}", self.chain),
                     block => block,
                     transactions => transactions,

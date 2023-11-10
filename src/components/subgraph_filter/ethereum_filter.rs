@@ -7,9 +7,9 @@ use crate::common::Chain;
 use crate::common::Datasource;
 use crate::components::manifest_loader::LoaderTrait;
 use crate::components::manifest_loader::ManifestLoader;
+use crate::debug;
 use crate::errors::FilterError;
-use crate::log_debug;
-use crate::log_info;
+use crate::info;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
@@ -38,9 +38,10 @@ impl EthereumFilter {
                 log.address
             )))?;
 
-        log_debug!(EthereumFilter, "Event found";
-            "event" => format!("{:?}", event),
-            "log" => format!("{:?}", log));
+        debug!(EthereumFilter, "Event found";
+            event => format!("{:?}", event),
+            log => format!("{:?}", log)
+        );
 
         event
             .parse_log(ethabi::RawLog {
@@ -111,7 +112,7 @@ impl SubgraphFilterTrait for EthereumFilter {
             contracts,
             addresses,
         };
-        log_info!(EthereumFilter, "Init success";
+        info!(EthereumFilter, "Init success";
             Addresses => filter.addresses.len(),
             Contracts => filter.contracts.len()
         );
@@ -125,7 +126,7 @@ impl SubgraphFilterTrait for EthereumFilter {
         match data {
             SerializedDataMessage::Ethereum { block, logs, .. } => {
                 let events = self.filter_events(logs)?;
-                log_info!(EthereumFilter, "Filtered events";
+                info!(EthereumFilter, "Filtered events";
                     events => events.len(),
                     block_number => format!("{:?}", block.number)
                 );
