@@ -37,7 +37,7 @@ impl DatabaseTrait for InMemoryDataStore {
         }
 
         for row in entity.unwrap() {
-            if row.0 == block_ptr.number && row.1 == block_ptr.hash {
+            if row.0 == block_ptr.number && row.1 == block_ptr.hash && row.2.is_none() {
                 return Ok(Some(row.3.to_owned()));
             }
         }
@@ -64,8 +64,13 @@ impl DatabaseTrait for InMemoryDataStore {
             return Ok(None);
         }
 
-        let (_, _, _, data) = entity.unwrap().last().cloned().unwrap();
-        return Ok(Some(data));
+        let (_, _, deleted, data) = entity.unwrap().last().cloned().unwrap();
+
+        if deleted.is_none() {
+            return Ok(Some(data));
+        }
+
+        Ok(None)
     }
 
     fn handle_create(

@@ -94,7 +94,7 @@ impl Subgraph {
                     Subgraph,
                     "Received ethereum filtered data";
                     events => events.len(),
-                    block => format!("{:?}", block.number),
+                    block => format!("{:?}", block.number)
                 );
                 self.handle_ethereum_filtered_data(events, block)
             }
