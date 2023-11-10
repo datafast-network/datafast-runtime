@@ -8,7 +8,9 @@ use super::typed_map::AscTypedMap;
 
 #[repr(u32)]
 #[derive(Copy, Clone)]
+#[derive(Default)]
 pub enum JsonValueKind {
+    #[default]
     Null,
     Bool,
     Number,
@@ -27,11 +29,7 @@ impl_asc_type_enum!(
     Object => 5
 );
 
-impl Default for JsonValueKind {
-    fn default() -> Self {
-        JsonValueKind::Null
-    }
-}
+
 
 impl AscValue for JsonValueKind {}
 

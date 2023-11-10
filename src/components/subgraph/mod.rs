@@ -1,6 +1,7 @@
 mod datasource_wasm_instance;
 
 use crate::chain::ethereum::block::EthereumBlockData;
+use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
@@ -36,6 +37,12 @@ impl Subgraph {
         let source = DatasourceWasmInstance::try_from((host, datasource))?;
         self.sources.insert(source.id.clone(), source);
         Ok(())
+    }
+
+    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
+        for source_instance in self.sources.values_mut() {
+            source_instance.set_block_ptr(block_ptr.clone());
+        }
     }
 
     fn handle_ethereum_filtered_data(
@@ -78,7 +85,17 @@ impl Subgraph {
     fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
-                info!(Subgraph, "Received ethereum filtered data"; events => events.len(), block => format!("{:?}", block.number));
+                let block_ptr = BlockPtr {
+                    number: block.number.as_u64(),
+                    hash: block.hash.to_string(),
+                };
+                self.set_block_ptr(block_ptr);
+                info!(
+                    Subgraph,
+                    "Received ethereum filtered data";
+                    events => events.len(),
+                    block => format!("{:?}", block.number)
+                );
                 self.handle_ethereum_filtered_data(events, block)
             }
         }

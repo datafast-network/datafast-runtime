@@ -1,3 +1,4 @@
+use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
@@ -22,7 +23,7 @@ impl Handler {
         let this = Self {
             name: func_name.to_string(),
             inner: instance_exports
-                .get_function(&func_name)
+                .get_function(func_name)
                 .map_err(|_| SubgraphError::InvalidHandlerName(func_name.to_owned()))?
                 .to_owned(),
         };
@@ -43,22 +44,23 @@ pub struct DatasourceWasmInstance {
 }
 
 impl DatasourceWasmInstance {
+    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
+        self.host.dbstore_agent.block_ptr = Some(block_ptr);
+    }
+
     pub fn invoke<T: AscType + AscIndexId>(
         &mut self,
         handler_type: HandlerTypes,
         handler_name: &str,
-        mut data: impl ToAscObj<T>,
+        data: impl ToAscObj<T>,
     ) -> Result<(), SubgraphError> {
         let handler = match handler_type {
             HandlerTypes::EthereumBlock => self.ethereum_handlers.block.get(handler_name),
             HandlerTypes::EthereumEvent => self.ethereum_handlers.events.get(handler_name),
-            _ => {
-                unimplemented!()
-            }
         }
         .ok_or(SubgraphError::InvalidHandlerName(handler_name.to_owned()))?;
 
-        let asc_data = asc_new(&mut self.host, &mut data)?;
+        let asc_data = asc_new(&mut self.host, &data)?;
         handler.inner.call(
             &mut self.host.store,
             &[Value::I32(asc_data.wasm_ptr() as i32)],

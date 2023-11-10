@@ -21,7 +21,6 @@ use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
 
-use crate::info;
 use crate::warn;
 pub use asc::AscHost;
 
@@ -226,9 +225,9 @@ pub fn create_wasm_host(
 
 #[cfg(test)]
 pub mod test {
-    use crate::components::database::Database;
-
     use super::*;
+    use crate::common::BlockPtr;
+    use crate::components::database::Database;
     use std::path::PathBuf;
 
     pub fn mock_wasm_host(api_version: Version, wasm_path: &str) -> AscHost {
@@ -241,7 +240,9 @@ pub mod test {
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
         let db = Database::new_memory_db();
-        create_wasm_host(api_version, wasm_bytes, db.agent(), "Test".to_string()).unwrap()
+        let mut db_agent = db.agent();
+        db_agent.block_ptr = Some(BlockPtr::default());
+        create_wasm_host(api_version, wasm_bytes, db_agent, "Test".to_string()).unwrap()
     }
 
     pub fn get_subgraph_testing_resource(

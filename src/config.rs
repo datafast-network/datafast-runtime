@@ -23,7 +23,7 @@ pub enum SourceTypes {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ContentType {
-    JSON,
+    Json,
     Protobuf,
 }
 
@@ -36,6 +36,7 @@ pub struct Config {
     pub subgraph_dir: String,
     pub transform: Option<TransformConfig>,
     pub transform_wasm: Option<String>,
+    pub max_block_snapshots: Option<u64>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -63,7 +64,6 @@ impl Config {
 #[cfg(test)]
 mod test {
     use super::Config;
-    use env_logger;
 
     #[test]
     fn test_config() {

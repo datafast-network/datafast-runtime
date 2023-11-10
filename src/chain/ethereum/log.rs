@@ -224,7 +224,7 @@ impl FromAscObj<AscEthereumLog> for Log {
         // Case đặc biệt của bigInt to U64
         let block_number =
             asc_get_optional::<Vec<u8>, _, _>(heap, obj.block_number, depth)?.map(|bytes| {
-                let hex_str = hex::encode(&bytes);
+                let hex_str = hex::encode(bytes);
                 BigInt::from_hex(hex_str).unwrap().to_unsigned_u64()
             });
 

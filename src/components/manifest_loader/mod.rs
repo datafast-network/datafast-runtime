@@ -37,7 +37,7 @@ pub trait LoaderTrait: Sized {
             .get_abis()
             .iter()
             .filter_map(
-                |(source_name, abi)| match self.load_ethereum_contract(source_name) {
+                |(source_name, _abi)| match self.load_ethereum_contract(source_name) {
                     Ok(contract) => Some((source_name.clone(), contract)),
                     Err(_) => None,
                 },
@@ -105,12 +105,6 @@ impl ManifestLoader {
     pub fn datasources(&self) -> Vec<Datasource> {
         match self {
             Self::Local(loader) => loader.subgraph_yaml.dataSources.to_vec(),
-        }
-    }
-
-    pub fn get_abi(&self, datasource_name: &str, abi_name: &str) -> Option<serde_json::Value> {
-        match self {
-            Self::Local(loader) => loader.abis.get(datasource_name)?.get(abi_name).cloned(),
         }
     }
 }

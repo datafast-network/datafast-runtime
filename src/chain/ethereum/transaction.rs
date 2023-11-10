@@ -136,7 +136,7 @@ impl ToAscObj<AscTransactionArray> for Vec<EthereumTransactionData> {
             .iter()
             .map(|tx| asc_new(heap, &tx))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(AscTransactionArray::new(&txs, heap)?)
+        AscTransactionArray::new(&txs, heap)
     }
 }
 

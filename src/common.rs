@@ -59,12 +59,16 @@ pub struct SubgraphYaml {
 pub enum HandlerTypes {
     EthereumBlock,
     EthereumEvent,
-    // NOTE: we dont do `call`
-    EthereumCall,
 }
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Chain {
     Ethereum,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Default)]
+pub struct BlockPtr {
+    pub number: u64,
+    pub hash: String,
 }

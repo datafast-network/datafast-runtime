@@ -32,7 +32,7 @@ pub fn store_set(
 
     let request = StoreOperationMessage::Update((entity_type, entity_id, data));
     let _result = db
-        .send_store_request(request)
+        .wasm_send_store_request(request)
         .map_err(|e| RuntimeError::new(e.to_string()))?;
 
     Ok(())
@@ -49,7 +49,7 @@ pub fn store_get(
     let db = env.db_agent.clone();
     let request = StoreOperationMessage::Load((entity_type, entity_id));
     let result = db
-        .send_store_request(request)
+        .wasm_send_store_request(request)
         .map_err(|e| RuntimeError::new(e.to_string()))?;
 
     match result {
@@ -78,10 +78,9 @@ pub fn store_remove(
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
 
-    // FIXME: Update or insert new
     let request = StoreOperationMessage::Delete((entity_type, entity_id));
     let _result = db
-        .send_store_request(request)
+        .wasm_send_store_request(request)
         .map_err(|e| RuntimeError::new(e.to_string()))?;
 
     Ok(())
@@ -122,7 +121,7 @@ mod test {
     host_fn_test!("TestStore", test_store_set, host {
         let entity_type = "Token".to_string();
         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
-        let data = host.dbstore_agent.send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
+        let data = host.dbstore_agent.wasm_send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
 
         if let StoreRequestResult::Load(Some(entity)) = data {
             let id = entity.get("id").unwrap().to_owned();
@@ -171,7 +170,7 @@ mod test {
         entity_data.insert("id".to_string(), Value::String(entity_id.clone()));
 
         let db = host.dbstore_agent.clone();
-        db.send_store_request(StoreOperationMessage::Create((entity_type.clone(), entity_data))).unwrap();
+        db.wasm_send_store_request(StoreOperationMessage::Update((entity_type.clone(), entity_id,entity_data))).unwrap();
         []
     } {
         let asc_entity = AscPtr::<AscEntity>::new(result.first().unwrap().unwrap_i32() as u32);
