@@ -32,7 +32,7 @@ macro_rules! info {
 #[macro_export]
 macro_rules! error {
     ($target:ident, $msg:expr) => {
-        log::error!(target: &format!("{}",stringify!($target)), "{}", $msg);
+         crate::generate_log_message!(error, $target, $msg);
     };
     ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
          crate::generate_log_message!(error, $target, $msg; $($key => $value),*);
@@ -45,7 +45,7 @@ macro_rules! error {
 #[macro_export]
 macro_rules! warn {
     ($target:ident, $msg:expr) => {
-        log::warn!(target: &format!("{}",stringify!($target)), "{}", $msg);
+        crate::generate_log_message!(warn, $target, $msg);
     };
     ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
         crate::generate_log_message!(warn, $target, $msg; $($key => $value),*);
@@ -71,7 +71,8 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! critical {
     ($target:ident, $msg:expr) => {
-        log::error!(target: &format!("{}",stringify!($target)), "!!![CRITICAL]!!! {}", $msg);
+         let msg = format!("!!![CRITICAL]!!! {}", $msg);
+         crate::generate_log_message!(error, $target, msg);
     };
     ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
         let msg = format!("!!![CRITICAL]!!! {}", $msg);
