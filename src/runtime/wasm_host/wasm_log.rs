@@ -16,11 +16,11 @@ pub fn log_log(
     log_level: i32,
     msg_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
-    let datasource_name = format!("<{}>", fenv.data().datasource_name.clone());
+    let datasource_name = format!("{}", fenv.data().datasource_name.clone());
     let message: String = asc_get(&fenv, msg_ptr, 0)?;
     match log_level {
         0 => {
-            critical!(wasm_host, message; sounrce => datasource_name);
+            critical!(wasm_host, message; datasource => datasource_name);
             if env::var("SUBGRAPH_WASM_RUNTIME_TEST").is_ok() {
                 // NOTE: if testing, just don't throw anything
                 return Ok(());
