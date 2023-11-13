@@ -13,7 +13,8 @@ type DeletedAt = Option<u64>;
 type EntityPayload = HashMap<String, Value>;
 type EntitySnapshots = Vec<(BlockPtrNumber, BlockPtrHash, DeletedAt, EntityPayload)>;
 
-pub type InMemoryDataStore = HashMap<EntityType, HashMap<EntityID, EntitySnapshots>>;
+#[derive(Default, Debug)]
+pub struct InMemoryDataStore(HashMap<EntityType, HashMap<EntityID, EntitySnapshots>>);
 
 impl DatabaseTrait for InMemoryDataStore {
     fn handle_load(
@@ -22,7 +23,7 @@ impl DatabaseTrait for InMemoryDataStore {
         entity_type: String,
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError> {
-        let store = self;
+        let store = &self.0;
         let table = store.get(&entity_type);
 
         if table.is_none() {
@@ -50,7 +51,7 @@ impl DatabaseTrait for InMemoryDataStore {
         entity_type: String,
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError> {
-        let store = self;
+        let store = &self.0;
         let table = store.get(&entity_type);
 
         if table.is_none() {
@@ -79,7 +80,7 @@ impl DatabaseTrait for InMemoryDataStore {
         entity_type: String,
         data: RawEntity,
     ) -> Result<(), DatabaseError> {
-        let store = self;
+        let store = &mut self.0;
         if !store.contains_key(&entity_type) {
             store.insert(entity_type.clone(), HashMap::new());
         }
@@ -107,7 +108,7 @@ impl DatabaseTrait for InMemoryDataStore {
         entity_type: String,
         entity_id: String,
     ) -> Result<(), DatabaseError> {
-        let store = self;
+        let store = &mut self.0;
         let table = store.get_mut(&entity_type);
 
         if table.is_none() {
@@ -130,7 +131,7 @@ impl DatabaseTrait for InMemoryDataStore {
     }
 
     fn hard_delete(&mut self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
-        let store = self;
+        let store = &mut self.0;
         let table = store.get_mut(&entity_type);
 
         if table.is_none() {

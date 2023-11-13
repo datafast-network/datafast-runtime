@@ -8,16 +8,18 @@ use crate::messages::StoreRequestResult;
 use crate::runtime::asc;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::Mutex;
+
+use self::in_memory::InMemoryDataStore;
 
 type RawEntity = HashMap<String, asc::native_types::store::Value>;
 
 #[derive(Clone)]
 pub enum Database {
-    Memory(in_memory::InMemoryDataStore),
+    Memory(Arc<Mutex<in_memory::InMemoryDataStore>>),
 }
 
-pub trait DatabaseTrait {
+pub trait DatabaseTrait: Send + Sync {
     fn handle_create(
         &mut self,
         block_ptr: BlockPtr,
@@ -56,7 +58,12 @@ impl DatabaseTrait for Database {
         data: RawEntity,
     ) -> Result<(), DatabaseError> {
         match self {
-            Self::Memory(store) => store.handle_create(block_ptr, entity_type, data),
+            Self::Memory(store) => {
+                store
+                    .lock()
+                    .unwrap()
+                    .handle_create(block_ptr, entity_type, data)
+            }
         }
     }
 
@@ -67,7 +74,12 @@ impl DatabaseTrait for Database {
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError> {
         match self {
-            Self::Memory(store) => store.handle_load(block_ptr, entity_type, entity_id),
+            Self::Memory(store) => {
+                store
+                    .lock()
+                    .unwrap()
+                    .handle_load(block_ptr, entity_type, entity_id)
+            }
         }
     }
 
@@ -77,7 +89,10 @@ impl DatabaseTrait for Database {
         entity_id: String,
     ) -> Result<Option<RawEntity>, DatabaseError> {
         match self {
-            Self::Memory(store) => store.handle_load_latest(entity_type, entity_id),
+            Self::Memory(store) => store
+                .lock()
+                .unwrap()
+                .handle_load_latest(entity_type, entity_id),
         }
     }
 
@@ -88,30 +103,42 @@ impl DatabaseTrait for Database {
         entity_id: String,
     ) -> Result<(), DatabaseError> {
         match self {
-            Self::Memory(store) => store.soft_delete(block_ptr, entity_type, entity_id),
+            Self::Memory(store) => {
+                store
+                    .lock()
+                    .unwrap()
+                    .soft_delete(block_ptr, entity_type, entity_id)
+            }
         }
     }
 
     fn hard_delete(&mut self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
         match self {
-            Self::Memory(store) => store.hard_delete(entity_type, entity_id),
+            Self::Memory(store) => store.lock().unwrap().hard_delete(entity_type, entity_id),
         }
     }
 }
 
 #[derive(Clone)]
 pub struct DatabaseAgent {
-    db: Arc<RwLock<Database>>,
+    db: Database,
     pub block_ptr: Option<BlockPtr>,
+}
+
+impl Default for DatabaseAgent {
+    fn default() -> Self {
+        Self {
+            db: Database::Memory(Arc::new(Mutex::new(InMemoryDataStore::default()))),
+            block_ptr: None,
+        }
+    }
 }
 
 impl Database {
     pub async fn new(_cfg: &Config) -> Result<Self, DatabaseError> {
-        Ok(Self::Memory(HashMap::new()))
-    }
-
-    pub fn new_memory_db() -> Self {
-        Self::Memory(HashMap::new())
+        Ok(Self::Memory(Arc::new(Mutex::new(
+            InMemoryDataStore::default(),
+        ))))
     }
 
     pub fn handle_wasm_host_request(
@@ -152,7 +179,7 @@ impl Database {
 
     pub fn agent(&self) -> DatabaseAgent {
         DatabaseAgent {
-            db: Arc::new(RwLock::new(self.to_owned())),
+            db: self.to_owned(),
             block_ptr: None,
         }
     }
@@ -160,27 +187,14 @@ impl Database {
 
 impl DatabaseAgent {
     pub fn wasm_send_store_request(
-        self,
+        mut self,
         request: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
-        let mut db = self
-            .db
-            .try_write()
-            .map_err(|_| DatabaseError::MutexLockFailed)?;
-
         if self.block_ptr.is_none() {
             return Err(DatabaseError::MissingBlockPtr);
         }
 
-        db.handle_wasm_host_request(self.block_ptr.to_owned().unwrap(), request)
-    }
-}
-
-impl Default for DatabaseAgent {
-    fn default() -> Self {
-        Self {
-            db: Arc::new(RwLock::new(Database::new_memory_db())),
-            block_ptr: None,
-        }
+        self.db
+            .handle_wasm_host_request(self.block_ptr.to_owned().unwrap(), request)
     }
 }
