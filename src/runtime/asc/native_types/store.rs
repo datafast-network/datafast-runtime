@@ -105,6 +105,7 @@ pub enum Value {
     Bytes(Bytes),
     BigInt(BigInt),
 }
+
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, Default)]
 pub enum StoreValueKind {

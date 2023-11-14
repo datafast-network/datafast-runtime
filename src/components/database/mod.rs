@@ -1,4 +1,5 @@
 mod in_memory;
+mod schema_lookup;
 mod scylladb;
 
 use crate::common::BlockPtr;
