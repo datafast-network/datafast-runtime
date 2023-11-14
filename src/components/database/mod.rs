@@ -1,4 +1,5 @@
 mod in_memory;
+mod scylladb;
 
 use crate::common::BlockPtr;
 use crate::config::Config;
@@ -119,21 +120,6 @@ impl DatabaseTrait for Database {
     }
 }
 
-#[derive(Clone)]
-pub struct DatabaseAgent {
-    db: Database,
-    pub block_ptr: Option<BlockPtr>,
-}
-
-impl Default for DatabaseAgent {
-    fn default() -> Self {
-        Self {
-            db: Database::Memory(Arc::new(Mutex::new(InMemoryDataStore::default()))),
-            block_ptr: None,
-        }
-    }
-}
-
 impl Database {
     pub async fn new(_cfg: &Config) -> Result<Self, DatabaseError> {
         Ok(Self::Memory(Arc::new(Mutex::new(
@@ -179,7 +165,22 @@ impl Database {
 
     pub fn agent(&self) -> DatabaseAgent {
         DatabaseAgent {
-            db: self.to_owned(),
+            db: self.clone(),
+            block_ptr: None,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct DatabaseAgent {
+    db: Database,
+    pub block_ptr: Option<BlockPtr>,
+}
+
+impl Default for DatabaseAgent {
+    fn default() -> Self {
+        Self {
+            db: Database::Memory(Arc::new(Mutex::new(InMemoryDataStore::default()))),
             block_ptr: None,
         }
     }

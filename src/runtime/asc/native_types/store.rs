@@ -106,8 +106,7 @@ pub enum Value {
     BigInt(BigInt),
 }
 #[repr(u32)]
-#[derive(Copy, Clone, Debug)]
-#[derive(Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub enum StoreValueKind {
     String,
     Int,
@@ -149,7 +148,5 @@ impl StoreValueKind {
         }
     }
 }
-
-
 
 impl AscValue for StoreValueKind {}

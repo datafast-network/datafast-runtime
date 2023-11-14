@@ -27,8 +27,7 @@ pub type AscAddress = Uint8Array;
 pub type AscH160 = Uint8Array;
 
 #[repr(u32)]
-#[derive(Copy, Clone)]
-#[derive(Default)]
+#[derive(Copy, Clone, Default)]
 pub enum EthereumValueKind {
     #[default]
     Address,
@@ -73,8 +72,6 @@ impl_asc_type_enum!(
     Array => 8,
     Tuple => 9
 );
-
-
 
 impl AscValue for EthereumValueKind {}
 

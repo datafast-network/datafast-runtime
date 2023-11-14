@@ -1,4 +1,6 @@
 use kanal::SendError;
+use scylla::transport::errors::NewSessionError;
+use scylla::transport::errors::QueryError;
 use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
@@ -118,6 +120,10 @@ pub enum DatabaseError {
     MissingBlockPtr,
     #[error("Wasm-Host sent an invalid request")]
     WasmSendInvalidRequest,
+    #[error("Failed to init new Scylla session")]
+    ScyllaNewSession(#[from] NewSessionError),
+    #[error("Scylla Query Error: `{0}`")]
+    ScyllaQuery(#[from] QueryError),
 }
 
 #[derive(Debug, Error)]

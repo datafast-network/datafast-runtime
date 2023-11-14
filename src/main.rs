@@ -3,10 +3,9 @@ mod common;
 mod components;
 mod config;
 mod errors;
+mod logger_macros;
 mod messages;
 mod runtime;
-#[macro_use]
-mod logger_macros;
 
 use components::database::Database;
 use components::manifest_loader::LoaderTrait;
