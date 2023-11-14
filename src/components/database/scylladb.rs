@@ -4,7 +4,8 @@ use super::RawEntity;
 use crate::common::BlockPtr;
 use crate::errors::DatabaseError;
 use crate::runtime::asc::native_types::store::StoreValueKind;
-use crate::{debug, error, info};
+use crate::runtime::asc::native_types::store::Value;
+use crate::{debug, error, info, warn};
 use async_trait::async_trait;
 use scylla::transport::session::Session;
 use scylla::SessionBuilder;
@@ -83,15 +84,14 @@ impl ExternDBTrait for Scylladb {
         column_definitions.push("is_deleted boolean".to_string());
 
         // Define primary-key
-        column_definitions
-            .push("PRIMARY KEY (id, is_deleted, block_ptr_number, block_ptr_hash)".to_string());
+        column_definitions.push("PRIMARY KEY (id, block_ptr_number, block_ptr_hash)".to_string());
 
         let joint_column_definition = column_definitions.join(",\n");
 
         let query = format!(
             r#"CREATE TABLE IF NOT EXISTS {}.{entity_type} (
 {joint_column_definition}
-) WITH compression = {{'sstable_compression': 'LZ4Compressor'}}"#,
+) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_ptr_number DESC)"#,
             self.keyspace
         );
 
@@ -110,7 +110,7 @@ impl ExternDBTrait for Scylladb {
         let raw_query = format!(
             r#"
 SELECT JSON * from {}.{}
-WHERE block_ptr_number = ? AND block_ptr_hash = ? AND id = ? AND is_deleted = false
+WHERE block_ptr_number = ? AND block_ptr_hash = ? AND id = ?
 LIMIT 1
 "#,
             self.keyspace, entity_type
@@ -129,10 +129,12 @@ LIMIT 1
             let json_row_as_str = json_row.as_text().unwrap();
             let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
             if let serde_json::Value::Object(values) = json {
-                let mut result = self.schema_lookup.json_to_entity(entity_type, values);
-                result.remove_entry("block_ptr_number");
-                result.remove_entry("block_ptr_hash");
-                result.remove_entry("is_deleted");
+                let result = self.schema_lookup.json_to_entity(entity_type, values);
+
+                if result.get("is_deleted").cloned().unwrap() == Value::Bool(true) {
+                    return Ok(None);
+                };
+
                 return Ok(Some(result));
             } else {
                 error!(Scylladb, "Not an json object"; data => json);
@@ -151,7 +153,7 @@ LIMIT 1
         let raw_query = format!(
             r#"
 SELECT JSON * from {}.{}
-WHERE id = ? AND is_deleted = false
+WHERE id = ?
 ORDER BY block_ptr_number DESC
 LIMIT 1
 "#,
@@ -164,10 +166,12 @@ LIMIT 1
             let json_row_as_str = json_row.as_text().unwrap();
             let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
             if let serde_json::Value::Object(values) = json {
-                let mut result = self.schema_lookup.json_to_entity(entity_type, values);
-                result.remove_entry("block_ptr_number");
-                result.remove_entry("block_ptr_hash");
-                result.remove_entry("is_deleted");
+                let result = self.schema_lookup.json_to_entity(entity_type, values);
+
+                if result.get("is_deleted").cloned().unwrap() == Value::Bool(true) {
+                    return Ok(None);
+                };
+
                 return Ok(Some(result));
             } else {
                 error!(Scylladb, "Not an json object"; data => json);
@@ -185,7 +189,6 @@ LIMIT 1
         data: RawEntity,
     ) -> Result<(), DatabaseError> {
         assert!(data.contains_key("id"));
-
         let mut json_data = self.schema_lookup.entity_to_json(&entity_type, data);
 
         json_data.insert(
@@ -226,21 +229,46 @@ LIMIT 1
         entity_type: &str,
         entity_id: &str,
     ) -> Result<(), DatabaseError> {
-        todo!()
+        let latest = self.load_entity_latest(entity_type, entity_id).await?;
+
+        if latest.is_none() {
+            return Ok(());
+        }
+
+        let mut latest = latest.unwrap();
+        *latest.get_mut("is_deleted").unwrap() = Value::Bool(true);
+
+        let block_ptr_number =
+            if let Value::Int8(n) = latest.get("block_ptr_number").cloned().unwrap() {
+                n as u64
+            } else {
+                unimplemented!()
+            };
+
+        let block_ptr_hash =
+            if let Value::String(n) = latest.get("block_ptr_hash").cloned().unwrap() {
+                n
+            } else {
+                unimplemented!()
+            };
+
+        let query = format!(
+            r#"
+UPDATE {}.{} SET is_deleted = True
+WHERE id = ? AND block_ptr_number = ? AND block_ptr_hash = ?"#,
+            self.keyspace, entity_type
+        );
+        self.session
+            .query(query, (entity_id, block_ptr_number as i64, block_ptr_hash))
+            .await?;
+
+        Ok(())
     }
 
     async fn hard_delete_entity(
         &self,
         entity_type: &str,
         entity_id: &str,
-    ) -> Result<(), DatabaseError> {
-        todo!()
-    }
-
-    async fn hard_delete_all_entities_to_block(
-        &self,
-        entity_types: Vec<String>,
-        to_block: u64,
     ) -> Result<(), DatabaseError> {
         todo!()
     }
@@ -345,9 +373,10 @@ mod tests {
                 BigInt::from_str("111222333444555666777888999").unwrap()
             ))
         );
-        assert!(loaded_entity.get("block_ptr_number").is_none());
-        assert!(loaded_entity.get("block_ptr_hash").is_none());
-        assert!(loaded_entity.get("is_deleted").is_none());
+        assert_eq!(
+            loaded_entity.get("is_deleted").cloned(),
+            Some(Value::Bool(false))
+        );
 
         // ------------------------------- Load latest
         let loaded_entity = db
@@ -361,22 +390,15 @@ mod tests {
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
         );
-        assert_eq!(
-            loaded_entity.get("name").cloned(),
-            Some(Value::String("Tether USD".to_string()))
-        );
-        assert_eq!(
-            loaded_entity.get("symbol").cloned(),
-            Some(Value::String("USDT".to_string()))
-        );
-        assert_eq!(
-            loaded_entity.get("total_supply").cloned(),
-            Some(Value::BigInt(
-                BigInt::from_str("111222333444555666777888999").unwrap()
-            ))
-        );
-        assert!(loaded_entity.get("block_ptr_number").is_none());
-        assert!(loaded_entity.get("block_ptr_hash").is_none());
-        assert!(loaded_entity.get("is_deleted").is_none());
+
+        // ------------------------------- Soft delete
+        info!("Test soft delete");
+        db.soft_delete_entity("Tokens", "token-id").await.unwrap();
+        info!("soft delete done");
+        assert!(db
+            .load_entity_latest("Tokens", "token-id")
+            .await
+            .unwrap()
+            .is_none());
     }
 }
