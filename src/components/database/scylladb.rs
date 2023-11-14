@@ -84,7 +84,7 @@ impl ExternDBTrait for Scylladb {
 
         // Define primary-key
         column_definitions
-            .push("PRIMARY KEY (block_ptr_number, block_ptr_hash, id, is_deleted)".to_string());
+            .push("PRIMARY KEY (id, is_deleted, block_ptr_number, block_ptr_hash)".to_string());
 
         let joint_column_definition = column_definitions.join(",\n");
 
@@ -126,10 +126,13 @@ LIMIT 1
 
         if let Ok(data) = result.single_row() {
             let json_row = data.columns.first().cloned().unwrap().unwrap();
-            let json_row_as_str = json_row.into_string().unwrap();
-            let json: serde_json::Value = serde_json::from_str(&json_row_as_str).unwrap();
+            let json_row_as_str = json_row.as_text().unwrap();
+            let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
             if let serde_json::Value::Object(values) = json {
-                let result = self.schema_lookup.json_to_entity(entity_type, values);
+                let mut result = self.schema_lookup.json_to_entity(entity_type, values);
+                result.remove_entry("block_ptr_number");
+                result.remove_entry("block_ptr_hash");
+                result.remove_entry("is_deleted");
                 return Ok(Some(result));
             } else {
                 error!(Scylladb, "Not an json object"; data => json);
@@ -158,10 +161,13 @@ LIMIT 1
 
         if let Ok(data) = result.single_row() {
             let json_row = data.columns.first().cloned().unwrap().unwrap();
-            let json_row_as_str = json_row.into_string().unwrap();
-            let json: serde_json::Value = serde_json::from_str(&json_row_as_str).unwrap();
+            let json_row_as_str = json_row.as_text().unwrap();
+            let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
             if let serde_json::Value::Object(values) = json {
-                let result = self.schema_lookup.json_to_entity(entity_type, values);
+                let mut result = self.schema_lookup.json_to_entity(entity_type, values);
+                result.remove_entry("block_ptr_number");
+                result.remove_entry("block_ptr_hash");
+                result.remove_entry("is_deleted");
                 return Ok(Some(result));
             } else {
                 error!(Scylladb, "Not an json object"; data => json);
@@ -302,7 +308,7 @@ mod tests {
         let entity_data = entity! {
             id => Value::String("token-id".to_string()),
             name => Value::String("Tether USD".to_string()),
-            symbol => Value::String("USD".to_string()),
+            symbol => Value::String("USDT".to_string()),
             total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap())
         };
 
@@ -321,5 +327,56 @@ mod tests {
 
         info!("Load test Token OK!");
         info!("Loaded from db: {:?}", loaded_entity);
+        assert_eq!(
+            loaded_entity.get("id").cloned(),
+            Some(Value::String("token-id".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("name").cloned(),
+            Some(Value::String("Tether USD".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("symbol").cloned(),
+            Some(Value::String("USDT".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("total_supply").cloned(),
+            Some(Value::BigInt(
+                BigInt::from_str("111222333444555666777888999").unwrap()
+            ))
+        );
+        assert!(loaded_entity.get("block_ptr_number").is_none());
+        assert!(loaded_entity.get("block_ptr_hash").is_none());
+        assert!(loaded_entity.get("is_deleted").is_none());
+
+        // ------------------------------- Load latest
+        let loaded_entity = db
+            .load_entity_latest("Tokens", "token-id")
+            .await
+            .unwrap()
+            .unwrap();
+
+        info!("Loaded-latest from db: {:?}", loaded_entity);
+        assert_eq!(
+            loaded_entity.get("id").cloned(),
+            Some(Value::String("token-id".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("name").cloned(),
+            Some(Value::String("Tether USD".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("symbol").cloned(),
+            Some(Value::String("USDT".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("total_supply").cloned(),
+            Some(Value::BigInt(
+                BigInt::from_str("111222333444555666777888999").unwrap()
+            ))
+        );
+        assert!(loaded_entity.get("block_ptr_number").is_none());
+        assert!(loaded_entity.get("block_ptr_hash").is_none());
+        assert!(loaded_entity.get("is_deleted").is_none());
     }
 }

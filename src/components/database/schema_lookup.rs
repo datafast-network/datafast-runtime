@@ -71,7 +71,7 @@ impl SchemaLookup {
 
 fn field_to_store_value(field_type: StoreValueKind, val: serde_json::Value) -> Value {
     match field_type {
-        StoreValueKind::String => Value::String(val.to_string()),
+        StoreValueKind::String => Value::String(val.as_str().unwrap().to_owned()),
         StoreValueKind::Int => Value::Int(val.as_i64().unwrap() as i32),
         StoreValueKind::Int8 => Value::Int8(val.as_i64().unwrap()),
         StoreValueKind::BigDecimal => {
