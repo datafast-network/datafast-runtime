@@ -190,7 +190,7 @@ LIMIT 1
         data: RawEntity,
     ) -> Result<(), DatabaseError> {
         assert!(data.contains_key("id"));
-        let mut json_data = self.schema_lookup.entity_to_json(&entity_type, data);
+        let mut json_data = self.schema_lookup.entity_to_json(entity_type, data);
 
         json_data.insert(
             "block_ptr_number".to_string(),
@@ -219,8 +219,8 @@ LIMIT 1
 
     async fn create_entities(
         &self,
-        block_ptr: BlockPtr,
-        values: Vec<(String, RawEntity)>,
+        _block_ptr: BlockPtr,
+        _values: Vec<(String, RawEntity)>,
     ) -> Result<(), DatabaseError> {
         todo!()
     }
@@ -268,19 +268,19 @@ WHERE id = ? AND block_ptr_number = ? AND block_ptr_hash = ?"#,
 
     async fn hard_delete_entity(
         &self,
-        entity_type: &str,
-        entity_id: &str,
+        _entity_type: &str,
+        _entity_id: &str,
     ) -> Result<(), DatabaseError> {
         todo!()
     }
 
     /// Revert all entity creations from given block ptr up to latest by hard-deleting them
-    async fn revert_create_entity(&self, from_block: u64) -> Result<(), DatabaseError> {
+    async fn revert_create_entity(&self, _from_block: u64) -> Result<(), DatabaseError> {
         todo!()
     }
 
     /// Revert all entity deletion from given block ptr up to latest by nullifing `is_deleted` fields
-    async fn revert_delete_entity(&self, from_block: u64) -> Result<(), DatabaseError> {
+    async fn revert_delete_entity(&self, _from_block: u64) -> Result<(), DatabaseError> {
         todo!()
     }
 }
@@ -320,7 +320,7 @@ mod tests {
         db.create_test_keyspace().await.unwrap();
         info!("Create KEYSPACE OK!");
 
-        let _ = db
+        db
             .create_entity_table(
                 "Tokens",
                 entity!(
