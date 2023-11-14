@@ -107,6 +107,8 @@ impl Subgraph {
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
             self.handle_filtered_data(msg)?;
+            // each {...} blocks
+            // Dump from cache to real db + flush cache
         }
 
         Ok(())
