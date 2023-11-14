@@ -201,3 +201,11 @@ impl DatabaseAgent {
             .handle_wasm_host_request(self.block_ptr.to_owned().unwrap(), request)
     }
 }
+
+#[macro_export]
+macro_rules! entity {
+    ($($k:ident => $v:expr),* $(,)?) => {{
+        use std::iter::{Iterator, IntoIterator};
+        Iterator::collect(IntoIterator::into_iter([$((stringify!($k).to_string(), $v),)*]))
+    }};
+}

@@ -2,14 +2,21 @@ use super::scylladb::Scylladb;
 use super::RawEntity;
 use crate::common::BlockPtr;
 use crate::errors::DatabaseError;
+use crate::runtime::asc::native_types::store::StoreValueKind;
 use async_trait::async_trait;
+use std::collections::HashMap;
 
 pub(super) enum ExternDB {
     Scylla(Scylladb),
 }
 
 #[async_trait]
-pub(super) trait ExternDBTrait {
+pub(super) trait ExternDBTrait: Sized {
+    async fn create_entity_table(
+        &self,
+        entity_type: &str,
+        schema: HashMap<String, StoreValueKind>,
+    ) -> Result<(), DatabaseError>;
     async fn load_entity(
         &self,
         block_ptr: BlockPtr,

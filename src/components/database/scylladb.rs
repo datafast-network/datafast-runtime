@@ -1,10 +1,14 @@
+use super::extern_db::ExternDBTrait;
 use super::schema_lookup::SchemaLookup;
 use super::RawEntity;
 use crate::common::BlockPtr;
-use crate::error;
 use crate::errors::DatabaseError;
+use crate::runtime::asc::native_types::store::StoreValueKind;
+use crate::{debug, error, info};
+use async_trait::async_trait;
 use scylla::transport::session::Session;
 use scylla::SessionBuilder;
+use std::collections::HashMap;
 
 pub struct Scylladb {
     session: Session,
@@ -13,7 +17,7 @@ pub struct Scylladb {
 }
 
 impl Scylladb {
-    pub async fn new(uri: &str, keyspace: &str) -> Result<Self, DatabaseError> {
+    pub(super) async fn new(uri: &str, keyspace: &str) -> Result<Self, DatabaseError> {
         let session: Session = SessionBuilder::new().known_node(uri).build().await?;
         let this = Self {
             session,
@@ -23,20 +27,95 @@ impl Scylladb {
         Ok(this)
     }
 
+    #[cfg(test)]
+    async fn create_test_keyspace(&self) -> Result<(), DatabaseError> {
+        let q = format!(
+            r#"
+CREATE KEYSPACE IF NOT EXISTS {} WITH REPLICATION = {{'class' : 'NetworkTopologyStrategy', 'replication_factor' : 1}}
+"#,
+            self.keyspace
+        );
+        self.session.query(q, []).await?;
+        self.session
+            .query(format!("USE {}", self.keyspace), [])
+            .await?;
+        Ok(())
+    }
+
+    fn store_kind_to_db_type(&self, kind: StoreValueKind) -> String {
+        match kind {
+            StoreValueKind::Int => "int",
+            StoreValueKind::Int8 => "bigint",
+            StoreValueKind::String => "text",
+            StoreValueKind::Bool => "boolean",
+            StoreValueKind::BigDecimal => "text",
+            StoreValueKind::BigInt => "text",
+            StoreValueKind::Bytes => "blob",
+            StoreValueKind::Array => unimplemented!(),
+            StoreValueKind::Null => unimplemented!(),
+        }
+        .to_string()
+    }
+}
+
+#[async_trait]
+impl ExternDBTrait for Scylladb {
+    async fn create_entity_table(
+        &self,
+        entity_type: &str,
+        schema: HashMap<String, StoreValueKind>,
+    ) -> Result<(), DatabaseError> {
+        // let query = format!("create table `{entity_type}` ",);
+
+        let mut column_definitions: Vec<String> = vec![];
+
+        for (colum_name, store_kind) in schema {
+            let column_type = self.store_kind_to_db_type(store_kind);
+            let definition = format!("{colum_name} {column_type}");
+            column_definitions.push(definition);
+        }
+
+        // Add block_ptr
+        column_definitions.push("block_ptr_number bigint".to_string());
+        column_definitions.push("block_ptr_hash text".to_string());
+
+        // Add is_deleted for soft-delete
+        column_definitions.push("is_deleted boolean".to_string());
+
+        // Define primary-key
+        column_definitions
+            .push("PRIMARY KEY (block_ptr_number, block_ptr_hash, id, is_deleted)".to_string());
+
+        let joint_column_definition = column_definitions.join(",\n");
+
+        let query = format!(
+            r#"CREATE TABLE IF NOT EXISTS {}.{entity_type} (
+{joint_column_definition}
+) WITH compression = {{'sstable_compression': 'LZ4Compressor'}}"#,
+            self.keyspace
+        );
+
+        info!(Scylladb, "create-table query"; query => query);
+
+        self.session.query(query, &[]).await?;
+
+        Ok(())
+    }
     async fn load_entity(
         &self,
         block_ptr: BlockPtr,
-        entity_type: String,
-        entity_id: String,
+        entity_type: &str,
+        entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError> {
         let raw_query = format!(
             r#"
 SELECT JSON * from {}.{}
-WHERE block_ptr_number = ? AND block_ptr_hash = ? AND id = ? AND is_deleted IS NULL
+WHERE block_ptr_number = ? AND block_ptr_hash = ? AND id = ? AND is_deleted = false
 LIMIT 1
 "#,
             self.keyspace, entity_type
         );
+        info!(Scylladb, "load entity"; query => raw_query);
         let result = self
             .session
             .query(
@@ -63,13 +142,13 @@ LIMIT 1
 
     async fn load_entity_latest(
         &self,
-        entity_type: String,
-        entity_id: String,
+        entity_type: &str,
+        entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError> {
         let raw_query = format!(
             r#"
 SELECT JSON * from {}.{}
-WHERE id = ? AND is_deleted IS NULL
+WHERE id = ? AND is_deleted = false
 ORDER BY block_ptr_number DESC
 LIMIT 1
 "#,
@@ -96,7 +175,7 @@ LIMIT 1
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
-        entity_type: String,
+        entity_type: &str,
         data: RawEntity,
     ) -> Result<(), DatabaseError> {
         assert!(data.contains_key("id"));
@@ -113,21 +192,134 @@ LIMIT 1
             serde_json::Value::from(block_ptr.hash),
         );
 
-        json_data.insert("is_deleted".to_string(), serde_json::Value::Null);
+        json_data.insert("is_deleted".to_string(), serde_json::Value::Bool(false));
 
         let json_data = serde_json::Value::Object(json_data);
 
-        let query = format!(
-            r#"
-INSERT INTO {}.{} JSON ?
-"#,
-            self.keyspace, entity_type
-        );
+        let query = format!("INSERT INTO {}.{} JSON ?", self.keyspace, entity_type);
+
+        info!(Scylladb, "created-entity query"; query => query);
 
         self.session
             .query(query, vec![json_data.to_string()])
             .await?;
 
         Ok(())
+    }
+
+    async fn create_entities(
+        &self,
+        block_ptr: BlockPtr,
+        values: Vec<(String, RawEntity)>,
+    ) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
+    async fn soft_delete_entity(
+        &self,
+        entity_type: &str,
+        entity_id: &str,
+    ) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
+    async fn hard_delete_entity(
+        &self,
+        entity_type: &str,
+        entity_id: &str,
+    ) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
+    async fn hard_delete_all_entities_to_block(
+        &self,
+        entity_types: Vec<String>,
+        to_block: u64,
+    ) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
+    /// Revert all entity creations from given block ptr up to latest by hard-deleting them
+    async fn revert_create_entity(&self, from_block: u64) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
+    /// Revert all entity deletion from given block ptr up to latest by nullifing `is_deleted` fields
+    async fn revert_delete_entity(&self, from_block: u64) -> Result<(), DatabaseError> {
+        todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ExternDBTrait;
+    use super::*;
+    use crate::entity;
+    use crate::runtime::asc::native_types::store::Value;
+    use crate::runtime::bignumber::bigint::BigInt;
+    use env_logger;
+    use log::info;
+    use std::str::FromStr;
+
+    #[tokio::test]
+    async fn test_scylla_create_and_load_entity() {
+        env_logger::try_init().unwrap_or_default();
+
+        let uri = "localhost:9042";
+        let keyspace = "ks";
+        let mut db = Scylladb::new(uri, keyspace).await.unwrap();
+
+        db.schema_lookup.add_schema(
+            "Tokens",
+            entity!(
+                id => StoreValueKind::String,
+                name => StoreValueKind::String,
+                symbol => StoreValueKind::String,
+                total_supply => StoreValueKind::BigInt,
+                block_ptr_number => StoreValueKind::Int8,
+                block_ptr_hash => StoreValueKind::String,
+                is_deleted => StoreValueKind::Bool,
+            ),
+        );
+
+        db.create_test_keyspace().await.unwrap();
+        info!("Create KEYSPACE OK!");
+
+        let _ = db
+            .create_entity_table(
+                "Tokens",
+                entity!(
+                    id => StoreValueKind::String,
+                    name => StoreValueKind::String,
+                    symbol => StoreValueKind::String,
+                    total_supply => StoreValueKind::BigInt,
+                ),
+            )
+            .await
+            .unwrap();
+        info!("Create TABLE OK!");
+
+        let entity_data = entity! {
+            id => Value::String("token-id".to_string()),
+            name => Value::String("Tether USD".to_string()),
+            symbol => Value::String("USD".to_string()),
+            total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap())
+        };
+
+        let block_ptr = BlockPtr::default();
+
+        db.create_entity(block_ptr.clone(), "Tokens", entity_data)
+            .await
+            .unwrap();
+        info!("Create test Token OK!");
+
+        let loaded_entity = db
+            .load_entity(block_ptr.clone(), "Tokens", "token-id")
+            .await
+            .unwrap()
+            .unwrap();
+
+        info!("Load test Token OK!");
+        info!("Loaded from db: {:?}", loaded_entity);
     }
 }

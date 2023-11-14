@@ -1,6 +1,11 @@
+use log::info;
+
 use super::RawEntity;
 use crate::runtime::{
-    asc::native_types::{store::Bytes, store::Value},
+    asc::native_types::{
+        store::Bytes,
+        store::{StoreValueKind, Value},
+    },
     bignumber::{bigdecimal::BigDecimal, bigint::BigInt},
 };
 use std::{collections::HashMap, str::FromStr};
@@ -8,7 +13,7 @@ use std::{collections::HashMap, str::FromStr};
 #[derive(Clone, Default)]
 pub struct SchemaLookup {
     // Load schema.graphql
-    types: HashMap<String, HashMap<String, String>>,
+    types: HashMap<String, HashMap<String, StoreValueKind>>,
 }
 
 impl SchemaLookup {
@@ -18,11 +23,11 @@ impl SchemaLookup {
         }
     }
 
-    pub fn add_schema(&mut self, entity_name: String, schema: HashMap<String, String>) {
-        self.types.insert(entity_name, schema);
+    pub fn add_schema(&mut self, entity_name: &str, schema: HashMap<String, StoreValueKind>) {
+        self.types.insert(entity_name.to_owned(), schema);
     }
 
-    fn look_up(&self, entity_name: &str, field_name: &str) -> String {
+    fn look_up(&self, entity_name: &str, field_name: &str) -> StoreValueKind {
         return self
             .types
             .get(entity_name)
@@ -34,14 +39,14 @@ impl SchemaLookup {
 
     pub fn json_to_entity(
         &self,
-        entity_name: String,
+        entity_name: &str,
         json: serde_json::Map<String, serde_json::Value>,
     ) -> RawEntity {
         let mut result = HashMap::new();
 
         for (key, val) in json {
             let field_type = self.look_up(&entity_name, &key);
-            let value = field_to_store_value(&field_type, val);
+            let value = field_to_store_value(field_type, val);
             result.insert(key, value);
         }
 
@@ -64,19 +69,25 @@ impl SchemaLookup {
     }
 }
 
-fn field_to_store_value(field_type: &str, val: serde_json::Value) -> Value {
+fn field_to_store_value(field_type: StoreValueKind, val: serde_json::Value) -> Value {
     match field_type {
-        "String" => Value::String(val.to_string()),
-        "Int" => Value::Int(val.as_i64().unwrap() as i32),
-        "Int8" => Value::Int8(val.as_i64().unwrap()),
-        "BigDecimal" => Value::BigDecimal(BigDecimal::from_str(val.as_str().unwrap()).unwrap()),
-        "Bool" => Value::Bool(val.as_bool().unwrap()),
-        "List" => {
+        StoreValueKind::String => Value::String(val.to_string()),
+        StoreValueKind::Int => Value::Int(val.as_i64().unwrap() as i32),
+        StoreValueKind::Int8 => Value::Int8(val.as_i64().unwrap()),
+        StoreValueKind::BigDecimal => {
+            Value::BigDecimal(BigDecimal::from_str(val.as_str().unwrap()).unwrap())
+        }
+        StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
+        StoreValueKind::Bytes => {
+            Value::Bytes(Bytes::from(val.as_str().clone().unwrap().as_bytes()))
+        }
+        StoreValueKind::BigInt => Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap()),
+        StoreValueKind::Array => {
             unimplemented!("Not supported")
         }
-        "Bytes" => Value::Bytes(Bytes::from(val.as_str().clone().unwrap().as_bytes())),
-        "BigInt" => Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap()),
-        _ => todo!(),
+        StoreValueKind::Null => {
+            unimplemented!("Not supported")
+        }
     }
 }
 
