@@ -61,6 +61,7 @@ impl Scylladb {
         }
         .to_string()
     }
+
     async fn get_entity(
         &self,
         query: impl Into<Query>,
@@ -120,6 +121,7 @@ impl Scylladb {
             }
         }
     }
+
     async fn insert_record(
         &self,
         block_ptr: BlockPtr,
