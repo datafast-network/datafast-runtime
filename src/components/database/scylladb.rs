@@ -75,9 +75,6 @@ impl Scylladb {
                 let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
                 if let serde_json::Value::Object(values) = json {
                     let result = self.schema_lookup.json_to_entity(entity_name, values);
-                    if result.get("is_deleted").cloned().unwrap() == Value::Bool(true) {
-                        return Ok(None);
-                    };
                     Ok(Some(result))
                 } else {
                     error!(Scylladb, "Not an json object"; data => json);
@@ -207,8 +204,8 @@ impl ExternDBTrait for Scylladb {
         let raw_query = format!(
             r#"
             SELECT JSON * from {}.{}
-            WHERE block_ptr_number = ? AND block_ptr_hash = ? AND id = ?
-            LIMIT 1
+            WHERE block_ptr_number = ? AND block_ptr_hash = ? AND id = ? AND is_deleted = false
+            LIMIT 1 ALLOW FILTERING
             "#,
             self.keyspace, entity_type
         );
@@ -232,9 +229,9 @@ impl ExternDBTrait for Scylladb {
         let raw_query = format!(
             r#"
             SELECT JSON * from {}.{}
-            WHERE id = ?
+            WHERE id = ? AND is_deleted = false
             ORDER BY block_ptr_number DESC
-            LIMIT 1
+            LIMIT 1 ALLOW FILTERING
             "#,
             self.keyspace, entity_name
         );
@@ -335,7 +332,11 @@ impl ExternDBTrait for Scylladb {
 
         for entity_name in table_names {
             let entities = self
-                .get_entities(query.clone(), (from_block as i64,), &entity_name)
+                .get_entities(
+                    query.clone(),
+                    (&entity_name, from_block as i64),
+                    &entity_name,
+                )
                 .await?;
             let query_update = format!(
                 r#"
@@ -489,10 +490,6 @@ mod tests {
         info!("Test soft delete");
         db.soft_delete_entity("Tokens", "token-id").await.unwrap();
         info!("soft delete done");
-        assert!(db
-            .load_entity_latest("Tokens", "token-id")
-            .await
-            .unwrap()
-            .is_none());
+        assert!(db.load_entity_latest("Tokens", "token-id").await.is_err());
     }
 }
