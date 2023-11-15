@@ -10,8 +10,11 @@ use crate::runtime::asc::native_types::store::Value;
 use async_trait::async_trait;
 use scylla::transport::session::Session;
 use scylla::SessionBuilder;
+use scylla::_macro_internal::Row;
 use scylla::_macro_internal::ValueList;
+use scylla::batch::Batch;
 use scylla::query::Query;
+use scylla::transport::query_result::RowsExpectedError;
 use std::collections::HashMap;
 
 pub struct Scylladb {
@@ -95,6 +98,7 @@ impl Scylladb {
         entity_name: &str,
     ) -> Result<Vec<RawEntity>, DatabaseError> {
         let result = self.session.query(query, values).await?;
+
         match result.rows() {
             Ok(rows) => {
                 let mut entities = vec![];
@@ -307,70 +311,47 @@ impl ExternDBTrait for Scylladb {
 
     async fn hard_delete_entity(
         &self,
-        _entity_type: &str,
-        _entity_id: &str,
+        entity_types: Vec<String>,
+        from_block: u64,
     ) -> Result<(), DatabaseError> {
-        todo!()
+        let mut batch_queries: Batch = Batch::default();
+        let mut batch_values = vec![];
+        for entity_name in entity_types {
+            let query = format!(
+                r#"
+                SELECT id from {}.{}
+                WHERE block_ptr_number >= ?"#,
+                self.keyspace, entity_name
+            );
+            let result = self.session.query(query, (from_block as i64,)).await?;
+            let mut ids = vec![];
+            if let Ok(rows) = result.rows() {
+                for row in rows {
+                    let row_json = row.columns.first().cloned().unwrap().unwrap();
+                    let json_row_as_str = row_json.as_text().unwrap();
+                    ids.push(json_row_as_str.clone())
+                }
+            }
+            for id in ids {
+                let query = format!(
+                    r#"
+                    DELETE FROM {}.{} WHERE id = ? AND block_ptr_number >= ?"#,
+                    self.keyspace, entity_name,
+                );
+                batch_queries.append_statement(query.as_str());
+                batch_values.push((id, from_block as i64));
+            }
+        }
+        let st_batch = self.session.prepare_batch(&batch_queries).await?;
+        self.session.batch(&st_batch, batch_values).await?;
+        Ok(())
     }
 
     /// Revert all entity creations from given block ptr up to latest by hard-deleting them
     async fn revert_create_entity(&self, from_block: u64) -> Result<(), DatabaseError> {
-        let query = format!(
-            r#"
-            SELECT JSON * from {}.?
-            WHERE block_ptr_number >= ? AND is_deleted = true ALLOW FILTERING;
-            "#,
-            self.keyspace
-        );
         // Get all schemas
-        let table_names = self
-            .schema_lookup
-            .get_schemas()
-            .iter()
-            .map(|e| e.0.clone())
-            .collect::<Vec<String>>();
-
-        for entity_name in table_names {
-            let entities = self
-                .get_entities(
-                    query.clone(),
-                    (&entity_name, from_block as i64),
-                    &entity_name,
-                )
-                .await?;
-            let query_update = format!(
-                r#"
-                UPDATE {}.{} SET is_deleted = FALSE
-                WHERE id = ? AND block_ptr_number = ? AND block_ptr_hash = ?"#,
-                self.keyspace, entity_name
-            );
-            let st = self.session.prepare(query_update.clone()).await?;
-            //TODO: batch update
-            for entity in entities {
-                let entity_id = if let Value::String(n) = entity.get("id").cloned().unwrap() {
-                    n
-                } else {
-                    unimplemented!()
-                };
-                let block_ptr_number =
-                    if let Value::Int8(n) = entity.get("block_ptr_number").cloned().unwrap() {
-                        n as u64
-                    } else {
-                        unimplemented!()
-                    };
-
-                let block_ptr_hash =
-                    if let Value::String(n) = entity.get("block_ptr_hash").cloned().unwrap() {
-                        n
-                    } else {
-                        unimplemented!()
-                    };
-                self.session
-                    .execute(&st, (entity_id, block_ptr_number as i64, block_ptr_hash))
-                    .await?;
-            }
-        }
-
+        let table_names = self.schema_lookup.get_entity_names();
+        self.hard_delete_entity(table_names, from_block).await?;
         Ok(())
     }
 
@@ -491,5 +472,50 @@ mod tests {
         db.soft_delete_entity("Tokens", "token-id").await.unwrap();
         info!("soft delete done");
         assert!(db.load_entity_latest("Tokens", "token-id").await.is_err());
+    }
+    #[tokio::test]
+    async fn test_revert_db() {
+        env_logger::try_init().unwrap_or_default();
+
+        let uri = "localhost:9042";
+        let keyspace = "ks";
+        let mut db = Scylladb::new(uri, keyspace).await.unwrap();
+        db.schema_lookup.add_schema(
+            "Tokens",
+            entity!(
+                id => StoreValueKind::String,
+                name => StoreValueKind::String,
+                symbol => StoreValueKind::String,
+                total_supply => StoreValueKind::BigInt,
+                block_ptr_number => StoreValueKind::Int8,
+                block_ptr_hash => StoreValueKind::String,
+                is_deleted => StoreValueKind::Bool,
+            ),
+        );
+
+        db.create_test_keyspace().await.unwrap();
+        info!("Create KEYSPACE OK!");
+        // for id in 1..10 {
+        //     let entity_data = entity! {
+        //         id => Value::String(format!("token-id_{}", id)),
+        //         name => Value::String("Tether USD".to_string()),
+        //         symbol => Value::String("USDT".to_string()),
+        //         total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap())
+        //     };
+        //     let block_ptr = BlockPtr {
+        //         number: id,
+        //         hash: format!("hash_{}", id),
+        //     };
+        //
+        //     db.create_entity(block_ptr.clone(), "Tokens", entity_data)
+        //         .await
+        //         .unwrap();
+        // }
+        // for id in 5..10 {
+        //     db.soft_delete_entity("Tokens", &format!("token-id_{}", id))
+        //         .await
+        //         .unwrap();
+        // }
+        db.revert_create_entity(0).await.unwrap();
     }
 }

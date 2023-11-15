@@ -46,8 +46,8 @@ pub(super) trait ExternDBTrait: Sized {
     ) -> Result<(), DatabaseError>;
     async fn hard_delete_entity(
         &self,
-        entity_type: &str,
-        entity_id: &str,
+        entity_types: Vec<String>,
+        from_block: u64,
     ) -> Result<(), DatabaseError>;
 
     /// Revert all entity creations from given block ptr up to latest by hard-deleting them
