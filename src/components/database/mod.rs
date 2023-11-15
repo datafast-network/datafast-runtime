@@ -1,5 +1,6 @@
 mod extern_db;
 mod in_memory;
+mod memory_db;
 mod schema_lookup;
 mod scylladb;
 

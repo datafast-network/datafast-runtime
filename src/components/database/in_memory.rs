@@ -1,4 +1,3 @@
-use super::DatabaseTrait;
 use super::RawEntity;
 use crate::common::BlockPtr;
 use crate::errors::DatabaseError;
@@ -16,8 +15,8 @@ type EntitySnapshots = Vec<(BlockPtrNumber, BlockPtrHash, DeletedAt, EntityPaylo
 #[derive(Default, Debug)]
 pub struct InMemoryDataStore(HashMap<EntityType, HashMap<EntityID, EntitySnapshots>>);
 
-impl DatabaseTrait for InMemoryDataStore {
-    fn handle_load(
+impl InMemoryDataStore {
+    pub fn handle_load(
         &self,
         block_ptr: BlockPtr,
         entity_type: String,
@@ -46,7 +45,7 @@ impl DatabaseTrait for InMemoryDataStore {
         Ok(None)
     }
 
-    fn handle_load_latest(
+    pub fn handle_load_latest(
         &self,
         entity_type: String,
         entity_id: String,
@@ -74,7 +73,7 @@ impl DatabaseTrait for InMemoryDataStore {
         Ok(None)
     }
 
-    fn handle_create(
+    pub fn handle_create(
         &mut self,
         block_ptr: BlockPtr,
         entity_type: String,
@@ -102,7 +101,7 @@ impl DatabaseTrait for InMemoryDataStore {
         }
     }
 
-    fn soft_delete(
+    pub fn soft_delete(
         &mut self,
         block_ptr: BlockPtr,
         entity_type: String,
@@ -130,7 +129,11 @@ impl DatabaseTrait for InMemoryDataStore {
         Ok(())
     }
 
-    fn hard_delete(&mut self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
+    pub fn hard_delete(
+        &mut self,
+        entity_type: String,
+        entity_id: String,
+    ) -> Result<(), DatabaseError> {
         let store = &mut self.0;
         let table = store.get_mut(&entity_type);
 
