@@ -43,11 +43,12 @@ pub(super) trait ExternDBTrait: Sized {
     async fn create_entities(
         &self,
         block_ptr: BlockPtr,
-        values: Vec<(String, RawEntity)>,
+        values: Vec<(String, Vec<RawEntity>)>, //(entity_type, value)
     ) -> Result<(), DatabaseError>;
 
     async fn soft_delete_entity(
         &self,
+        block_ptr: BlockPtr,
         entity_type: &str,
         entity_id: &str,
     ) -> Result<(), DatabaseError>;
@@ -59,8 +60,5 @@ pub(super) trait ExternDBTrait: Sized {
     ) -> Result<(), DatabaseError>;
 
     /// Revert all entity creations from given block ptr up to latest by hard-deleting them
-    async fn revert_create_entity(&self, from_block: u64) -> Result<(), DatabaseError>;
-
-    /// Revert all entity deletion from given block ptr up to latest by nullifing `is_deleted` fields
-    async fn revert_delete_entity(&self, from_block: u64) -> Result<(), DatabaseError>;
+    async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError>;
 }
