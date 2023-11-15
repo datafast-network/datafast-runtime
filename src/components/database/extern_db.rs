@@ -1,21 +1,18 @@
 use super::scylladb::Scylladb;
 use super::RawEntity;
 use crate::common::BlockPtr;
-use crate::components::database::schema_lookup::SchemaLookup;
 use crate::errors::DatabaseError;
 use async_trait::async_trait;
 
-pub(super) enum ExternDB {
+pub enum ExternDB {
     Scylla(Scylladb),
 }
 
 #[async_trait]
-pub(super) trait ExternDBTrait: Sized {
+pub trait ExternDBTrait: Sized {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError>;
 
     async fn create_block_ptr_table(&self) -> Result<(), DatabaseError>;
-
-    fn get_schema_lockup(&self) -> &SchemaLookup;
 
     async fn load_entity(
         &self,

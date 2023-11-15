@@ -20,7 +20,7 @@ pub struct Scylladb {
 }
 
 impl Scylladb {
-    pub(super) async fn new(
+    pub async fn new(
         uri: &str,
         keyspace: &str,
         schema_lookup: SchemaLookup,
@@ -266,10 +266,6 @@ impl ExternDBTrait for Scylladb {
         );
         self.session.query(query, ()).await?;
         Ok(())
-    }
-
-    fn get_schema_lockup(&self) -> &SchemaLookup {
-        &self.schema_lookup
     }
 
     async fn load_entity(

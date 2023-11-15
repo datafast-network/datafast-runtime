@@ -57,7 +57,7 @@ impl BigInt {
     }
 
     /// Creates a BigInt without checking the digit limit.
-    pub(super) fn unchecked_new(inner: num_bigint::BigInt) -> Self {
+    pub fn unchecked_new(inner: num_bigint::BigInt) -> Self {
         Self(inner)
     }
 
