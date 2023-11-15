@@ -10,11 +10,9 @@ use crate::runtime::asc::native_types::store::Value;
 use async_trait::async_trait;
 use scylla::transport::session::Session;
 use scylla::SessionBuilder;
-use scylla::_macro_internal::Row;
 use scylla::_macro_internal::ValueList;
 use scylla::batch::Batch;
 use scylla::query::Query;
-use scylla::transport::query_result::RowsExpectedError;
 use std::collections::HashMap;
 
 pub struct Scylladb {
@@ -199,6 +197,7 @@ impl ExternDBTrait for Scylladb {
 
         Ok(())
     }
+
     async fn load_entity(
         &self,
         block_ptr: BlockPtr,
@@ -223,6 +222,17 @@ impl ExternDBTrait for Scylladb {
             .await?;
 
         Ok(result)
+    }
+
+    async fn load_entities(&self, entity_type: &str) -> Result<Vec<RawEntity>, DatabaseError> {
+        let raw_query = format!(
+            r#"
+            SELECT JSON * from {}.{}
+            WHERE is_deleted = false ALLOW FILTERING
+            "#,
+            self.keyspace, entity_type
+        );
+        self.get_entities(raw_query, (), entity_type).await
     }
 
     async fn load_entity_latest(
@@ -474,7 +484,7 @@ mod tests {
         assert!(db.load_entity_latest("Tokens", "token-id").await.is_err());
     }
     #[tokio::test]
-    async fn test_revert_db() {
+    async fn test_scylla_revert_db() {
         env_logger::try_init().unwrap_or_default();
 
         let uri = "localhost:9042";
@@ -495,27 +505,29 @@ mod tests {
 
         db.create_test_keyspace().await.unwrap();
         info!("Create KEYSPACE OK!");
-        // for id in 1..10 {
-        //     let entity_data = entity! {
-        //         id => Value::String(format!("token-id_{}", id)),
-        //         name => Value::String("Tether USD".to_string()),
-        //         symbol => Value::String("USDT".to_string()),
-        //         total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap())
-        //     };
-        //     let block_ptr = BlockPtr {
-        //         number: id,
-        //         hash: format!("hash_{}", id),
-        //     };
-        //
-        //     db.create_entity(block_ptr.clone(), "Tokens", entity_data)
-        //         .await
-        //         .unwrap();
-        // }
-        // for id in 5..10 {
-        //     db.soft_delete_entity("Tokens", &format!("token-id_{}", id))
-        //         .await
-        //         .unwrap();
-        // }
-        db.revert_create_entity(0).await.unwrap();
+        //insert records
+        for id in 1..10 {
+            let entity_data = entity! {
+                id => Value::String(format!("token-id_{}", id)),
+                name => Value::String("Tether USD".to_string()),
+                symbol => Value::String("USDT".to_string()),
+                total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap())
+            };
+            let block_ptr = BlockPtr {
+                number: id,
+                hash: format!("hash_{}", id),
+            };
+
+            db.create_entity(block_ptr.clone(), "Tokens", entity_data)
+                .await
+                .unwrap();
+        }
+
+        //revert
+        db.revert_create_entity(5).await.unwrap();
+
+        let entities = db.load_entities("Tokens").await.unwrap();
+
+        assert_eq!(entities.len(), 4);
     }
 }

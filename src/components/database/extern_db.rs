@@ -17,33 +17,41 @@ pub(super) trait ExternDBTrait: Sized {
         entity_type: &str,
         schema: HashMap<String, StoreValueKind>,
     ) -> Result<(), DatabaseError>;
+
     async fn load_entity(
         &self,
         block_ptr: BlockPtr,
         entity_type: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError>;
+
+    async fn load_entities(&self, entity_type: &str) -> Result<Vec<RawEntity>, DatabaseError>;
+
     async fn load_entity_latest(
         &self,
         entity_type: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError>;
+
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
         entity_type: &str,
         data: RawEntity,
     ) -> Result<(), DatabaseError>;
+
     async fn create_entities(
         &self,
         block_ptr: BlockPtr,
         values: Vec<(String, RawEntity)>,
     ) -> Result<(), DatabaseError>;
+
     async fn soft_delete_entity(
         &self,
         entity_type: &str,
         entity_id: &str,
     ) -> Result<(), DatabaseError>;
+
     async fn hard_delete_entity(
         &self,
         entity_types: Vec<String>,
