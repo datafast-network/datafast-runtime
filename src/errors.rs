@@ -102,6 +102,8 @@ pub enum SubgraphError {
 pub enum DatabaseError {
     #[error("Entity data missing `ID` field")]
     MissingID,
+    #[error("Entity data missing field: {0}")]
+    MissingField(String),
     #[error("Invalid operation")]
     Invalid,
     #[error("Invalid data value for field `{0}`")]
