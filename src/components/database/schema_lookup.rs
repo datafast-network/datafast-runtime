@@ -1,12 +1,11 @@
 use super::RawEntity;
-use crate::runtime::{
-    asc::native_types::{
-        store::Bytes,
-        store::{StoreValueKind, Value},
-    },
-    bignumber::{bigdecimal::BigDecimal, bigint::BigInt},
-};
-use std::{collections::HashMap, str::FromStr};
+use crate::runtime::asc::native_types::store::Bytes;
+use crate::runtime::asc::native_types::store::StoreValueKind;
+use crate::runtime::asc::native_types::store::Value;
+use crate::runtime::bignumber::bigdecimal::BigDecimal;
+use crate::runtime::bignumber::bigint::BigInt;
+use std::collections::HashMap;
+use std::str::FromStr;
 
 #[derive(Clone, Default)]
 pub struct SchemaLookup {
@@ -76,9 +75,7 @@ fn field_to_store_value(field_type: StoreValueKind, val: serde_json::Value) -> V
             Value::BigDecimal(BigDecimal::from_str(val.as_str().unwrap()).unwrap())
         }
         StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
-        StoreValueKind::Bytes => {
-            Value::Bytes(Bytes::from(val.as_str().unwrap().as_bytes()))
-        }
+        StoreValueKind::Bytes => Value::Bytes(Bytes::from(val.as_str().unwrap().as_bytes())),
         StoreValueKind::BigInt => Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap()),
         StoreValueKind::Array => {
             unimplemented!("Not supported")

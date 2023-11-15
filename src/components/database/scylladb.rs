@@ -10,6 +10,8 @@ use crate::runtime::asc::native_types::store::Value;
 use async_trait::async_trait;
 use scylla::transport::session::Session;
 use scylla::SessionBuilder;
+use scylla::_macro_internal::ValueList;
+use scylla::query::Query;
 use std::collections::HashMap;
 
 pub struct Scylladb {
@@ -33,8 +35,8 @@ impl Scylladb {
     async fn create_test_keyspace(&self) -> Result<(), DatabaseError> {
         let q = format!(
             r#"
-CREATE KEYSPACE IF NOT EXISTS {} WITH REPLICATION = {{'class' : 'NetworkTopologyStrategy', 'replication_factor' : 1}}
-"#,
+                CREATE KEYSPACE IF NOT EXISTS {} WITH REPLICATION = {{'class' : 'NetworkTopologyStrategy', 'replication_factor' : 1}}
+            "#,
             self.keyspace
         );
         self.session.query(q, []).await?;
@@ -57,6 +59,70 @@ CREATE KEYSPACE IF NOT EXISTS {} WITH REPLICATION = {{'class' : 'NetworkTopology
             StoreValueKind::Null => unimplemented!(),
         }
         .to_string()
+    }
+    async fn get_entity(
+        &self,
+        query: impl Into<Query>,
+        values: impl ValueList,
+        entity_name: &str,
+    ) -> Result<Option<RawEntity>, DatabaseError> {
+        let result = self.session.query(query, values).await?;
+
+        match result.single_row() {
+            Ok(row) => {
+                let json_row = row.columns.first().cloned().unwrap().unwrap();
+                let json_row_as_str = json_row.as_text().unwrap();
+                let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
+                if let serde_json::Value::Object(values) = json {
+                    let result = self.schema_lookup.json_to_entity(entity_name, values);
+                    if result.get("is_deleted").cloned().unwrap() == Value::Bool(true) {
+                        return Ok(None);
+                    };
+                    Ok(Some(result))
+                } else {
+                    error!(Scylladb, "Not an json object"; data => json);
+                    Err(DatabaseError::Invalid)
+                }
+            }
+            Err(error) => {
+                error!(Scylladb, "Error when get entity"; error => error);
+                Err(DatabaseError::InvalidValue(error.to_string()))
+            }
+        }
+    }
+
+    async fn get_entities(
+        &self,
+        query: impl Into<Query>,
+        values: impl ValueList,
+        entity_name: &str,
+    ) -> Result<Vec<RawEntity>, DatabaseError> {
+        let result = self.session.query(query, values).await?;
+        match result.rows() {
+            Ok(rows) => {
+                let mut entities = vec![];
+                for row in rows {
+                    let json_row = row.columns.first().cloned().unwrap().unwrap();
+                    let json_row_as_str = json_row.as_text().unwrap();
+                    let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
+                    if let serde_json::Value::Object(values) = json {
+                        let result = self.schema_lookup.json_to_entity(entity_name, values);
+                        if result.get("is_deleted").cloned().unwrap() == Value::Bool(true) {
+                            continue;
+                        };
+                        entities.push(result);
+                    } else {
+                        error!(Scylladb, "Not an json object"; data => json);
+                        continue;
+                    };
+                }
+                Ok(entities)
+            }
+            Err(e) => {
+                error!(Scylladb, "Error when get entities"; error => e);
+                Err(DatabaseError::InvalidValue(e.to_string()))
+            }
+        }
     }
 }
 
@@ -91,8 +157,8 @@ impl ExternDBTrait for Scylladb {
 
         let query = format!(
             r#"CREATE TABLE IF NOT EXISTS {}.{entity_type} (
-{joint_column_definition}
-) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_ptr_number DESC)"#,
+            {joint_column_definition}
+            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_ptr_number DESC)"#,
             self.keyspace
         );
 
@@ -110,77 +176,42 @@ impl ExternDBTrait for Scylladb {
     ) -> Result<Option<RawEntity>, DatabaseError> {
         let raw_query = format!(
             r#"
-SELECT JSON * from {}.{}
-WHERE block_ptr_number = ? AND block_ptr_hash = ? AND id = ?
-LIMIT 1
-"#,
+            SELECT JSON * from {}.{}
+            WHERE block_ptr_number = ? AND block_ptr_hash = ? AND id = ?
+            LIMIT 1
+            "#,
             self.keyspace, entity_type
         );
         info!(Scylladb, "load entity"; query => raw_query);
         let result = self
-            .session
-            .query(
+            .get_entity(
                 raw_query,
                 (block_ptr.number as i64, block_ptr.hash, entity_id),
+                entity_type,
             )
             .await?;
 
-        if let Ok(data) = result.single_row() {
-            let json_row = data.columns.first().cloned().unwrap().unwrap();
-            let json_row_as_str = json_row.as_text().unwrap();
-            let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
-            if let serde_json::Value::Object(values) = json {
-                let result = self.schema_lookup.json_to_entity(entity_type, values);
-
-                if result.get("is_deleted").cloned().unwrap() == Value::Bool(true) {
-                    return Ok(None);
-                };
-
-                return Ok(Some(result));
-            } else {
-                error!(Scylladb, "Not an json object"; data => json);
-                return Err(DatabaseError::Invalid);
-            }
-        }
-
-        Ok(None)
+        Ok(result)
     }
 
     async fn load_entity_latest(
         &self,
-        entity_type: &str,
+        entity_name: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError> {
         let raw_query = format!(
             r#"
-SELECT JSON * from {}.{}
-WHERE id = ?
-ORDER BY block_ptr_number DESC
-LIMIT 1
-"#,
-            self.keyspace, entity_type
+            SELECT JSON * from {}.{}
+            WHERE id = ?
+            ORDER BY block_ptr_number DESC
+            LIMIT 1
+            "#,
+            self.keyspace, entity_name
         );
-        let result = self.session.query(raw_query, vec![entity_id]).await?;
-
-        if let Ok(data) = result.single_row() {
-            let json_row = data.columns.first().cloned().unwrap().unwrap();
-            let json_row_as_str = json_row.as_text().unwrap();
-            let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
-            if let serde_json::Value::Object(values) = json {
-                let result = self.schema_lookup.json_to_entity(entity_type, values);
-
-                if result.get("is_deleted").cloned().unwrap() == Value::Bool(true) {
-                    return Ok(None);
-                };
-
-                return Ok(Some(result));
-            } else {
-                error!(Scylladb, "Not an json object"; data => json);
-                return Err(DatabaseError::Invalid);
-            }
-        }
-
-        Ok(None)
+        let result = self
+            .get_entity(raw_query, (entity_id,), entity_name)
+            .await?;
+        Ok(result)
     }
 
     async fn create_entity(
@@ -255,8 +286,8 @@ LIMIT 1
 
         let query = format!(
             r#"
-UPDATE {}.{} SET is_deleted = True
-WHERE id = ? AND block_ptr_number = ? AND block_ptr_hash = ?"#,
+            UPDATE {}.{} SET is_deleted = True
+            WHERE id = ? AND block_ptr_number = ? AND block_ptr_hash = ?"#,
             self.keyspace, entity_type
         );
         self.session
@@ -320,18 +351,17 @@ mod tests {
         db.create_test_keyspace().await.unwrap();
         info!("Create KEYSPACE OK!");
 
-        db
-            .create_entity_table(
-                "Tokens",
-                entity!(
-                    id => StoreValueKind::String,
-                    name => StoreValueKind::String,
-                    symbol => StoreValueKind::String,
-                    total_supply => StoreValueKind::BigInt,
-                ),
-            )
-            .await
-            .unwrap();
+        db.create_entity_table(
+            "Tokens",
+            entity!(
+                id => StoreValueKind::String,
+                name => StoreValueKind::String,
+                symbol => StoreValueKind::String,
+                total_supply => StoreValueKind::BigInt,
+            ),
+        )
+        .await
+        .unwrap();
         info!("Create TABLE OK!");
 
         let entity_data = entity! {
