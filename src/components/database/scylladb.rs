@@ -13,7 +13,6 @@ use scylla::SessionBuilder;
 use scylla::_macro_internal::ValueList;
 use scylla::batch::Batch;
 use scylla::query::Query;
-use scylla::statement::Consistency;
 use std::collections::HashMap;
 
 pub struct Scylladb {
