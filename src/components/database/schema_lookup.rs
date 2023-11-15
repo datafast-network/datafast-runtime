@@ -23,6 +23,10 @@ impl SchemaLookup {
     pub fn add_schema(&mut self, entity_name: &str, schema: HashMap<String, StoreValueKind>) {
         self.types.insert(entity_name.to_owned(), schema);
     }
+    
+    pub fn get_schemas(&self) -> &HashMap<String, HashMap<String, StoreValueKind>> {
+        &self.types
+    }
 
     fn look_up(&self, entity_name: &str, field_name: &str) -> StoreValueKind {
         return self

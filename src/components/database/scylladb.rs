@@ -107,9 +107,6 @@ impl Scylladb {
                     let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
                     if let serde_json::Value::Object(values) = json {
                         let result = self.schema_lookup.json_to_entity(entity_name, values);
-                        if result.get("is_deleted").cloned().unwrap() == Value::Bool(true) {
-                            continue;
-                        };
                         entities.push(result);
                     } else {
                         error!(Scylladb, "Not an json object"; data => json);
@@ -123,6 +120,39 @@ impl Scylladb {
                 Err(DatabaseError::InvalidValue(e.to_string()))
             }
         }
+    }
+    async fn insert_record(
+        &self,
+        block_ptr: BlockPtr,
+        entity_name: &str,
+        data: RawEntity,
+    ) -> Result<(), DatabaseError> {
+        assert!(data.contains_key("id"));
+        let mut json_data = self.schema_lookup.entity_to_json(entity_name, data);
+
+        json_data.insert(
+            "block_ptr_number".to_string(),
+            serde_json::Value::from(block_ptr.number),
+        );
+
+        json_data.insert(
+            "block_ptr_hash".to_string(),
+            serde_json::Value::from(block_ptr.hash),
+        );
+
+        json_data.insert("is_deleted".to_string(), serde_json::Value::Bool(false));
+
+        let json_data = serde_json::Value::Object(json_data);
+
+        let query = format!("INSERT INTO {}.{} JSON ?", self.keyspace, entity_name);
+
+        info!(Scylladb, "created-entity query"; query => query);
+        let st = self.session.prepare(query).await?;
+        self.session
+            .execute(&st, vec![json_data.to_string()])
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -217,51 +247,31 @@ impl ExternDBTrait for Scylladb {
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
-        entity_type: &str,
+        entity_name: &str,
         data: RawEntity,
     ) -> Result<(), DatabaseError> {
-        assert!(data.contains_key("id"));
-        let mut json_data = self.schema_lookup.entity_to_json(entity_type, data);
-
-        json_data.insert(
-            "block_ptr_number".to_string(),
-            serde_json::Value::from(block_ptr.number),
-        );
-
-        json_data.insert(
-            "block_ptr_hash".to_string(),
-            serde_json::Value::from(block_ptr.hash),
-        );
-
-        json_data.insert("is_deleted".to_string(), serde_json::Value::Bool(false));
-
-        let json_data = serde_json::Value::Object(json_data);
-
-        let query = format!("INSERT INTO {}.{} JSON ?", self.keyspace, entity_type);
-
-        info!(Scylladb, "created-entity query"; query => query);
-
-        self.session
-            .query(query, vec![json_data.to_string()])
-            .await?;
-
-        Ok(())
+        self.insert_record(block_ptr, entity_name, data).await
     }
 
     async fn create_entities(
         &self,
-        _block_ptr: BlockPtr,
-        _values: Vec<(String, RawEntity)>,
+        block_ptr: BlockPtr,
+        values: Vec<(String, RawEntity)>,
     ) -> Result<(), DatabaseError> {
-        todo!()
+        //TODO: batch insert
+        for (entity_name, data) in values {
+            self.insert_record(block_ptr.clone(), &entity_name, data)
+                .await?;
+        }
+        Ok(())
     }
 
     async fn soft_delete_entity(
         &self,
-        entity_type: &str,
+        entity_name: &str,
         entity_id: &str,
     ) -> Result<(), DatabaseError> {
-        let latest = self.load_entity_latest(entity_type, entity_id).await?;
+        let latest = self.load_entity_latest(entity_name, entity_id).await?;
 
         if latest.is_none() {
             return Ok(());
@@ -288,10 +298,11 @@ impl ExternDBTrait for Scylladb {
             r#"
             UPDATE {}.{} SET is_deleted = True
             WHERE id = ? AND block_ptr_number = ? AND block_ptr_hash = ?"#,
-            self.keyspace, entity_type
+            self.keyspace, entity_name
         );
+        let st = self.session.prepare(query).await?;
         self.session
-            .query(query, (entity_id, block_ptr_number as i64, block_ptr_hash))
+            .execute(&st, (entity_id, block_ptr_number as i64, block_ptr_hash))
             .await?;
 
         Ok(())
@@ -306,11 +317,63 @@ impl ExternDBTrait for Scylladb {
     }
 
     /// Revert all entity creations from given block ptr up to latest by hard-deleting them
-    async fn revert_create_entity(&self, _from_block: u64) -> Result<(), DatabaseError> {
-        todo!()
+    async fn revert_create_entity(&self, from_block: u64) -> Result<(), DatabaseError> {
+        let query = format!(
+            r#"
+            SELECT JSON * from {}.?
+            WHERE block_ptr_number >= ? AND is_deleted = true ALLOW FILTERING;
+            "#,
+            self.keyspace
+        );
+        // Get all schemas
+        let table_names = self
+            .schema_lookup
+            .get_schemas()
+            .iter()
+            .map(|e| e.0.clone())
+            .collect::<Vec<String>>();
+
+        for entity_name in table_names {
+            let entities = self
+                .get_entities(query.clone(), (from_block as i64,), &entity_name)
+                .await?;
+            let query_update = format!(
+                r#"
+                UPDATE {}.{} SET is_deleted = FALSE
+                WHERE id = ? AND block_ptr_number = ? AND block_ptr_hash = ?"#,
+                self.keyspace, entity_name
+            );
+            let st = self.session.prepare(query_update.clone()).await?;
+            //TODO: batch update
+            for entity in entities {
+                let entity_id = if let Value::String(n) = entity.get("id").cloned().unwrap() {
+                    n
+                } else {
+                    unimplemented!()
+                };
+                let block_ptr_number =
+                    if let Value::Int8(n) = entity.get("block_ptr_number").cloned().unwrap() {
+                        n as u64
+                    } else {
+                        unimplemented!()
+                    };
+
+                let block_ptr_hash =
+                    if let Value::String(n) = entity.get("block_ptr_hash").cloned().unwrap() {
+                        n
+                    } else {
+                        unimplemented!()
+                    };
+                self.session
+                    .execute(&st, (entity_id, block_ptr_number as i64, block_ptr_hash))
+                    .await?;
+            }
+        }
+
+        Ok(())
     }
 
-    /// Revert all entity deletion from given block ptr up to latest by nullifing `is_deleted` fields
+    /// Revert all entity deletion from given block ptr up to latest by nullifying `is_deleted` fields
     async fn revert_delete_entity(&self, _from_block: u64) -> Result<(), DatabaseError> {
         todo!()
     }
