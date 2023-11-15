@@ -178,6 +178,7 @@ mod tests {
 
         let result = db.soft_delete("test".to_string(), "1".to_string());
         assert!(result.is_ok());
+
         let latest = db
             .load_entity_latest("test".to_string(), "1".to_string())
             .unwrap();
