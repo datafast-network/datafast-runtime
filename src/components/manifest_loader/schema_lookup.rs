@@ -7,6 +7,7 @@ use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
 use crate::runtime::bignumber::bigint::BigInt;
+use apollo_parser::cst::CstNode;
 use apollo_parser::cst::Definition;
 use apollo_parser::cst::Type;
 use apollo_parser::Parser;
@@ -25,13 +26,13 @@ pub struct FieldKind {
 #[derive(Clone, Default)]
 pub struct SchemaLookup {
     // Load schema.graphql
-    types: HashMap<EntityType, HashMap<FieldName, FieldKind>>, // entity_name -> field_name -> field_type
+    schema: HashMap<EntityType, HashMap<FieldName, FieldKind>>, // entity_name -> field_name -> field_type
 }
 
 impl SchemaLookup {
     pub fn new() -> Self {
         Self {
-            types: HashMap::new(),
+            schema: HashMap::new(),
         }
     }
 
@@ -44,7 +45,7 @@ impl SchemaLookup {
         doc.definitions().for_each(|def| {
             if let Definition::ObjectTypeDefinition(object) = def {
                 let entity_type = object.name().unwrap().text().to_string();
-                schema_lookup.types.insert(entity_type, HashMap::new());
+                schema_lookup.schema.insert(entity_type, HashMap::new());
             }
         });
         for def in doc.definitions() {
@@ -54,10 +55,27 @@ impl SchemaLookup {
                 for field in object.fields_definition().unwrap().field_definitions() {
                     let ty = field.ty().unwrap();
                     let field_name = field.name().unwrap().text();
-                    let field_kind = schema_lookup.parse_entity_field(ty)?;
+                    let mut field_kind = schema_lookup.parse_entity_field(ty)?;
+                    match field.directives() {
+                        None => {}
+                        Some(dir) => {
+                            let fist = dir.directives().next();
+                            if fist.is_some() {
+                                let first = fist.unwrap();
+                                let arg = first.arguments().unwrap().arguments().next().unwrap();
+                                let name = arg.name().unwrap().text();
+                                if field_kind.relation.is_some() && name == "field" {
+                                    field_kind.relation = Some((
+                                        field_kind.relation.unwrap().0,
+                                        arg.value().unwrap().source_string().replace('"', ""),
+                                    ));
+                                }
+                            }
+                        }
+                    }
                     schema.insert(field_name.to_string(), field_kind);
                 }
-                schema_lookup.types.remove(&entity_type);
+                schema_lookup.schema.remove(&entity_type);
                 schema_lookup.add_schema(&entity_type, schema)
             }
         }
@@ -66,15 +84,15 @@ impl SchemaLookup {
     }
 
     pub fn add_schema(&mut self, entity_name: &str, schema: HashMap<String, FieldKind>) {
-        self.types.insert(entity_name.to_owned(), schema);
+        self.schema.insert(entity_name.to_owned(), schema);
     }
 
     pub fn get_schemas(&self) -> &HashMap<String, HashMap<String, FieldKind>> {
-        &self.types
+        &self.schema
     }
 
     pub fn get_entity_names(&self) -> Vec<String> {
-        self.types.keys().cloned().collect()
+        self.schema.keys().cloned().collect()
     }
 
     fn look_up(&self, entity_name: &str, field_name: &str) -> StoreValueKind {
@@ -86,7 +104,7 @@ impl SchemaLookup {
             return StoreValueKind::Bool;
         }
         return self
-            .types
+            .schema
             .get(entity_name)
             .unwrap()
             .get(field_name)
@@ -141,7 +159,7 @@ impl SchemaLookup {
                     "Int" => StoreValueKind::Int,
                     "Int8" => StoreValueKind::Int8,
                     unknown_type => {
-                        if self.types.get(&type_name).is_some() {
+                        if self.schema.get(&type_name).is_some() {
                             relation = Some((unknown_type.to_string(), "id".to_string()));
                             StoreValueKind::Bytes
                         } else {
@@ -236,8 +254,8 @@ mod test {
             read_to_string("../subgraph-testing/packages/v0_0_5/build/schema.graphql").unwrap();
 
         let schema_lookup = SchemaLookup::new_from_graphql_schema(&gql).unwrap();
-        let entity_type = "Token";
-        let token = schema_lookup.types.get(entity_type).unwrap();
+        let entity_type = "Pool";
+        let token = schema_lookup.schema.get(entity_type).unwrap();
         info!("Token: {:?}", token);
     }
 }

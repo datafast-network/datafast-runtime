@@ -5,12 +5,14 @@ use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fs;
+use std::fs::read_to_string;
 use std::io::BufReader;
 
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
     pub abis: HashMap<String, serde_json::Value>,
+    pub schema: SchemaLookup,
 }
 
 #[async_trait]
@@ -29,6 +31,7 @@ impl LoaderTrait for LocalFileLoader {
             subgraph_dir: subgraph_dir.to_owned(),
             subgraph_yaml: SubgraphYaml::default(),
             abis: HashMap::new(),
+            schema: SchemaLookup::new(),
         };
 
         this.load_yaml().await?;
@@ -36,8 +39,16 @@ impl LoaderTrait for LocalFileLoader {
         Ok(this)
     }
 
+    async fn load_schema(&mut self) -> Result<(), ManifestLoaderError> {
+        let schema_path = format!("{}/build/schema.graphql", self.subgraph_dir);
+        let schema =
+            read_to_string(schema_path).map_err(|_| ManifestLoaderError::SchemaParsingError)?;
+        self.schema = SchemaLookup::new_from_graphql_schema(&schema)?;
+        Ok(())
+    }
+
     async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError> {
-        let yaml_path = format!("{}/subgraph.yaml", self.subgraph_dir);
+        let yaml_path = format!("{}/build/subgraph.yaml", self.subgraph_dir);
         let f = fs::File::open(&yaml_path)
             .map_err(|_| ManifestLoaderError::InvalidSubgraphYAML(yaml_path.to_owned()))?;
         let reader = BufReader::new(f);
@@ -103,8 +114,8 @@ impl LoaderTrait for LocalFileLoader {
         &self.abis
     }
 
-    fn get_schemas(&self) -> SchemaLookup {
-        todo!()
+    fn get_schemas(&self) -> &SchemaLookup {
+        &self.schema
     }
 }
 

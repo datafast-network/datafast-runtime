@@ -12,13 +12,13 @@ use std::collections::HashMap;
 #[async_trait]
 pub trait LoaderTrait: Sized {
     async fn new(path: &str) -> Result<Self, ManifestLoaderError>;
+    async fn load_schema(&mut self) -> Result<(), ManifestLoaderError>;
     async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError>;
     async fn load_abis(&mut self) -> Result<(), ManifestLoaderError>;
     // Load-Wasm is lazy, we only execute it when we need it
     async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
     fn get_abis(&self) -> &HashMap<String, serde_json::Value>;
-    fn get_schemas(&self) -> SchemaLookup;
-
+    fn get_schemas(&self) -> &SchemaLookup;
     fn load_ethereum_contract(
         &self,
         datasource_name: &str,
@@ -79,6 +79,11 @@ impl LoaderTrait for ManifestLoader {
             }
         }
     }
+    async fn load_schema(&mut self) -> Result<(), ManifestLoaderError> {
+        match self {
+            ManifestLoader::Local(loader) => loader.load_schema().await,
+        }
+    }
 
     async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError> {
         match self {
@@ -104,7 +109,7 @@ impl LoaderTrait for ManifestLoader {
         }
     }
 
-    fn get_schemas(&self) -> SchemaLookup {
+    fn get_schemas(&self) -> &SchemaLookup {
         match self {
             ManifestLoader::Local(loader) => loader.get_schemas(),
         }
