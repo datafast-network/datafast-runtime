@@ -1,9 +1,11 @@
 mod local;
+pub mod schema_lookup;
 
 use crate::common::Datasource;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use local::LocalFileLoader;
+pub use schema_lookup::SchemaLookup;
 use serde_json::Value;
 use std::collections::HashMap;
 

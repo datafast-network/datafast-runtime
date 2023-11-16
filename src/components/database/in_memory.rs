@@ -1,8 +1,8 @@
-use super::RawEntity;
 use crate::common::BlockPtr;
 use crate::errors::DatabaseError;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
+use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Value;
 use std::collections::HashMap;
 

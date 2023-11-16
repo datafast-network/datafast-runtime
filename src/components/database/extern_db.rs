@@ -1,10 +1,10 @@
 use super::scylladb::Scylladb;
-use super::RawEntity;
 use crate::common::BlockPtr;
-use crate::components::database::schema_lookup::SchemaLookup;
+use crate::components::manifest_loader::schema_lookup::SchemaLookup;
 use crate::config::Config;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
+use crate::messages::RawEntity;
 use async_trait::async_trait;
 
 pub enum ExternDB {

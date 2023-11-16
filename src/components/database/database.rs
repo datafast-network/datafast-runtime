@@ -1,13 +1,13 @@
 use super::extern_db::ExternDB;
 use super::extern_db::ExternDBTrait;
 use super::memory_db::MemoryDb;
-use super::schema_lookup::SchemaLookup;
-use super::RawEntity;
 use crate::common::BlockPtr;
+use crate::components::manifest_loader::SchemaLookup;
 use crate::config::Config;
 use crate::errors::DatabaseError;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
+use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::native_types::store::Value;
@@ -120,6 +120,10 @@ impl From<Database2> for Agent {
 }
 
 impl Agent {
+    pub fn create_schema_lookup(&self) -> SchemaLookup {
+        todo!()
+    }
+
     pub fn handle_store_request(
         &self,
         message: StoreOperationMessage,

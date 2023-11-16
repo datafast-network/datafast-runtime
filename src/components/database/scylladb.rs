@@ -1,9 +1,9 @@
 use super::extern_db::ExternDBTrait;
-use super::schema_lookup::SchemaLookup;
-use super::RawEntity;
 use crate::common::BlockPtr;
+use crate::components::manifest_loader::schema_lookup::SchemaLookup;
 use crate::error;
 use crate::errors::DatabaseError;
+use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use async_trait::async_trait;
