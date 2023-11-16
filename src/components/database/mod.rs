@@ -1,23 +1,22 @@
 use crate::common::BlockPtr;
+use crate::components::manifest_loader::SchemaLookup;
+use crate::config::Config;
 use crate::errors::DatabaseError;
+use crate::messages::EntityID;
+use crate::messages::EntityType;
+use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
+use crate::runtime::asc::native_types::store::Value;
+use extern_db::ExternDB;
+use extern_db::ExternDBTrait;
+use memory_db::MemoryDb;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 mod extern_db;
 mod memory_db;
 mod scylladb;
-
-use crate::components::manifest_loader::SchemaLookup;
-use crate::config::Config;
-use crate::messages::EntityID;
-use crate::messages::EntityType;
-use crate::messages::RawEntity;
-use crate::runtime::asc::native_types::store::Value;
-use extern_db::ExternDB;
-use extern_db::ExternDBTrait;
-use memory_db::MemoryDb;
 
 pub struct Database {
     pub mem: MemoryDb,
@@ -140,6 +139,7 @@ impl Agent {
         let mut db = self.db.lock().await;
         db.migrate_from_mem_to_db(block_ptr).await
     }
+
     pub async fn clear_in_memory(&self) -> Result<(), DatabaseError> {
         self.db.lock().await.mem.clear();
         Ok(())
