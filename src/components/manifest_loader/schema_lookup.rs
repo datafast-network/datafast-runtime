@@ -100,7 +100,6 @@ impl SchemaLookup {
     }
 
     fn look_up(&self, entity_name: &str, field_name: &str) -> StoreValueKind {
-        // Field đặc biệt không chứa trong schema
         if field_name == "block_ptr_number" {
             return StoreValueKind::Int8;
         }
