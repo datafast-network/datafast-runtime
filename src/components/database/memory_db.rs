@@ -33,17 +33,20 @@ impl MemoryDb {
         }
 
         let data = entity.unwrap().last().cloned().unwrap();
-        let is_deleted = data.get("is_deleted").cloned().unwrap();
+        let is_deleted = data
+            .get("is_deleted")
+            .cloned()
+            .ok_or(DatabaseError::MissingField("is_deleted".to_string()))?;
         if let Value::Bool(is_deleted) = is_deleted {
             if is_deleted {
                 return Ok(None);
             }
         } else {
             error!(MemoryDb, "is_deleted is not a bool";
-                entity_type => entity_type.clone(),
-                entity_id => entity_id.clone()
+                entity_type => entity_type,
+                entity_id => entity_id
             );
-            unimplemented!("is_deleted is not a bool")
+            return Err(DatabaseError::InvalidValue("is_deleted".to_string()));
         }
         Ok(Some(data))
     }
@@ -72,6 +75,10 @@ impl MemoryDb {
             snapshots.push(new_data);
             Ok(())
         } else {
+            error!(MemoryDb, "id is invalid";
+                entity_type => entity_type,
+                rawEntity => format!("{:?}", data)
+            );
             Err(DatabaseError::InvalidValue("id".to_string()))
         }
     }
