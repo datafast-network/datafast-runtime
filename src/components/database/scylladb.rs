@@ -100,45 +100,6 @@ impl Scylladb {
         }
     }
 
-    async fn get_entities(
-        &self,
-        query: impl Into<Query>,
-        values: impl ValueList,
-        entity_name: &str,
-        is_deleted: Option<bool>,
-    ) -> Result<Vec<RawEntity>, DatabaseError> {
-        let result = self.session.query(query, values).await?;
-
-        match result.rows() {
-            Ok(rows) => {
-                let mut entities = vec![];
-                for row in rows {
-                    let json_row = row.columns.first().cloned().unwrap().unwrap();
-                    let json_row_as_str = json_row.as_text().unwrap();
-                    let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
-                    if let serde_json::Value::Object(values) = json {
-                        let result = self.schema_lookup.json_to_entity(entity_name, values);
-                        if is_deleted.is_some()
-                            && result.get("is_deleted").cloned().unwrap()
-                                == Value::Bool(is_deleted.unwrap())
-                        {
-                            continue;
-                        }
-                        entities.push(result);
-                    } else {
-                        error!(Scylladb, "Not an json object"; data => json);
-                        continue;
-                    };
-                }
-                Ok(entities)
-            }
-            Err(e) => {
-                error!(Scylladb, "Error when get entities"; error => e);
-                Err(DatabaseError::InvalidValue(e.to_string()))
-            }
-        }
-    }
-
     async fn insert_entity(
         &self,
         block_ptr: BlockPtr,
@@ -212,7 +173,7 @@ impl Scylladb {
     #[cfg(test)]
     async fn drop_tables(&self) -> Result<(), DatabaseError> {
         let schema = self.schema_lookup.get_schemas();
-        for (table_name, _) in schema {
+        for (table_name, _) in schema.iter() {
             let query = format!("DROP TABLE IF EXISTS {}.{}", self.keyspace, table_name);
             self.session.query(query, ()).await?;
             self.create_block_ptr_table().await.unwrap();
