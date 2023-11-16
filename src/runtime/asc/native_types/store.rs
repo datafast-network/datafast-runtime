@@ -164,6 +164,7 @@ impl FromStr for StoreValueKind {
             "Bool" => Self::Bool,
             "Int" => Self::Int,
             "Int8" => Self::Int8,
+            "Array" => Self::Array,
             _ => unimplemented!(),
         };
         Ok(kind)
