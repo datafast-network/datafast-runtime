@@ -122,6 +122,10 @@ impl MemoryDb {
 
         Ok(result)
     }
+
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
 }
 
 #[cfg(test)]
