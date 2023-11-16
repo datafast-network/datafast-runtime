@@ -64,7 +64,6 @@ pub trait ExternDBTrait: Sized {
         entity_id: &str,
     ) -> Result<(), DatabaseError>;
 
-    /// Revert all entity creations from given block ptr up to latest by hard-deleting them
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError>;
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError>;
