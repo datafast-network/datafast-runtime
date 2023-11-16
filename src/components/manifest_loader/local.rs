@@ -36,6 +36,7 @@ impl LoaderTrait for LocalFileLoader {
 
         this.load_yaml().await?;
         this.load_abis().await?;
+        this.load_schema().await?;
         Ok(this)
     }
 
