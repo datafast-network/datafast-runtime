@@ -1,5 +1,4 @@
 use crate::error;
-use crate::errors::DatabaseError;
 use crate::errors::ManifestLoaderError;
 use crate::messages::EntityType;
 use crate::messages::RawEntity;
