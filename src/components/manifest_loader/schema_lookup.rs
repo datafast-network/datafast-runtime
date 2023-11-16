@@ -126,7 +126,7 @@ impl SchemaLookup {
 
         for (key, val) in json {
             let field_type = self.look_up(entity_name, &key);
-            let value = field_to_store_value(field_type, val);
+            let value = self.field_to_store_value(field_type, val);
             result.insert(key, value);
         }
 
@@ -141,7 +141,7 @@ impl SchemaLookup {
         let mut result = serde_json::Map::new();
 
         for (key, value) in data {
-            let value = store_value_to_json_value(value);
+            let value = self.store_value_to_json_value(value);
             result.insert(key, value);
         }
 
@@ -209,38 +209,40 @@ impl SchemaLookup {
             }
         }
     }
-}
 
-fn field_to_store_value(field_type: StoreValueKind, val: serde_json::Value) -> Value {
-    match field_type {
-        StoreValueKind::String => Value::String(val.as_str().unwrap().to_owned()),
-        StoreValueKind::Int => Value::Int(val.as_i64().unwrap() as i32),
-        StoreValueKind::Int8 => Value::Int8(val.as_i64().unwrap()),
-        StoreValueKind::BigDecimal => {
-            Value::BigDecimal(BigDecimal::from_str(val.as_str().unwrap()).unwrap())
-        }
-        StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
-        StoreValueKind::Bytes => Value::Bytes(Bytes::from(val.as_str().unwrap().as_bytes())),
-        StoreValueKind::BigInt => Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap()),
-        StoreValueKind::Array => {
-            todo!("implement array value")
-        }
-        StoreValueKind::Null => {
-            unimplemented!("Not supported")
+    fn field_to_store_value(&self, field_type: StoreValueKind, val: serde_json::Value) -> Value {
+        match field_type {
+            StoreValueKind::String => Value::String(val.as_str().unwrap().to_owned()),
+            StoreValueKind::Int => Value::Int(val.as_i64().unwrap() as i32),
+            StoreValueKind::Int8 => Value::Int8(val.as_i64().unwrap()),
+            StoreValueKind::BigDecimal => {
+                Value::BigDecimal(BigDecimal::from_str(val.as_str().unwrap()).unwrap())
+            }
+            StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
+            StoreValueKind::Bytes => Value::Bytes(Bytes::from(val.as_str().unwrap().as_bytes())),
+            StoreValueKind::BigInt => {
+                Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap())
+            }
+            StoreValueKind::Array => {
+                todo!("implement array value")
+            }
+            StoreValueKind::Null => {
+                unimplemented!("Not supported")
+            }
         }
     }
-}
 
-fn store_value_to_json_value(value: Value) -> serde_json::Value {
-    match value {
-        Value::Int(number) => serde_json::Value::from(number),
-        Value::Int8(number) => serde_json::Value::from(number),
-        Value::String(string) => serde_json::Value::from(string),
-        Value::BigDecimal(number) => serde_json::Value::from(number.to_string()),
-        Value::BigInt(number) => serde_json::Value::from(number.to_string()),
-        Value::Bytes(bytes) => serde_json::Value::from(format!("0x{}", bytes)),
-        Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
-        _ => todo!("implement array value"),
+    fn store_value_to_json_value(&self, value: Value) -> serde_json::Value {
+        match value {
+            Value::Int(number) => serde_json::Value::from(number),
+            Value::Int8(number) => serde_json::Value::from(number),
+            Value::String(string) => serde_json::Value::from(string),
+            Value::BigDecimal(number) => serde_json::Value::from(number.to_string()),
+            Value::BigInt(number) => serde_json::Value::from(number.to_string()),
+            Value::Bytes(bytes) => serde_json::Value::from(format!("0x{}", bytes)),
+            Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
+            _ => todo!("implement array value"),
+        }
     }
 }
 
