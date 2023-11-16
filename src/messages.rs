@@ -1,6 +1,7 @@
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
+use crate::common::BlockPtr;
 use crate::runtime::asc::native_types::store::Value;
 use std::collections::HashMap;
 use web3::types::Log;
@@ -34,6 +35,17 @@ pub enum FilteredDataMessage {
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
     },
+}
+
+impl FilteredDataMessage {
+    pub fn get_block_ptr(&self) -> BlockPtr {
+        match self {
+            FilteredDataMessage::Ethereum { block, .. } => BlockPtr {
+                number: block.number.as_u64(),
+                hash: block.hash.to_string(),
+            },
+        }
+    }
 }
 
 pub type EntityType = String;

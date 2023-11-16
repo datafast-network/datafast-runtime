@@ -98,6 +98,8 @@ pub enum SubgraphError {
     InvalidSourceID(String),
     #[error("Invalid handler_name: {0}")]
     InvalidHandlerName(String),
+    #[error("Migrate memory to db error")]
+    MigrateDbError,
 }
 
 #[derive(Debug, Error)]

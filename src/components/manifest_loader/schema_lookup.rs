@@ -44,7 +44,11 @@ impl SchemaLookup {
         let mut schema_lookup = SchemaLookup::new();
         doc.definitions().for_each(|def| {
             if let Definition::ObjectTypeDefinition(object) = def {
-                let entity_type = object.name().unwrap().text().to_string();
+                let entity_type = object
+                    .name()
+                    .expect("Name of Object Definition invalid")
+                    .text()
+                    .to_string();
                 schema_lookup.schema.insert(entity_type, HashMap::new());
             }
         });

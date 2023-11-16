@@ -9,7 +9,6 @@ mod store;
 mod types_conversion;
 mod wasm_log;
 
-use crate::components::database::DatabaseAgent;
 use crate::errors::WasmHostError;
 use semver::Version;
 use wasmer::imports;
@@ -21,6 +20,7 @@ use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
 
+use crate::components::database::Agent;
 use crate::warn;
 pub use asc::AscHost;
 
@@ -32,14 +32,14 @@ pub struct Env {
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
-    pub db_agent: DatabaseAgent,
+    pub db_agent: Agent,
     pub datasource_name: String,
 }
 
 pub fn create_wasm_host(
     api_version: Version,
     wasm_bytes: Vec<u8>,
-    dbstore_agent: DatabaseAgent,
+    db_agent: Agent,
     datasource_name: String,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
@@ -54,7 +54,7 @@ pub fn create_wasm_host(
             api_version: api_version.clone(),
             arena_start_ptr: 0,
             arena_free_size: 0,
-            db_agent: dbstore_agent.clone(),
+            db_agent: db_agent.clone(),
             datasource_name,
         },
     );
@@ -217,7 +217,7 @@ pub fn create_wasm_host(
         id_of_type,
         arena_start_ptr,
         arena_free_size,
-        dbstore_agent,
+        db_agent,
     };
 
     Ok(host)
@@ -226,7 +226,6 @@ pub fn create_wasm_host(
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::common::BlockPtr;
     use std::path::PathBuf;
 
     pub fn mock_wasm_host(api_version: Version, wasm_path: &str) -> AscHost {
@@ -238,8 +237,7 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        let mut db_agent = DatabaseAgent::default();
-        db_agent.block_ptr = Some(BlockPtr::default());
+        let db_agent = Agent::empty();
         create_wasm_host(api_version, wasm_bytes, db_agent, "Test".to_string()).unwrap()
     }
 

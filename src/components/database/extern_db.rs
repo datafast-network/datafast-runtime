@@ -9,6 +9,7 @@ use async_trait::async_trait;
 
 pub enum ExternDB {
     Scylla(Scylladb),
+    None,
 }
 
 impl ExternDB {
@@ -72,12 +73,16 @@ impl ExternDBTrait for ExternDB {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.create_entity_tables().await,
+
+            ExternDB::None => Ok(()),
         }
     }
 
     async fn create_block_ptr_table(&self) -> Result<(), DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.create_block_ptr_table().await,
+
+            ExternDB::None => Ok(()),
         }
     }
 
@@ -89,6 +94,8 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<Option<RawEntity>, DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.load_entity(block_ptr, entity_type, entity_id).await,
+
+            ExternDB::None => Ok(None),
         }
     }
 
@@ -99,6 +106,8 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<Option<RawEntity>, DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.load_entity_latest(entity_type, entity_id).await,
+
+            ExternDB::None => Ok(None),
         }
     }
 
@@ -110,6 +119,8 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<(), DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.create_entity(block_ptr, entity_type, data).await,
+
+            ExternDB::None => Ok(()),
         }
     }
 
@@ -120,6 +131,8 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<(), DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.batch_insert_entities(block_ptr, values).await,
+
+            ExternDB::None => Ok(()),
         }
     }
 
@@ -134,12 +147,16 @@ impl ExternDBTrait for ExternDB {
                 db.soft_delete_entity(block_ptr, entity_type, entity_id)
                     .await
             }
+
+            ExternDB::None => Ok(()),
         }
     }
 
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.revert_from_block(from_block).await,
+
+            ExternDB::None => Ok(()),
         }
     }
 }

@@ -77,6 +77,6 @@ mod test {
         env_logger::try_init().unwrap_or_default();
 
         let config = Config::load().unwrap();
-        ::log::info!("Config = {:?}", config);
+        log::info!("Config = {:?}", config);
     }
 }

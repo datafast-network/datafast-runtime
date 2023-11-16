@@ -1,4 +1,3 @@
-use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
@@ -44,10 +43,6 @@ pub struct DatasourceWasmInstance {
 }
 
 impl DatasourceWasmInstance {
-    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
-        self.host.dbstore_agent.block_ptr = Some(block_ptr);
-    }
-
     pub fn invoke<T: AscType + AscIndexId>(
         &mut self,
         handler_type: HandlerTypes,
@@ -65,6 +60,7 @@ impl DatasourceWasmInstance {
             &mut self.host.store,
             &[Value::I32(asc_data.wasm_ptr() as i32)],
         )?;
+
         info!(DatasourceWasmInstance, "Handler invoked";
             handler => handler.name.clone(),
             handler_type => format!("{:?}", handler_type));
