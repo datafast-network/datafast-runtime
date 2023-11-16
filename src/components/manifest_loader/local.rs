@@ -72,12 +72,7 @@ impl LoaderTrait for LocalFileLoader {
                 .find(|abi| abi.name == abi_name)
                 .map_or(
                     Err(ManifestLoaderError::InvalidABI(abi_name.to_owned())),
-                    |abi| {
-                        Ok(format!(
-                            "{}/build/{datasource_name}/{}",
-                            self.subgraph_dir, abi.file
-                        ))
-                    },
+                    |abi| Ok(format!("{}/build/{}", self.subgraph_dir, abi.file)),
                 )?;
             let abi_file = fs::File::open(&abi_path)
                 .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
@@ -131,8 +126,8 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(loader.subgraph_yaml.dataSources.len(), 3);
-        assert_eq!(loader.abis.keys().len(), 3);
+        assert_eq!(loader.subgraph_yaml.dataSources.len(), 4);
+        assert_eq!(loader.abis.keys().len(), 4);
 
         loader.load_wasm("TestTypes").await.unwrap();
         loader.load_wasm("TestStore").await.unwrap();

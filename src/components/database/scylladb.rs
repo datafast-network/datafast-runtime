@@ -411,6 +411,7 @@ mod tests {
     use crate::entity;
     use crate::runtime::asc::native_types::store::Value;
     use crate::runtime::bignumber::bigint::BigInt;
+    use crate::schema;
     use env_logger;
     use log::info;
     use std::str::FromStr;
@@ -423,7 +424,7 @@ mod tests {
         let mut schema = SchemaLookup::new();
         schema.add_schema(
             entity_name,
-            entity!(
+            schema!(
                 id => StoreValueKind::String,
                 name => StoreValueKind::String,
                 symbol => StoreValueKind::String,
@@ -443,203 +444,203 @@ mod tests {
         setup_db("test").await;
     }
 
-    // #[tokio::test]
-    // async fn test_scylla_02_create_and_load_entity() {
-    //     let (db, entity_name) = setup_db("Tokens_01").await;
+    #[tokio::test]
+    async fn test_scylla_02_create_and_load_entity() {
+        let (db, entity_name) = setup_db("Tokens_01").await;
+
+        let entity_data: RawEntity = entity! {
+            id => Value::String("token-id".to_string()),
+            name => Value::String("Tether USD".to_string()),
+            symbol => Value::String("USDT".to_string()),
+            total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap())
+        };
+
+        let block_ptr = BlockPtr::default();
+
+        db.create_entity(block_ptr.clone(), &entity_name, entity_data.clone())
+            .await
+            .unwrap();
+
+        info!("Create test Token OK!");
+
+        let loaded_entity = db
+            .load_entity(block_ptr.clone(), &entity_name, "token-id")
+            .await
+            .unwrap()
+            .unwrap();
+
+        info!("Load test Token OK!");
+        info!("Loaded from db: {:?}", loaded_entity);
+        assert_eq!(
+            loaded_entity.get("id").cloned(),
+            Some(Value::String("token-id".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("name").cloned(),
+            Some(Value::String("Tether USD".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("symbol").cloned(),
+            Some(Value::String("USDT".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("total_supply").cloned(),
+            Some(Value::BigInt(
+                BigInt::from_str("111222333444555666777888999").unwrap()
+            ))
+        );
+        assert_eq!(
+            loaded_entity.get("is_deleted").cloned(),
+            Some(Value::Bool(false))
+        );
+
+        // ------------------------------- Load latest
+        let loaded_entity = db
+            .load_entity_latest(&entity_name, "token-id")
+            .await
+            .unwrap()
+            .unwrap();
+
+        info!("Loaded-latest from db: {:?}", loaded_entity);
+        assert_eq!(
+            loaded_entity.get("id").cloned(),
+            Some(Value::String("token-id".to_string()))
+        );
+
+        let block_ptr = BlockPtr {
+            number: 1,
+            hash: "hash_1".to_string(),
+        };
+        db.create_entity(block_ptr.clone(), &entity_name, entity_data)
+            .await
+            .unwrap();
+
+        let loaded_entity = db
+            .load_entity_latest(&entity_name, "token-id")
+            .await
+            .unwrap()
+            .unwrap();
+
+        info!("Loaded-latest from db: {:?}", loaded_entity);
+        assert_eq!(
+            loaded_entity.get("id").cloned(),
+            Some(Value::String("token-id".to_string()))
+        );
+        assert_eq!(
+            loaded_entity.get("block_ptr_number").cloned(),
+            Some(Value::Int8(1))
+        );
+    }
     //
-    //     let entity_data: RawEntity = entity! {
-    //         id => Value::String("token-id".to_string()),
-    //         name => Value::String("Tether USD".to_string()),
-    //         symbol => Value::String("USDT".to_string()),
-    //         total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap())
-    //     };
-    //
-    //     let block_ptr = BlockPtr::default();
-    //
-    //     db.create_entity(block_ptr.clone(), &entity_name, entity_data.clone())
-    //         .await
-    //         .unwrap();
-    //
-    //     info!("Create test Token OK!");
-    //
-    //     let loaded_entity = db
-    //         .load_entity(block_ptr.clone(), &entity_name, "token-id")
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //
-    //     info!("Load test Token OK!");
-    //     info!("Loaded from db: {:?}", loaded_entity);
-    //     assert_eq!(
-    //         loaded_entity.get("id").cloned(),
-    //         Some(Value::String("token-id".to_string()))
-    //     );
-    //     assert_eq!(
-    //         loaded_entity.get("name").cloned(),
-    //         Some(Value::String("Tether USD".to_string()))
-    //     );
-    //     assert_eq!(
-    //         loaded_entity.get("symbol").cloned(),
-    //         Some(Value::String("USDT".to_string()))
-    //     );
-    //     assert_eq!(
-    //         loaded_entity.get("total_supply").cloned(),
-    //         Some(Value::BigInt(
-    //             BigInt::from_str("111222333444555666777888999").unwrap()
-    //         ))
-    //     );
-    //     assert_eq!(
-    //         loaded_entity.get("is_deleted").cloned(),
-    //         Some(Value::Bool(false))
-    //     );
-    //
-    //     // ------------------------------- Load latest
-    //     let loaded_entity = db
-    //         .load_entity_latest(&entity_name, "token-id")
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //
-    //     info!("Loaded-latest from db: {:?}", loaded_entity);
-    //     assert_eq!(
-    //         loaded_entity.get("id").cloned(),
-    //         Some(Value::String("token-id".to_string()))
-    //     );
-    //
-    //     let block_ptr = BlockPtr {
-    //         number: 1,
-    //         hash: "hash_1".to_string(),
-    //     };
-    //     db.create_entity(block_ptr.clone(), &entity_name, entity_data)
-    //         .await
-    //         .unwrap();
-    //
-    //     let loaded_entity = db
-    //         .load_entity_latest(&entity_name, "token-id")
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //
-    //     info!("Loaded-latest from db: {:?}", loaded_entity);
-    //     assert_eq!(
-    //         loaded_entity.get("id").cloned(),
-    //         Some(Value::String("token-id".to_string()))
-    //     );
-    //     assert_eq!(
-    //         loaded_entity.get("block_ptr_number").cloned(),
-    //         Some(Value::Int8(1))
-    //     );
-    // }
-    //
-    // #[tokio::test]
-    // async fn test_scylla_03_revert_entity() {
-    //     let (db, entity_name) = setup_db("Tokens_02").await;
-    //     //insert records
-    //     for id in 0..10 {
-    //         let entity_data = entity! {
-    //             id => Value::String("token-id".to_string()),
-    //             name => Value::String("Tether USD".to_string()),
-    //             symbol => Value::String("USDT".to_string()),
-    //             total_supply => Value::BigInt(BigInt::from(id*1000)),
-    //             is_deleted => Value::Bool(false)
-    //         };
-    //         let block_ptr = BlockPtr {
-    //             number: id,
-    //             hash: format!("hash_{}", id),
-    //         };
-    //
-    //         db.create_entity(block_ptr.clone(), &entity_name, entity_data)
-    //             .await
-    //             .unwrap();
-    //     }
-    //
-    //     let latest = db
-    //         .load_entity_latest(&entity_name, "token-id")
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //     assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(9)));
-    //
-    //     db.revert_from_block(5).await.unwrap();
-    //
-    //     let latest = db
-    //         .load_entity_latest(&entity_name, "token-id")
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //     assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(4)));
-    //
-    //     db.soft_delete_entity(
-    //         BlockPtr {
-    //             number: 5,
-    //             hash: "hash".to_string(),
-    //         },
-    //         &entity_name,
-    //         "token-id",
-    //     )
-    //     .await
-    //     .unwrap();
-    //
-    //     let latest = db
-    //         .load_entity_latest(&entity_name, "token-id")
-    //         .await
-    //         .unwrap();
-    //     assert!(latest.is_none());
-    //
-    //     db.revert_from_block(3).await.unwrap();
-    //
-    //     let latest = db
-    //         .load_entity_latest(&entity_name, "token-id")
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //     assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(2)));
-    // }
-    //
-    // #[tokio::test]
-    // async fn test_scylla_04_batch_insert() {
-    //     let (db, entity_name) = setup_db("Tokens_03").await;
-    //
-    //     let mut entities = Vec::new();
-    //     let block_ptr = BlockPtr {
-    //         number: 0,
-    //         hash: "hash".to_string(),
-    //     };
-    //
-    //     for id in 0..10 {
-    //         let entity_data: RawEntity = entity! {
-    //             id => Value::String(format!("token-id_{}", id)),
-    //             name => Value::String("Tether USD".to_string()),
-    //             symbol => Value::String("USDT".to_string()),
-    //             total_supply => Value::BigInt(BigInt::from(id*1000)),
-    //             is_deleted => Value::Bool(id % 2 == 0)
-    //         };
-    //
-    //         entities.push((entity_name.clone(), entity_data));
-    //     }
-    //
-    //     db.batch_insert_entities(block_ptr.clone(), entities)
-    //         .await
-    //         .unwrap();
-    //
-    //     let latest = db
-    //         .load_entity_latest(&entity_name, "token-id_0")
-    //         .await
-    //         .unwrap();
-    //
-    //     assert!(latest.is_none());
-    //
-    //     let latest = db
-    //         .load_entity_latest(&entity_name, "token-id_1")
-    //         .await
-    //         .unwrap();
-    //
-    //     assert!(latest.is_some());
-    //
-    //     let latest = latest.unwrap();
-    //     assert_eq!(
-    //         latest.get("total_supply"),
-    //         Some(&Value::BigInt(BigInt::from(1000)))
-    //     );
-    // }
+    #[tokio::test]
+    async fn test_scylla_03_revert_entity() {
+        let (db, entity_name) = setup_db("Tokens_02").await;
+        //insert records
+        for id in 0..10 {
+            let entity_data = entity! {
+                id => Value::String("token-id".to_string()),
+                name => Value::String("Tether USD".to_string()),
+                symbol => Value::String("USDT".to_string()),
+                total_supply => Value::BigInt(BigInt::from(id*1000)),
+                is_deleted => Value::Bool(false)
+            };
+            let block_ptr = BlockPtr {
+                number: id,
+                hash: format!("hash_{}", id),
+            };
+
+            db.create_entity(block_ptr.clone(), &entity_name, entity_data)
+                .await
+                .unwrap();
+        }
+
+        let latest = db
+            .load_entity_latest(&entity_name, "token-id")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(9)));
+
+        db.revert_from_block(5).await.unwrap();
+
+        let latest = db
+            .load_entity_latest(&entity_name, "token-id")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(4)));
+
+        db.soft_delete_entity(
+            BlockPtr {
+                number: 5,
+                hash: "hash".to_string(),
+            },
+            &entity_name,
+            "token-id",
+        )
+        .await
+        .unwrap();
+
+        let latest = db
+            .load_entity_latest(&entity_name, "token-id")
+            .await
+            .unwrap();
+        assert!(latest.is_none());
+
+        db.revert_from_block(3).await.unwrap();
+
+        let latest = db
+            .load_entity_latest(&entity_name, "token-id")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(2)));
+    }
+
+    #[tokio::test]
+    async fn test_scylla_04_batch_insert() {
+        let (db, entity_name) = setup_db("Tokens_03").await;
+
+        let mut entities = Vec::new();
+        let block_ptr = BlockPtr {
+            number: 0,
+            hash: "hash".to_string(),
+        };
+
+        for id in 0..10 {
+            let entity_data: RawEntity = entity! {
+                id => Value::String(format!("token-id_{}", id)),
+                name => Value::String("Tether USD".to_string()),
+                symbol => Value::String("USDT".to_string()),
+                total_supply => Value::BigInt(BigInt::from(id*1000)),
+                is_deleted => Value::Bool(id % 2 == 0)
+            };
+
+            entities.push((entity_name.clone(), entity_data));
+        }
+
+        db.batch_insert_entities(block_ptr.clone(), entities)
+            .await
+            .unwrap();
+
+        let latest = db
+            .load_entity_latest(&entity_name, "token-id_0")
+            .await
+            .unwrap();
+
+        assert!(latest.is_none());
+
+        let latest = db
+            .load_entity_latest(&entity_name, "token-id_1")
+            .await
+            .unwrap();
+
+        assert!(latest.is_some());
+
+        let latest = latest.unwrap();
+        assert_eq!(
+            latest.get("total_supply"),
+            Some(&Value::BigInt(BigInt::from(1000)))
+        );
+    }
 }
