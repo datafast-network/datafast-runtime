@@ -1,4 +1,4 @@
-use super::LoaderTrait;
+use super::{LoaderTrait, SchemaLookup};
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
@@ -10,6 +10,7 @@ pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
     pub abis: HashMap<String, serde_json::Value>,
+    pub schemas:
 }
 
 #[async_trait]
@@ -100,6 +101,10 @@ impl LoaderTrait for LocalFileLoader {
 
     fn get_abis(&self) -> &HashMap<String, serde_json::Value> {
         &self.abis
+    }
+
+    fn get_schemas(&self) -> SchemaLookup {
+        todo!()
     }
 }
 

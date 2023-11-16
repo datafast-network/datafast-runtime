@@ -17,6 +17,7 @@ pub trait LoaderTrait: Sized {
     // Load-Wasm is lazy, we only execute it when we need it
     async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
     fn get_abis(&self) -> &HashMap<String, serde_json::Value>;
+    fn get_schemas(&self) -> SchemaLookup;
 
     fn load_ethereum_contract(
         &self,
@@ -96,9 +97,16 @@ impl LoaderTrait for ManifestLoader {
             ManifestLoader::Local(loader) => loader.load_wasm(datasource_name).await,
         }
     }
+
     fn get_abis(&self) -> &HashMap<String, Value> {
         match self {
             ManifestLoader::Local(loader) => loader.get_abis(),
+        }
+    }
+
+    fn get_schemas(&self) -> SchemaLookup {
+        match self {
+            ManifestLoader::Local(loader) => loader.get_schemas(),
         }
     }
 }
