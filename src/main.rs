@@ -28,7 +28,7 @@ async fn main() -> Result<(), SwrError> {
     env_logger::try_init().unwrap_or_default();
     // TODO: impl CLI
     let config = Config::load()?;
-    // TODO: impl Source Consumer with Nats
+
     let block_source = Source::new(&config).await?;
 
     // TODO: impl IPFS Loader
@@ -37,10 +37,8 @@ async fn main() -> Result<(), SwrError> {
     // TODO: impl raw-data serializer
     let serializer = Serializer::new(config.clone())?;
 
-    // TODO: impl subgraph filter
     let subgraph_filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
 
-    // TODO: impl Actual DB Connection
     let database = Database::new(&config, manifest.get_schema().clone()).await?;
     let agent = Agent::from(database);
 
