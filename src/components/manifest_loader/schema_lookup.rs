@@ -1,16 +1,32 @@
+use crate::error;
+use crate::errors::DatabaseError;
+use crate::errors::ManifestLoaderError;
+use crate::messages::EntityType;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
 use crate::runtime::bignumber::bigint::BigInt;
+use apollo_parser::cst::Definition;
+use apollo_parser::cst::Type;
+use apollo_parser::Parser;
 use std::collections::HashMap;
 use std::str::FromStr;
+
+type FieldName = String;
+
+#[derive(Clone, Default, Debug)]
+pub struct FieldKind {
+    pub kind: StoreValueKind,
+    pub relation: Option<(EntityType, FieldName)>,
+    pub list_inner_kind: Option<StoreValueKind>,
+}
 
 #[derive(Clone, Default)]
 pub struct SchemaLookup {
     // Load schema.graphql
-    types: HashMap<String, HashMap<String, StoreValueKind>>,
+    types: HashMap<EntityType, HashMap<FieldName, FieldKind>>, // entity_name -> field_name -> field_type
 }
 
 impl SchemaLookup {
@@ -20,11 +36,41 @@ impl SchemaLookup {
         }
     }
 
-    pub fn add_schema(&mut self, entity_name: &str, schema: HashMap<String, StoreValueKind>) {
+    pub fn new_from_graphql_schema(schema: &str) -> Result<Self, ManifestLoaderError> {
+        let parser = Parser::new(schema);
+        let ast = parser.parse();
+        let doc = ast.document();
+
+        let mut schema_lookup = SchemaLookup::new();
+        doc.definitions().for_each(|def| {
+            if let Definition::ObjectTypeDefinition(object) = def {
+                let entity_type = object.name().unwrap().text().to_string();
+                schema_lookup.types.insert(entity_type, HashMap::new());
+            }
+        });
+        for def in doc.definitions() {
+            if let Definition::ObjectTypeDefinition(object) = def {
+                let entity_type = object.name().unwrap().text().to_string();
+                let mut schema = HashMap::new();
+                for field in object.fields_definition().unwrap().field_definitions() {
+                    let ty = field.ty().unwrap();
+                    let field_name = field.name().unwrap().text();
+                    let field_kind = schema_lookup.parse_entity_field(ty)?;
+                    schema.insert(field_name.to_string(), field_kind);
+                }
+                schema_lookup.types.remove(&entity_type);
+                schema_lookup.add_schema(&entity_type, schema)
+            }
+        }
+
+        Ok(schema_lookup)
+    }
+
+    pub fn add_schema(&mut self, entity_name: &str, schema: HashMap<String, FieldKind>) {
         self.types.insert(entity_name.to_owned(), schema);
     }
 
-    pub fn get_schemas(&self) -> &HashMap<String, HashMap<String, StoreValueKind>> {
+    pub fn get_schemas(&self) -> &HashMap<String, HashMap<String, FieldKind>> {
         &self.types
     }
 
@@ -46,7 +92,8 @@ impl SchemaLookup {
             .unwrap()
             .get(field_name)
             .cloned()
-            .unwrap();
+            .unwrap()
+            .kind;
     }
 
     pub fn json_to_entity(
@@ -78,6 +125,68 @@ impl SchemaLookup {
         }
 
         result
+    }
+
+    fn parse_entity_field(&mut self, field_type: Type) -> Result<FieldKind, ManifestLoaderError> {
+        match field_type {
+            Type::NamedType(name_type) => {
+                let type_name = name_type.name().unwrap().text().to_owned();
+                let mut relation = None;
+                let kind = match type_name.as_str() {
+                    "ID" => StoreValueKind::Bytes,
+                    "BigInt" => StoreValueKind::BigInt,
+                    "BigDecimal" => StoreValueKind::BigDecimal,
+                    "Bytes" => StoreValueKind::Bytes,
+                    "String" => StoreValueKind::String,
+                    "Boolean" => StoreValueKind::Bool,
+                    "Int" => StoreValueKind::Int,
+                    "Int8" => StoreValueKind::Int8,
+                    unknown_type => {
+                        if self.types.get(&type_name).is_some() {
+                            relation = Some((unknown_type.to_string(), "id".to_string()));
+                            StoreValueKind::Bytes
+                        } else {
+                            error!(parse_entity_field, "Unknown schema type";
+                                field_type => unknown_type,
+                                type_name => type_name
+                            );
+                            return Err(ManifestLoaderError::SchemaParsingError);
+                        }
+                    }
+                };
+                Ok(FieldKind {
+                    kind,
+                    relation,
+                    list_inner_kind: None,
+                })
+            }
+            Type::ListType(list) => {
+                let inner_type = list.ty();
+                if inner_type.is_none() {
+                    error!(parse_entity_field, "List type is None";
+                        field_type => format!("{:?}", list)
+                    );
+                    return Err(ManifestLoaderError::SchemaParsingError);
+                }
+                let value = self.parse_entity_field(inner_type.unwrap())?;
+                let array_kind = FieldKind {
+                    kind: StoreValueKind::Array,
+                    relation: value.relation,
+                    list_inner_kind: Some(value.kind),
+                };
+                Ok(array_kind)
+            }
+            Type::NonNullType(value) => {
+                if let Some(list) = value.list_type() {
+                    return self.parse_entity_field(Type::ListType(list));
+                }
+
+                if let Some(name_type) = value.named_type() {
+                    return self.parse_entity_field(Type::NamedType(name_type));
+                }
+                unimplemented!()
+            }
+        }
     }
 }
 
@@ -111,5 +220,25 @@ fn store_value_to_json_value(value: Value) -> serde_json::Value {
         Value::Bytes(bytes) => serde_json::Value::from(format!("0x{}", bytes)),
         Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
         _ => unimplemented!(),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use log::info;
+    use std::fs::read_to_string;
+
+    #[tokio::test]
+    async fn test_parse_graphql_schema() {
+        env_logger::try_init().unwrap_or_default();
+
+        let gql =
+            read_to_string("../subgraph-testing/packages/v0_0_5/build/schema.graphql").unwrap();
+
+        let schema_lookup = SchemaLookup::new_from_graphql_schema(&gql).unwrap();
+        let entity_type = "Token";
+        let token = schema_lookup.types.get(entity_type).unwrap();
+        info!("Token: {:?}", token);
     }
 }

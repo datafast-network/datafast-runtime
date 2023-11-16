@@ -84,6 +84,8 @@ pub enum ManifestLoaderError {
     InvalidWASM(String),
     #[error("Invalid subgraph dir: {0}")]
     InvalidSubgraphDir(String),
+    #[error("Invalid schema")]
+    SchemaParsingError,
 }
 
 #[derive(Debug, Error)]

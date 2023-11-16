@@ -1,4 +1,5 @@
-use super::{LoaderTrait, SchemaLookup};
+use super::LoaderTrait;
+use super::SchemaLookup;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
@@ -109,14 +110,6 @@ impl LoaderTrait for LocalFileLoader {
 
 #[cfg(test)]
 mod test {
-    use apollo_parser::cst::Definition;
-    use apollo_parser::Parser;
-    use log::info;
-    use std::fs::read_to_string;
-    use std::str::FromStr;
-
-    use crate::runtime::asc::native_types::store::StoreValueKind;
-
     use super::*;
 
     #[tokio::test]
@@ -132,57 +125,5 @@ mod test {
         loader.load_wasm("TestTypes").await.unwrap();
         loader.load_wasm("TestStore").await.unwrap();
         loader.load_wasm("TestDataSource").await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_parse_graphql_schema() {
-        env_logger::try_init().unwrap_or_default();
-        let loader = LocalFileLoader::new("../subgraph-testing/packages/v0_0_5")
-            .await
-            .unwrap();
-
-        let gql =
-            read_to_string("../subgraph-testing/packages/v0_0_5/build/schema.graphql").unwrap();
-
-        let parser = Parser::new(&gql);
-        let ast = parser.parse();
-        let doc = ast.document();
-
-        let mut schemas = HashMap::new();
-        for def in doc.definitions() {
-            if let Definition::ObjectTypeDefinition(object) = def {
-                let entity_type = object.name().unwrap().text().to_string();
-                let mut schema = HashMap::new();
-
-                for field in object.fields_definition().unwrap().field_definitions() {
-                    // As this loops, it will print the two field
-                    // names it encounters:
-                    // field name: name
-                    // field name: favSnack
-                    let ty = field.ty().unwrap();
-                    let field_name = field.name().unwrap().text();
-                    let field_type = match ty {
-                        apollo_parser::cst::Type::ListType(list_ty) => {
-                            // info!("ListTy: {:?}", list_ty);
-                            todo!()
-                        }
-                        apollo_parser::cst::Type::NamedType(named_ty) => {
-                            // info!("NamedTy: {:?}", named_ty);
-                            todo!()
-                        }
-                        apollo_parser::cst::Type::NonNullType(nonnulled_ty) => {
-                            nonnulled_ty.named_type().unwrap().name().unwrap().text()
-                        }
-                    };
-
-                    schema.insert(
-                        field_name.to_string(),
-                        StoreValueKind::from_str(&field_type.to_string()).unwrap(),
-                    );
-                }
-                schemas.insert(entity_type, schema);
-            }
-            info!("Schemas: \n{:?}", schemas);
-        }
     }
 }
