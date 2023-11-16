@@ -363,6 +363,18 @@ impl ExternDBTrait for Scylladb {
         self.session.batch(&st_batch, batch_values).await?;
         Ok(())
     }
+
+    async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let query = format!(
+            r#"
+            INSERT INTO {}.block_ptr (block_number, block_hash) VALUES (?, ?)"#,
+            self.keyspace
+        );
+        self.session
+            .query(query, (block_ptr.number as i64, block_ptr.hash))
+            .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

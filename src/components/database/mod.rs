@@ -81,7 +81,7 @@ impl Database {
         }
 
         let data = entity.unwrap();
-        return Ok(StoreRequestResult::Load(Some(data)));
+        Ok(StoreRequestResult::Load(Some(data)))
     }
 
     async fn handle_update(
@@ -104,7 +104,10 @@ impl Database {
 
     async fn migrate_from_mem_to_db(&mut self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         let values = self.mem.extract_data()?;
-        self.db.batch_insert_entities(block_ptr, values).await?;
+        self.db
+            .batch_insert_entities(block_ptr.clone(), values)
+            .await?;
+        self.db.save_block_ptr(block_ptr).await?;
         Ok(())
     }
 }
@@ -162,6 +165,7 @@ macro_rules! schema {
         }),)*]))
     }};
 }
+
 #[macro_export]
 macro_rules! entity {
     ($($k:ident => $v:expr),* $(,)?) => {{
