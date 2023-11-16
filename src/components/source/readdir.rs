@@ -69,7 +69,7 @@ mod test {
 
     #[tokio::test]
     async fn test_readdir() {
-        ::env_logger::try_init().unwrap_or_default();
+        env_logger::try_init().unwrap_or_default();
 
         let rd = ReadDir {
             dir: std::env::var("JSON_DIR").unwrap_or("/Users/vutran/Downloads".to_string()),

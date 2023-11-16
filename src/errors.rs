@@ -1,4 +1,6 @@
 use kanal::SendError;
+use scylla::transport::errors::NewSessionError;
+use scylla::transport::errors::QueryError;
 use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
@@ -82,6 +84,8 @@ pub enum ManifestLoaderError {
     InvalidWASM(String),
     #[error("Invalid subgraph dir: {0}")]
     InvalidSubgraphDir(String),
+    #[error("Invalid schema")]
+    SchemaParsingError,
 }
 
 #[derive(Debug, Error)]
@@ -94,12 +98,16 @@ pub enum SubgraphError {
     InvalidSourceID(String),
     #[error("Invalid handler_name: {0}")]
     InvalidHandlerName(String),
+    #[error("Migrate memory to db error")]
+    MigrateDbError,
 }
 
 #[derive(Debug, Error)]
 pub enum DatabaseError {
     #[error("Entity data missing `ID` field")]
     MissingID,
+    #[error("Entity data missing field: {0}")]
+    MissingField(String),
     #[error("Invalid operation")]
     Invalid,
     #[error("Invalid data value for field `{0}`")]
@@ -118,6 +126,10 @@ pub enum DatabaseError {
     MissingBlockPtr,
     #[error("Wasm-Host sent an invalid request")]
     WasmSendInvalidRequest,
+    #[error("Failed to init new Scylla session")]
+    ScyllaNewSession(#[from] NewSessionError),
+    #[error("Scylla Query Error: `{0}`")]
+    ScyllaQuery(#[from] QueryError),
 }
 
 #[derive(Debug, Error)]

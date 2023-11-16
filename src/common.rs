@@ -2,6 +2,7 @@ use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
+use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct MappingABI {
@@ -71,4 +72,10 @@ pub enum Chain {
 pub struct BlockPtr {
     pub number: u64,
     pub hash: String,
+}
+
+impl Display for BlockPtr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{number: {}, hash: {}}}", self.number, self.hash)
+    }
 }

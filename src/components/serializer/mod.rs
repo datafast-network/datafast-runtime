@@ -1,6 +1,6 @@
 mod transform;
 
-use super::database::DatabaseAgent;
+use super::database::Agent;
 use crate::config::Config;
 use crate::debug;
 use crate::errors::SerializerError;
@@ -32,7 +32,7 @@ impl Serializer {
                 let transform_wasm = config.transform_wasm.clone().unwrap();
                 let wasm_bytes = std::fs::read(config.transform_wasm.unwrap())
                     .map_err(|_| TransformError::BadTransformWasm(transform_wasm))?;
-                let empty_db = DatabaseAgent::default();
+                let empty_db = Agent::empty();
                 let wasm_version = Version::new(0, 0, 5);
                 let host =
                     create_wasm_host(wasm_version, wasm_bytes, empty_db, "Serializer".to_string())?;

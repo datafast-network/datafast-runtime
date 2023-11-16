@@ -1,9 +1,10 @@
 mod datasource_wasm_instance;
 
 use crate::chain::ethereum::block::EthereumBlockData;
-use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
+use crate::components::database::Agent;
+use crate::error;
 use crate::errors::SubgraphError;
 use crate::info;
 use crate::messages::EthereumFilteredEvent;
@@ -37,12 +38,6 @@ impl Subgraph {
         let source = DatasourceWasmInstance::try_from((host, datasource))?;
         self.sources.insert(source.id.clone(), source);
         Ok(())
-    }
-
-    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
-        for source_instance in self.sources.values_mut() {
-            source_instance.set_block_ptr(block_ptr.clone());
-        }
     }
 
     fn handle_ethereum_filtered_data(
@@ -85,11 +80,6 @@ impl Subgraph {
     fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
-                let block_ptr = BlockPtr {
-                    number: block.number.as_u64(),
-                    hash: block.hash.to_string(),
-                };
-                self.set_block_ptr(block_ptr);
                 info!(
                     Subgraph,
                     "Received ethereum filtered data";
@@ -104,9 +94,26 @@ impl Subgraph {
     pub async fn run_async(
         &mut self,
         recv: AsyncReceiver<FilteredDataMessage>,
+        db_agent: Agent,
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
+            let block_ptr = msg.get_block_ptr();
+
             self.handle_filtered_data(msg)?;
+
+            db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
+                error!(Subgraph, "Failed to migrate db";
+                    error => e.to_string(),
+                    block_number => block_ptr.number,
+                    block_hash => block_ptr.hash
+                );
+                SubgraphError::MigrateDbError
+            })?;
+
+            db_agent
+                .clear_in_memory()
+                .await
+                .map_err(|_| SubgraphError::MigrateDbError)?;
         }
 
         Ok(())
@@ -121,6 +128,7 @@ mod test {
     use super::Subgraph;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
+    use crate::components::database::Agent;
     use crate::messages::EthereumFilteredEvent;
     use crate::messages::FilteredDataMessage;
     use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
@@ -174,8 +182,8 @@ mod test {
         log::info!("Finished setup");
 
         let (sender, receiver) = kanal::bounded_async(1);
-
-        let t = task::spawn(async move { subgraph.run_async(receiver).await });
+        let agent = Agent::empty();
+        let t = task::spawn(async move { subgraph.run_async(receiver, agent).await });
 
         // Test sending block data
         let block_data_msg = FilteredDataMessage::Ethereum {

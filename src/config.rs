@@ -28,6 +28,12 @@ pub enum ContentType {
 }
 
 #[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum DatabaseConfig {
+    Scylla { uri: String, keyspace: String },
+}
+
+#[derive(Deserialize, Clone, Debug)]
 pub struct Config {
     pub chain: Chain,
     pub source: SourceTypes,
@@ -36,7 +42,7 @@ pub struct Config {
     pub subgraph_dir: String,
     pub transform: Option<TransformConfig>,
     pub transform_wasm: Option<String>,
-    pub max_block_snapshots: Option<u64>,
+    pub database: Option<DatabaseConfig>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -70,6 +76,6 @@ mod test {
         env_logger::try_init().unwrap_or_default();
 
         let config = Config::load().unwrap();
-        ::log::info!("Config = {:?}", config);
+        log::info!("Config = {:?}", config);
     }
 }

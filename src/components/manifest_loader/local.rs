@@ -1,15 +1,18 @@
 use super::LoaderTrait;
+use super::SchemaLookup;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fs;
+use std::fs::read_to_string;
 use std::io::BufReader;
 
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
     pub abis: HashMap<String, serde_json::Value>,
+    pub schema: SchemaLookup,
 }
 
 #[async_trait]
@@ -28,15 +31,25 @@ impl LoaderTrait for LocalFileLoader {
             subgraph_dir: subgraph_dir.to_owned(),
             subgraph_yaml: SubgraphYaml::default(),
             abis: HashMap::new(),
+            schema: SchemaLookup::new(),
         };
 
         this.load_yaml().await?;
         this.load_abis().await?;
+        this.load_schema().await?;
         Ok(this)
     }
 
+    async fn load_schema(&mut self) -> Result<(), ManifestLoaderError> {
+        let schema_path = format!("{}/build/schema.graphql", self.subgraph_dir);
+        let schema =
+            read_to_string(schema_path).map_err(|_| ManifestLoaderError::SchemaParsingError)?;
+        self.schema = SchemaLookup::new_from_graphql_schema(&schema)?;
+        Ok(())
+    }
+
     async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError> {
-        let yaml_path = format!("{}/subgraph.yaml", self.subgraph_dir);
+        let yaml_path = format!("{}/build/subgraph.yaml", self.subgraph_dir);
         let f = fs::File::open(&yaml_path)
             .map_err(|_| ManifestLoaderError::InvalidSubgraphYAML(yaml_path.to_owned()))?;
         let reader = BufReader::new(f);
@@ -59,12 +72,7 @@ impl LoaderTrait for LocalFileLoader {
                 .find(|abi| abi.name == abi_name)
                 .map_or(
                     Err(ManifestLoaderError::InvalidABI(abi_name.to_owned())),
-                    |abi| {
-                        Ok(format!(
-                            "{}/build/{datasource_name}/{}",
-                            self.subgraph_dir, abi.file
-                        ))
-                    },
+                    |abi| Ok(format!("{}/build/{}", self.subgraph_dir, abi.file)),
                 )?;
             let abi_file = fs::File::open(&abi_path)
                 .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
@@ -101,6 +109,10 @@ impl LoaderTrait for LocalFileLoader {
     fn get_abis(&self) -> &HashMap<String, serde_json::Value> {
         &self.abis
     }
+
+    fn get_schema(&self) -> &SchemaLookup {
+        &self.schema
+    }
 }
 
 #[cfg(test)]
@@ -114,8 +126,8 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(loader.subgraph_yaml.dataSources.len(), 3);
-        assert_eq!(loader.abis.keys().len(), 3);
+        assert_eq!(loader.subgraph_yaml.dataSources.len(), 4);
+        assert_eq!(loader.abis.keys().len(), 4);
 
         loader.load_wasm("TestTypes").await.unwrap();
         loader.load_wasm("TestStore").await.unwrap();

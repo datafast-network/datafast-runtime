@@ -3,11 +3,11 @@ mod common;
 mod components;
 mod config;
 mod errors;
+mod logger_macros;
 mod messages;
 mod runtime;
-#[macro_use]
-mod logger_macros;
 
+use components::database::Agent;
 use components::database::Database;
 use components::manifest_loader::LoaderTrait;
 use components::manifest_loader::ManifestLoader;
@@ -28,7 +28,7 @@ async fn main() -> Result<(), SwrError> {
     env_logger::try_init().unwrap_or_default();
     // TODO: impl CLI
     let config = Config::load()?;
-    // TODO: impl Source Consumer with Nats
+
     let block_source = Source::new(&config).await?;
 
     // TODO: impl IPFS Loader
@@ -37,11 +37,10 @@ async fn main() -> Result<(), SwrError> {
     // TODO: impl raw-data serializer
     let serializer = Serializer::new(config.clone())?;
 
-    // TODO: impl subgraph filter
     let subgraph_filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
 
-    // TODO: impl Actual DB Connection
-    let database = Database::new(&config).await?;
+    let database = Database::new(&config, manifest.get_schema().clone()).await?;
+    let agent = Agent::from(database);
 
     let subgraph_id = config
         .subgraph_id
@@ -53,11 +52,10 @@ async fn main() -> Result<(), SwrError> {
     for datasource in manifest.datasources() {
         let api_version = datasource.mapping.apiVersion.to_owned();
         let wasm_bytes = manifest.load_wasm(&datasource.name).await?;
-        let dbstore_agent = database.agent();
         let wasm_host = create_wasm_host(
             api_version,
             wasm_bytes,
-            dbstore_agent,
+            agent.clone(),
             datasource.name.clone(),
         )?;
         subgraph.create_source(wasm_host, datasource)?;
@@ -70,9 +68,9 @@ async fn main() -> Result<(), SwrError> {
     let stream_run = block_source.run_async(sender1);
     let serializer_run = serializer.run_async(recv1, sender2);
     let subgraph_filter_run = subgraph_filter.run_async(recv2, sender3);
-    let subgraph_run = subgraph.run_async(recv3);
+    let subgraph_run = subgraph.run_async(recv3, agent);
 
-    let results = ::tokio::join!(
+    let results = tokio::join!(
         stream_run,
         serializer_run,
         subgraph_filter_run,
