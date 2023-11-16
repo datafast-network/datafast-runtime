@@ -115,7 +115,7 @@ impl LoaderTrait for LocalFileLoader {
         &self.abis
     }
 
-    fn get_schemas(&self) -> &SchemaLookup {
+    fn get_schema(&self) -> &SchemaLookup {
         &self.schema
     }
 }
