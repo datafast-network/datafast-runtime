@@ -1,4 +1,4 @@
-use super::LoaderTrait;
+use super::{LoaderTrait, SchemaLookup};
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
@@ -101,10 +101,19 @@ impl LoaderTrait for LocalFileLoader {
     fn get_abis(&self) -> &HashMap<String, serde_json::Value> {
         &self.abis
     }
+
+    fn get_schemas(&self) -> SchemaLookup {
+        todo!()
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use apollo_parser::cst::Definition;
+    use apollo_parser::Parser;
+    use log::info;
+    use std::fs::read_to_string;
+
     use super::*;
 
     #[tokio::test]
@@ -120,5 +129,37 @@ mod test {
         loader.load_wasm("TestTypes").await.unwrap();
         loader.load_wasm("TestStore").await.unwrap();
         loader.load_wasm("TestDataSource").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_parse_graphql_schema() {
+        env_logger::try_init().unwrap_or_default();
+        let loader = LocalFileLoader::new("../subgraph-testing/packages/v0_0_5")
+            .await
+            .unwrap();
+
+        let gql =
+            read_to_string("../subgraph-testing/packages/v0_0_5/build/schema.graphql").unwrap();
+
+        let parser = Parser::new(&gql);
+        let ast = parser.parse();
+        let doc = ast.document();
+        for def in doc.definitions() {
+            if let Definition::ObjectTypeDefinition(object) = def {
+                info!("Entity: {:?}", object.name().unwrap().text());
+
+                for field in object.fields_definition().unwrap().field_definitions() {
+                    // As this loops, it will print the two field
+                    // names it encounters:
+                    // field name: name
+                    // field name: favSnack
+                    info!(
+                        "field description= {:?}",
+                        // field.name().unwrap().text(),
+                        field.arguments_definition()
+                    );
+                }
+            }
+        }
     }
 }

@@ -1,15 +1,18 @@
 use super::extern_db::ExternDB;
 use super::extern_db::ExternDBTrait;
 use super::memory_db::MemoryDb;
-use super::schema_lookup::SchemaLookup;
-use super::RawEntity;
+use crate::common::BlockPtr;
+use crate::components::manifest_loader::SchemaLookup;
 use crate::config::Config;
 use crate::errors::DatabaseError;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
+use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::native_types::store::Value;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 pub struct Database2 {
     pub mem: MemoryDb,
@@ -92,5 +95,47 @@ impl Database2 {
         let (entity_type, entity_id) = data;
         self.mem.soft_delete(entity_type, entity_id)?;
         Ok(StoreRequestResult::Delete)
+    }
+
+    async fn migrate_from_mem_to_db(&mut self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let values = self.mem.extract_data()?;
+        self.db.batch_insert_entities(block_ptr, values).await?;
+        self.mem.clear();
+        Ok(())
+    }
+}
+
+// Draft
+#[derive(Clone)]
+pub struct Agent {
+    db: Arc<Mutex<Database2>>,
+}
+
+impl From<Database2> for Agent {
+    fn from(value: Database2) -> Self {
+        Self {
+            db: Arc::new(Mutex::new(value)),
+        }
+    }
+}
+
+impl Agent {
+    pub fn create_schema_lookup(&self) -> SchemaLookup {
+        todo!()
+    }
+
+    pub fn handle_store_request(
+        &self,
+        message: StoreOperationMessage,
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let mut db = self.db.lock().map_err(|_| DatabaseError::MutexLockFailed)?;
+        let handle = tokio::runtime::Handle::current();
+        handle.block_on(db.handle_store_request(message))
+    }
+
+    pub fn migrate(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let mut db = self.db.lock().map_err(|_| DatabaseError::MutexLockFailed)?;
+        let handle = tokio::runtime::Handle::current();
+        handle.block_on(db.migrate_from_mem_to_db(block_ptr))
     }
 }

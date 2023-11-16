@@ -1,23 +1,19 @@
+pub mod database;
 mod extern_db;
 mod in_memory;
 mod memory_db;
-mod schema_lookup;
 mod scylladb;
-mod database;
 
 use crate::common::BlockPtr;
 use crate::config::Config;
 use crate::errors::DatabaseError;
+use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
-use crate::runtime::asc;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use self::in_memory::InMemoryDataStore;
-
-type RawEntity = HashMap<String, asc::native_types::store::Value>;
 
 #[derive(Clone)]
 pub enum Database {

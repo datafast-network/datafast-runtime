@@ -37,21 +37,21 @@ pub enum FilteredDataMessage {
 }
 
 pub type EntityType = String;
-
 pub type EntityID = String;
+pub type RawEntity = HashMap<String, Value>;
 
 #[derive(Debug)]
 pub enum StoreOperationMessage {
-    Create((EntityType, HashMap<String, Value>)),
+    Create((EntityType, RawEntity)),
     Load((EntityType, EntityID)),
-    Update((EntityType, EntityID, HashMap<String, Value>)),
+    Update((EntityType, EntityID, RawEntity)),
     Delete((EntityType, EntityID)),
 }
 
 #[derive(Debug)]
 pub enum StoreRequestResult {
     Create(String),
-    Load(Option<HashMap<String, Value>>),
+    Load(Option<RawEntity>),
     Delete,
     Update,
 }
