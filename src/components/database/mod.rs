@@ -3,6 +3,7 @@ mod in_memory;
 mod memory_db;
 mod schema_lookup;
 mod scylladb;
+mod database;
 
 use crate::common::BlockPtr;
 use crate::config::Config;
