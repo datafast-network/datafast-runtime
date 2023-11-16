@@ -12,6 +12,7 @@ pub enum ExternDB {
     None,
 }
 
+//TODO: impl sql and mongodb
 impl ExternDB {
     pub async fn new(config: &Config, schema_lookup: SchemaLookup) -> Result<Self, DatabaseError> {
         let config = config.database.as_ref().unwrap();
