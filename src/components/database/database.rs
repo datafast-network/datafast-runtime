@@ -120,10 +120,6 @@ impl From<Database2> for Agent {
 }
 
 impl Agent {
-    pub fn create_schema_lookup(&self) -> SchemaLookup {
-        todo!()
-    }
-
     pub fn handle_store_request(
         &self,
         message: StoreOperationMessage,
