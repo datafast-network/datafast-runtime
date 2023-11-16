@@ -223,7 +223,7 @@ fn field_to_store_value(field_type: StoreValueKind, val: serde_json::Value) -> V
         StoreValueKind::Bytes => Value::Bytes(Bytes::from(val.as_str().unwrap().as_bytes())),
         StoreValueKind::BigInt => Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap()),
         StoreValueKind::Array => {
-            unimplemented!("Not supported")
+            todo!("implement array value")
         }
         StoreValueKind::Null => {
             unimplemented!("Not supported")
@@ -240,7 +240,7 @@ fn store_value_to_json_value(value: Value) -> serde_json::Value {
         Value::BigInt(number) => serde_json::Value::from(number.to_string()),
         Value::Bytes(bytes) => serde_json::Value::from(format!("0x{}", bytes)),
         Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
-        _ => unimplemented!(),
+        _ => todo!("implement array value"),
     }
 }
 
