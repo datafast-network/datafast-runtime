@@ -113,6 +113,9 @@ mod test {
     use apollo_parser::Parser;
     use log::info;
     use std::fs::read_to_string;
+    use std::str::FromStr;
+
+    use crate::runtime::asc::native_types::store::StoreValueKind;
 
     use super::*;
 
@@ -144,22 +147,42 @@ mod test {
         let parser = Parser::new(&gql);
         let ast = parser.parse();
         let doc = ast.document();
+
+        let mut schemas = HashMap::new();
         for def in doc.definitions() {
             if let Definition::ObjectTypeDefinition(object) = def {
-                info!("Entity: {:?}", object.name().unwrap().text());
+                let entity_type = object.name().unwrap().text().to_string();
+                let mut schema = HashMap::new();
 
                 for field in object.fields_definition().unwrap().field_definitions() {
                     // As this loops, it will print the two field
                     // names it encounters:
                     // field name: name
                     // field name: favSnack
-                    info!(
-                        "field description= {:?}",
-                        // field.name().unwrap().text(),
-                        field.arguments_definition()
+                    let ty = field.ty().unwrap();
+                    let field_name = field.name().unwrap().text();
+                    let field_type = match ty {
+                        apollo_parser::cst::Type::ListType(list_ty) => {
+                            // info!("ListTy: {:?}", list_ty);
+                            todo!()
+                        }
+                        apollo_parser::cst::Type::NamedType(named_ty) => {
+                            // info!("NamedTy: {:?}", named_ty);
+                            todo!()
+                        }
+                        apollo_parser::cst::Type::NonNullType(nonnulled_ty) => {
+                            nonnulled_ty.named_type().unwrap().name().unwrap().text()
+                        }
+                    };
+
+                    schema.insert(
+                        field_name.to_string(),
+                        StoreValueKind::from_str(&field_type.to_string()).unwrap(),
                     );
                 }
+                schemas.insert(entity_type, schema);
             }
+            info!("Schemas: \n{:?}", schemas);
         }
     }
 }

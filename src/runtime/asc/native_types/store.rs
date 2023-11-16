@@ -1,3 +1,4 @@
+use crate::errors::AscError;
 use crate::impl_asc_type_enum;
 use crate::runtime::asc::base::AscValue;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
@@ -147,6 +148,25 @@ impl StoreValueKind {
             Value::Bytes(_) => StoreValueKind::Bytes,
             Value::BigInt(_) => StoreValueKind::BigInt,
         }
+    }
+}
+
+impl FromStr for StoreValueKind {
+    type Err = AscError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let kind = match s {
+            "ID" => Self::Bytes,
+            "BigInt" => Self::BigInt,
+            "BigDecimal" => Self::BigDecimal,
+            "Bytes" => Self::Bytes,
+            "String" => Self::String,
+            "Bool" => Self::Bool,
+            "Int" => Self::Int,
+            "Int8" => Self::Int8,
+            _ => unimplemented!(),
+        };
+        Ok(kind)
     }
 }
 
