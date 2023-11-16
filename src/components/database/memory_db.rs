@@ -6,8 +6,7 @@ use crate::messages::EntityType;
 use crate::runtime::asc::native_types::store::Value;
 use std::collections::HashMap;
 
-type EntityPayload = HashMap<String, Value>;
-type EntitySnapshots = Vec<EntityPayload>;
+type EntitySnapshots = Vec<RawEntity>;
 
 #[derive(Default, Debug)]
 pub struct MemoryDb(HashMap<EntityType, HashMap<EntityID, EntitySnapshots>>);
@@ -103,35 +102,25 @@ impl MemoryDb {
         }
 
         let snapshots = entity.unwrap();
-        for snapshot in snapshots.iter_mut() {
-            snapshot.insert("is_deleted".to_string(), Value::Bool(true));
-        }
+        let mut last = snapshots.iter().last().cloned().unwrap();
+        last.remove("is_deleted");
+        last.insert("is_deleted".to_string(), Value::Bool(true));
+        snapshots.push(last);
 
         Ok(())
     }
 
-    pub fn hard_delete(
-        &mut self,
-        entity_type: String,
-        entity_id: String,
-    ) -> Result<(), DatabaseError> {
-        let store = &mut self.0;
-        let table = store.get_mut(&entity_type);
+    pub fn extract_data(&self) -> Result<Vec<(String, RawEntity)>, DatabaseError> {
+        let mut result = vec![];
+        self.0.iter().for_each(|(entity_type, table)| {
+            table.iter().for_each(|(_entity_id, snapshots)| {
+                if let Some(last) = snapshots.last().cloned() {
+                    result.push((entity_type.clone(), last));
+                }
+            });
+        });
 
-        if table.is_none() {
-            return Err(DatabaseError::EntityTypeNotExists(entity_type));
-        }
-
-        let table = table.unwrap();
-        let entity = table.get_mut(&entity_id);
-
-        if entity.is_none() {
-            return Err(DatabaseError::EntityIDNotExists(entity_type, entity_id));
-        }
-
-        table.remove_entry(&entity_id);
-
-        Ok(())
+        Ok(result)
     }
 }
 
@@ -169,10 +158,10 @@ mod tests {
         data.insert("id".to_string(), Value::String("1".to_string()));
         data.insert("name".to_string(), Value::String("test".to_string()));
 
-        let result = db.create_entity("test".to_string(), data);
-        assert!(result.is_ok());
+        db.create_entity("test".to_string(), data).unwrap();
         let latest = db.load_entity_latest("test".to_string(), "1".to_string());
         assert!(latest.is_ok());
+
         let latest = latest.unwrap();
         assert!(latest.is_some());
         let latest = latest.unwrap();
@@ -183,12 +172,49 @@ mod tests {
         assert_eq!(latest.get("id").unwrap(), &Value::String("1".to_string()));
         assert_eq!(latest.get("is_deleted").unwrap(), &Value::Bool(false));
 
-        let result = db.soft_delete("test".to_string(), "1".to_string());
-        assert!(result.is_ok());
+        db.soft_delete("test".to_string(), "1".to_string()).unwrap();
 
         let latest = db
             .load_entity_latest("test".to_string(), "1".to_string())
             .unwrap();
         assert!(latest.is_none());
+        assert_eq!(db.0.get("test").unwrap().get("1").unwrap().len(), 2);
+    }
+    #[test]
+    fn test_memory_03_extract_data() {
+        env_logger::try_init().unwrap_or_default();
+        let mut db = MemoryDb::default();
+        let mut data = HashMap::new();
+        data.insert("id".to_string(), Value::String("1".to_string()));
+        data.insert("name".to_string(), Value::String("test".to_string()));
+        db.create_entity("test".to_string(), data).unwrap();
+        let mut data = HashMap::new();
+        data.insert("id".to_string(), Value::String("1".to_string()));
+        data.insert("name".to_string(), Value::String("test111".to_string()));
+        db.create_entity("test".to_string(), data).unwrap();
+
+        let mut data = HashMap::new();
+        data.insert("id".to_string(), Value::String("2".to_string()));
+        data.insert("name".to_string(), Value::String("test22".to_string()));
+        db.create_entity("test2".to_string(), data).unwrap();
+
+        let mut data = HashMap::new();
+        data.insert("id".to_string(), Value::String("2".to_string()));
+        data.insert("name".to_string(), Value::String("test222".to_string()));
+        db.create_entity("test2".to_string(), data).unwrap();
+
+        let mut data = HashMap::new();
+        data.insert("id".to_string(), Value::String("3".to_string()));
+        data.insert("name".to_string(), Value::String("test".to_string()));
+        db.create_entity("test2".to_string(), data).unwrap();
+
+        let mut data = HashMap::new();
+        data.insert("id".to_string(), Value::String("3".to_string()));
+        data.insert("name".to_string(), Value::String("test333".to_string()));
+        db.create_entity("test2".to_string(), data).unwrap();
+
+        let extract_data = db.extract_data().unwrap();
+        log::info!("extract_data: {:?}", extract_data);
+        assert_eq!(extract_data.len(), 3);
     }
 }
