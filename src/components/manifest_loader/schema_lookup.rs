@@ -365,7 +365,6 @@ mod test {
         );
 
         //case string is bigdecimal
-
         let val = serde_json::Value::Array(vec![
             serde_json::Value::String(
                 "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890"
