@@ -226,7 +226,10 @@ impl SchemaLookup {
                 if val.is_array() {
                     let mut result = Vec::new();
                     for item in val.as_array().unwrap() {
-                        let item = Self::field_to_store_value(field_type, item.clone());
+                        let item = Self::field_to_store_value(
+                            Self::json_value_to_store_kind(item),
+                            item.clone(),
+                        );
                         result.push(item);
                     }
                     Value::List(result)
@@ -239,6 +242,27 @@ impl SchemaLookup {
                 }
             }
             StoreValueKind::Null => Value::Null,
+        }
+    }
+
+    fn json_value_to_store_kind(value: &serde_json::Value) -> StoreValueKind {
+        match value {
+            serde_json::Value::String(value) => {
+                if value.starts_with("0x") {
+                    StoreValueKind::Bytes
+                } else if BigInt::from_str(value).is_ok() {
+                    StoreValueKind::BigInt
+                } else if BigDecimal::from_str(value).is_ok() {
+                    StoreValueKind::BigDecimal
+                } else {
+                    StoreValueKind::String
+                }
+            }
+            serde_json::Value::Number(_) => StoreValueKind::Int,
+            serde_json::Value::Bool(_) => StoreValueKind::Bool,
+            serde_json::Value::Array(_) => StoreValueKind::Array,
+            serde_json::Value::Null => StoreValueKind::Null,
+            serde_json::Value::Object(_) => unimplemented!(),
         }
     }
 
@@ -281,5 +305,90 @@ mod test {
         let entity_type = "Pool";
         let token = schema_lookup.schema.get(entity_type).unwrap();
         info!("Token: {:?}", token);
+    }
+
+    #[test]
+    fn test_parse_array() {
+        env_logger::try_init().unwrap_or_default();
+        let field_type = StoreValueKind::Array;
+        let val = serde_json::Value::Array(vec![
+            serde_json::Value::String("a".to_string()),
+            serde_json::Value::String("b".to_string()),
+            serde_json::Value::String("c".to_string()),
+        ]);
+        let result = SchemaLookup::field_to_store_value(field_type, val);
+
+        assert_eq!(
+            result,
+            Value::List(vec![
+                Value::String("a".to_string()),
+                Value::String("b".to_string()),
+                Value::String("c".to_string()),
+            ])
+        );
+        //case string is bytes
+        let val = serde_json::Value::Array(vec![
+            serde_json::Value::String("0x8A9d69Aa686fA0f9BbDec21294F67D4D9CFb4A3E".to_string()),
+            serde_json::Value::String("0xd69B8fF1888e78d9C337C2f2e6b3Bf3E7357800E".to_string()),
+        ]);
+
+        let result = SchemaLookup::field_to_store_value(field_type, val);
+        assert_eq!(
+            result,
+            Value::List(vec![
+                Value::Bytes(Bytes::from(
+                    "0x8A9d69Aa686fA0f9BbDec21294F67D4D9CFb4A3E".as_bytes()
+                )),
+                Value::Bytes(Bytes::from(
+                    "0xd69B8fF1888e78d9C337C2f2e6b3Bf3E7357800E".as_bytes()
+                )),
+            ])
+        );
+        //case string is bigint
+        let val = serde_json::Value::Array(vec![
+            serde_json::Value::String("1234567890123456789012345678901234567890".to_string()),
+            serde_json::Value::String("1234567890123456789012345678901234567890".to_string()),
+        ]);
+
+        let result = SchemaLookup::field_to_store_value(field_type, val);
+
+        assert_eq!(
+            result,
+            Value::List(vec![
+                Value::BigInt(
+                    BigInt::from_str("1234567890123456789012345678901234567890").unwrap()
+                ),
+                Value::BigInt(
+                    BigInt::from_str("1234567890123456789012345678901234567890").unwrap()
+                ),
+            ])
+        );
+
+        //case string is bigdecimal
+
+        let val = serde_json::Value::Array(vec![
+            serde_json::Value::String(
+                "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890"
+                    .to_string(),
+            ),
+            serde_json::Value::String(
+                "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890"
+                    .to_string(),
+            ),
+        ]);
+
+        let result = SchemaLookup::field_to_store_value(field_type, val);
+
+        assert_eq!(
+            result,
+            Value::List(vec![
+                Value::BigDecimal(
+                    BigDecimal::from_str("1234567890123456789012345678901234567890.1234567890123456789012345678901234567890").unwrap()
+                ),
+                Value::BigDecimal(
+                    BigDecimal::from_str("1234567890123456789012345678901234567890.1234567890123456789012345678901234567890").unwrap()
+                ),
+            ])
+        );
     }
 }
