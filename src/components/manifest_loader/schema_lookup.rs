@@ -110,11 +110,15 @@ impl SchemaLookup {
                 list_inner_kind: None,
             });
         }
-        self.schema
-            .get(entity_type)
-            .unwrap()
-            .get(field_name)
-            .cloned()
+        if let Some(table) = self.schema.get(entity_type) {
+            table.get(field_name).cloned()
+        } else {
+            error!(get_field, "Unknown entity type";
+                entity_type => entity_type,
+                field_name => field_name
+            );
+            None
+        }
     }
 
     pub fn json_to_entity(
@@ -151,7 +155,11 @@ impl SchemaLookup {
     fn parse_entity_field(&mut self, field_type: Type) -> Result<FieldKind, ManifestLoaderError> {
         match field_type {
             Type::NamedType(name_type) => {
-                let type_name = name_type.name().unwrap().text().to_owned();
+                let type_name = name_type
+                    .name()
+                    .unwrap_or_else(|| panic!("get type name for field {:?} error", name_type))
+                    .text()
+                    .to_owned();
                 let mut relation = None;
                 let kind = match type_name.as_str() {
                     "ID" => StoreValueKind::Bytes,
