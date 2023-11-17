@@ -43,6 +43,7 @@ impl FilteredDataMessage {
             FilteredDataMessage::Ethereum { block, .. } => BlockPtr {
                 number: block.number.as_u64(),
                 hash: block.hash.to_string(),
+                parent_hash: block.parent_hash.to_string(),
             },
         }
     }

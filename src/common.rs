@@ -72,6 +72,7 @@ pub enum Chain {
 pub struct BlockPtr {
     pub number: u64,
     pub hash: String,
+    pub parent_hash: String,
 }
 
 impl Display for BlockPtr {

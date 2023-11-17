@@ -191,7 +191,7 @@ pub enum ProgressCtrlError {
     #[error("Load block-ptr failed")]
     LoadLastBlockPtrFail(#[from] DatabaseError),
     #[error("Not a valid start-block (require `{0}`, actual = `{1}`)")]
-    InvalidStartBlock((u64, u64)),
+    InvalidStartBlock(u64, u64),
 }
 
 #[derive(Debug, Error)]

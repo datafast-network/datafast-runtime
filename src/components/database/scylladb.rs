@@ -216,6 +216,7 @@ impl ExternDBTrait for Scylladb {
             CREATE TABLE IF NOT EXISTS {}.block_ptr (
                 block_number bigint,
                 block_hash text,
+                parent_hash text,
                 PRIMARY KEY (block_hash, block_number)
             ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_number DESC)"#,
             self.keyspace
@@ -362,18 +363,25 @@ impl ExternDBTrait for Scylladb {
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         let query = format!(
             r#"
-            INSERT INTO {}.block_ptr (block_number, block_hash) VALUES (?, ?)"#,
+            INSERT INTO {}.block_ptr (block_number, block_hash, parent_hash) VALUES (?, ?, ?)"#,
             self.keyspace
         );
         self.session
-            .query(query, (block_ptr.number as i64, block_ptr.hash))
+            .query(
+                query,
+                (
+                    block_ptr.number as i64,
+                    block_ptr.hash,
+                    block_ptr.parent_hash,
+                ),
+            )
             .await?;
         Ok(())
     }
 
     async fn load_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
         let query = format!(
-            "SELECT JSON block_number as number, block_hash as hash FROM {}.block_ptr LIMIT 1;",
+            "SELECT JSON block_number as number, block_hash as hash, parent_hash FROM {}.block_ptr LIMIT 1;",
             self.keyspace
         );
         let result = self.session.query(query, &[]).await?;
@@ -497,6 +505,7 @@ mod tests {
         let block_ptr = BlockPtr {
             number: 1,
             hash: "hash_1".to_string(),
+            parent_hash: "parent_hash1".to_string(),
         };
         db.create_entity(block_ptr.clone(), &entity_name, entity_data)
             .await
@@ -534,6 +543,7 @@ mod tests {
             let block_ptr = BlockPtr {
                 number: id,
                 hash: format!("hash_{}", id),
+                parent_hash: "parent_hash1".to_string(),
             };
 
             db.create_entity(block_ptr.clone(), &entity_name, entity_data)
@@ -561,6 +571,7 @@ mod tests {
             BlockPtr {
                 number: 5,
                 hash: "hash".to_string(),
+                parent_hash: "parent_hash1".to_string(),
             },
             &entity_name,
             "token-id",
@@ -592,6 +603,7 @@ mod tests {
         let block_ptr = BlockPtr {
             number: 0,
             hash: "hash".to_string(),
+            parent_hash: "parent_hash1".to_string(),
         };
 
         for id in 0..10 {
@@ -638,6 +650,7 @@ mod tests {
         let block_ptr = BlockPtr {
             number: 10,
             hash: "hash10".to_string(),
+            parent_hash: "parent_hash1".to_string(),
         };
 
         db.save_block_ptr(block_ptr.clone()).await.unwrap();
@@ -645,6 +658,7 @@ mod tests {
         let block_ptr = BlockPtr {
             number: 11,
             hash: "hash11".to_string(),
+            parent_hash: "parent_hash1".to_string(),
         };
 
         db.save_block_ptr(block_ptr.clone()).await.unwrap();
@@ -652,6 +666,7 @@ mod tests {
         let largest_block_ptr = BlockPtr {
             number: 12,
             hash: "hash12".to_string(),
+            parent_hash: "parent_hash1".to_string(),
         };
 
         db.save_block_ptr(largest_block_ptr.clone()).await.unwrap();
@@ -659,6 +674,7 @@ mod tests {
         let block_ptr = BlockPtr {
             number: 9,
             hash: "hash9".to_string(),
+            parent_hash: "parent_hash1".to_string(),
         };
 
         db.save_block_ptr(block_ptr.clone()).await.unwrap();

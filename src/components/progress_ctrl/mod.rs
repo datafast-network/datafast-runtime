@@ -31,7 +31,7 @@ impl ProgressCtrl {
     }
 
     pub fn progress_check(&mut self, new_block_ptr: BlockPtr) -> Result<(), ProgressCtrlError> {
-        match self.last_block_ptr {
+        match &self.last_block_ptr {
             None => {
                 let min_start_block = self.get_min_start_block();
 
@@ -39,12 +39,16 @@ impl ProgressCtrl {
                     return Ok(());
                 }
 
-                Err(ProgressCtrlError::InvalidStartBlock((
+                Err(ProgressCtrlError::InvalidStartBlock(
                     min_start_block,
                     new_block_ptr.number,
-                )))
+                ))
             }
-            Some(BlockPtr { number, hash }) => {
+            Some(BlockPtr {
+                number,
+                hash,
+                parent_hash,
+            }) => {
                 todo!()
             }
         }
