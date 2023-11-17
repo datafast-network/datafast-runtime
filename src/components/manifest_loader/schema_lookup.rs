@@ -59,20 +59,17 @@ impl SchemaLookup {
                     let ty = field.ty().unwrap();
                     let field_name = field.name().unwrap().text();
                     let mut field_kind = schema_lookup.parse_entity_field(ty)?;
-                    match field.directives() {
-                        None => {}
-                        Some(dir) => {
-                            let fist = dir.directives().next();
-                            if fist.is_some() {
-                                let first = fist.unwrap();
-                                let arg = first.arguments().unwrap().arguments().next().unwrap();
-                                let name = arg.name().unwrap().text();
-                                if field_kind.relation.is_some() && name == "field" {
-                                    field_kind.relation = Some((
-                                        field_kind.relation.unwrap().0,
-                                        arg.value().unwrap().source_string().replace('"', ""),
-                                    ));
-                                }
+                    if let Some(dir) = field.directives() {
+                        let fist = dir.directives().next();
+                        if fist.is_some() {
+                            let first = fist.unwrap();
+                            let arg = first.arguments().unwrap().arguments().next().unwrap();
+                            let name = arg.name().unwrap().text();
+                            if field_kind.relation.is_some() && name == "field" {
+                                field_kind.relation = Some((
+                                    field_kind.relation.unwrap().0,
+                                    arg.value().unwrap().source_string().replace('"', ""),
+                                ));
                             }
                         }
                     }
