@@ -45,6 +45,13 @@ pub trait ExternDBTrait: Sized {
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError>;
 
+    async fn load_entity_relations(
+        &self,
+        entity_type: &str,
+        entity_id: &str,
+        relation_name: &str,
+    ) -> Result<Option<RawEntity>, DatabaseError>;
+
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
@@ -105,6 +112,21 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<Option<RawEntity>, DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.load_entity_latest(entity_type, entity_id).await,
+            ExternDB::None => Ok(None),
+        }
+    }
+
+    async fn load_entity_relations(
+        &self,
+        entity_type: &str,
+        entity_id: &str,
+        relation_name: &str,
+    ) -> Result<Option<RawEntity>, DatabaseError> {
+        match self {
+            ExternDB::Scylla(db) => {
+                db.load_entity_relations(entity_type, entity_id, relation_name)
+                    .await
+            }
             ExternDB::None => Ok(None),
         }
     }

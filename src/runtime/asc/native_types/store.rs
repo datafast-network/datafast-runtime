@@ -107,8 +107,29 @@ pub enum Value {
     BigInt(BigInt),
 }
 
+impl Value {
+    pub fn get_value_type(&self) -> StoreValueKind {
+        StoreValueKind::get_kind(self)
+    }
+    
+    pub fn get_list_values(&self) -> Option<&Vec<Value>> {
+        match self {
+            Value::List(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    pub fn get_string_value(&self) -> Option<&String> {
+        match self {
+            Value::String(string) => Some(string),
+            Value::Bytes(bytes) => Some(&String::from_utf8_lossy(bytes).to_string()),
+            _ => None,
+        }
+    }
+}
+
 #[repr(u32)]
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum StoreValueKind {
     String,
     Int,
