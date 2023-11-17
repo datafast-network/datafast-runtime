@@ -428,7 +428,6 @@ impl ExternDBTrait for Scylladb {
         Ok(())
     }
 
-    /// Revert all entity creations from given block ptr up to latest by hard-deleting them
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
         let entity_names = self.schema_lookup.get_entity_names();
         let mut batch_queries: Batch = Batch::default();

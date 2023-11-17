@@ -25,8 +25,7 @@ pub struct FieldKind {
 
 #[derive(Clone, Default)]
 pub struct SchemaLookup {
-    // Load schema.graphql
-    schema: HashMap<EntityType, HashMap<FieldName, FieldKind>>, // entity_name -> field_name -> field_type
+    schema: HashMap<EntityType, HashMap<FieldName, FieldKind>>,
 }
 
 impl SchemaLookup {
@@ -54,26 +53,32 @@ impl SchemaLookup {
         });
         for def in doc.definitions() {
             if let Definition::ObjectTypeDefinition(object) = def {
-                let entity_type = object.name().unwrap().text().to_string();
+                let entity_type = object
+                    .name()
+                    .unwrap_or_else(|| panic!("Name of Object Definition invalid"))
+                    .text()
+                    .to_string();
                 let mut schema = HashMap::new();
                 for field in object.fields_definition().unwrap().field_definitions() {
-                    let ty = field.ty().unwrap();
-                    let field_name = field.name().unwrap().text();
+                    let ty = field
+                        .ty()
+                        .unwrap_or_else(|| panic!("Type of field {:?} error", field));
+                    let field_name = field
+                        .name()
+                        .unwrap_or_else(|| panic!("Name of field {:?} error", field))
+                        .text();
                     let mut field_kind = schema_lookup.parse_entity_field(ty)?;
-                    match field.directives() {
-                        None => {}
-                        Some(dir) => {
-                            let fist = dir.directives().next();
-                            if fist.is_some() {
-                                let first = fist.unwrap();
-                                let arg = first.arguments().unwrap().arguments().next().unwrap();
-                                let name = arg.name().unwrap().text();
-                                if field_kind.relation.is_some() && name == "field" {
-                                    field_kind.relation = Some((
-                                        field_kind.relation.unwrap().0,
-                                        arg.value().unwrap().source_string().replace('"', ""),
-                                    ));
-                                }
+                    if let Some(dir) = field.directives() {
+                        let first = dir.directives().next();
+                        if first.is_some() {
+                            let first = first.unwrap();
+                            let arg = first.arguments().unwrap().arguments().next().unwrap();
+                            let name = arg.name().unwrap().text();
+                            if field_kind.relation.is_some() && name == "field" {
+                                field_kind.relation = Some((
+                                    field_kind.relation.unwrap().0,
+                                    arg.value().unwrap().source_string().replace('"', ""),
+                                ));
                             }
                         }
                     }
@@ -123,21 +128,28 @@ impl SchemaLookup {
         self.schema.keys().cloned().collect()
     }
 
-    fn look_up(&self, entity_name: &str, field_name: &str) -> StoreValueKind {
+    fn get_field(&self, entity_type: &str, field_name: &str) -> FieldKind {
         if field_name == "block_ptr_number" {
-            return StoreValueKind::Int8;
+            return FieldKind {
+                kind: StoreValueKind::Int8,
+                relation: None,
+                list_inner_kind: None,
+            };
         }
         if field_name == "is_deleted" {
-            return StoreValueKind::Bool;
+            return FieldKind {
+                kind: StoreValueKind::Bool,
+                relation: None,
+                list_inner_kind: None,
+            };
         }
-        return self
-            .schema
-            .get(entity_name)
-            .unwrap()
+
+        self.schema
+            .get(entity_type)
+            .expect("get entity type error")
             .get(field_name)
-            .cloned()
-            .unwrap()
-            .kind;
+            .expect("get field error")
+            .clone()
     }
 
     pub fn json_to_entity(
@@ -148,7 +160,7 @@ impl SchemaLookup {
         let mut result = HashMap::new();
 
         for (key, val) in json {
-            let field_type = self.look_up(entity_name, &key);
+            let field_type = self.get_field(entity_name, &key);
             let value = self.field_to_store_value(field_type, val);
             result.insert(key, value);
         }
@@ -174,7 +186,11 @@ impl SchemaLookup {
     fn parse_entity_field(&mut self, field_type: Type) -> Result<FieldKind, ManifestLoaderError> {
         match field_type {
             Type::NamedType(name_type) => {
-                let type_name = name_type.name().unwrap().text().to_owned();
+                let type_name = name_type
+                    .name()
+                    .unwrap_or_else(|| panic!("get type name for field {:?} error", name_type))
+                    .text()
+                    .to_owned();
                 let mut relation = None;
                 let kind = match type_name.as_str() {
                     "ID" => StoreValueKind::Bytes,
@@ -233,8 +249,8 @@ impl SchemaLookup {
         }
     }
 
-    fn field_to_store_value(&self, field_type: StoreValueKind, val: serde_json::Value) -> Value {
-        match field_type {
+    fn field_to_store_value(&self, field_kind: FieldKind, val: serde_json::Value) -> Value {
+        match field_kind.kind {
             StoreValueKind::String => Value::String(val.as_str().unwrap().to_owned()),
             StoreValueKind::Int => Value::Int(val.as_i64().unwrap() as i32),
             StoreValueKind::Int8 => Value::Int8(val.as_i64().unwrap()),
@@ -247,11 +263,20 @@ impl SchemaLookup {
                 Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap())
             }
             StoreValueKind::Array => {
-                todo!("implement array value")
+                let mut result = Vec::new();
+                let inner_kind = field_kind.list_inner_kind.unwrap();
+                for item in val.as_array().expect("get array error").iter() {
+                    let field_kind_array = FieldKind {
+                        kind: inner_kind,
+                        relation: None,
+                        list_inner_kind: None,
+                    };
+                    let item = self.field_to_store_value(field_kind_array, item.clone());
+                    result.push(item);
+                }
+                Value::List(result)
             }
-            StoreValueKind::Null => {
-                unimplemented!("Not supported")
-            }
+            StoreValueKind::Null => Value::Null,
         }
     }
 
@@ -264,7 +289,15 @@ impl SchemaLookup {
             Value::BigInt(number) => serde_json::Value::from(number.to_string()),
             Value::Bytes(bytes) => serde_json::Value::from(format!("0x{}", bytes)),
             Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
-            _ => todo!("implement array value"),
+            Value::List(list) => {
+                let mut result = Vec::new();
+                for item in list {
+                    let item = self.store_value_to_json_value(item);
+                    result.push(item);
+                }
+                serde_json::Value::Array(result)
+            }
+            Value::Null => serde_json::Value::Null,
         }
     }
 }
@@ -286,5 +319,109 @@ mod test {
         let entity_type = "Pool";
         let token = schema_lookup.schema.get(entity_type).unwrap();
         info!("Token: {:?}", token);
+    }
+
+    #[test]
+    fn test_parse_array() {
+        env_logger::try_init().unwrap_or_default();
+        let field_kind = FieldKind {
+            kind: StoreValueKind::Array,
+            relation: None,
+            list_inner_kind: Some(StoreValueKind::String),
+        };
+        let val = serde_json::Value::Array(vec![
+            serde_json::Value::String("a".to_string()),
+            serde_json::Value::String("b".to_string()),
+            serde_json::Value::String("c".to_string()),
+        ]);
+        let schema = SchemaLookup::new();
+        let result = schema.field_to_store_value(field_kind, val);
+
+        assert_eq!(
+            result,
+            Value::List(vec![
+                Value::String("a".to_string()),
+                Value::String("b".to_string()),
+                Value::String("c".to_string()),
+            ])
+        );
+        //case string is bytes
+        let field_kind = FieldKind {
+            kind: StoreValueKind::Array,
+            relation: None,
+            list_inner_kind: Some(StoreValueKind::Bytes),
+        };
+        let val = serde_json::Value::Array(vec![
+            serde_json::Value::String("0x8A9d69Aa686fA0f9BbDec21294F67D4D9CFb4A3E".to_string()),
+            serde_json::Value::String("0xd69B8fF1888e78d9C337C2f2e6b3Bf3E7357800E".to_string()),
+        ]);
+
+        let result = schema.field_to_store_value(field_kind, val);
+        assert_eq!(
+            result,
+            Value::List(vec![
+                Value::Bytes(Bytes::from(
+                    "0x8A9d69Aa686fA0f9BbDec21294F67D4D9CFb4A3E".as_bytes()
+                )),
+                Value::Bytes(Bytes::from(
+                    "0xd69B8fF1888e78d9C337C2f2e6b3Bf3E7357800E".as_bytes()
+                )),
+            ])
+        );
+        //case string is bigint
+        let field_kind = FieldKind {
+            kind: StoreValueKind::Array,
+            relation: None,
+            list_inner_kind: Some(StoreValueKind::BigInt),
+        };
+        let val = serde_json::Value::Array(vec![
+            serde_json::Value::String("1234567890123456789012345678901234567890".to_string()),
+            serde_json::Value::String("1234567890123456789012345678901234567890".to_string()),
+        ]);
+
+        let result = schema.field_to_store_value(field_kind, val);
+
+        assert_eq!(
+            result,
+            Value::List(vec![
+                Value::BigInt(
+                    BigInt::from_str("1234567890123456789012345678901234567890").unwrap()
+                ),
+                Value::BigInt(
+                    BigInt::from_str("1234567890123456789012345678901234567890").unwrap()
+                ),
+            ])
+        );
+
+        //case string is bigdecimal
+        let field_kind = FieldKind {
+            kind: StoreValueKind::Array,
+            relation: None,
+            list_inner_kind: Some(StoreValueKind::BigDecimal),
+        };
+        let val = serde_json::Value::Array(vec![
+            serde_json::Value::String(
+                "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890"
+                    .to_string(),
+            ),
+            serde_json::Value::String(
+                "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890"
+                    .to_string(),
+            ),
+        ]);
+
+        let result = schema.field_to_store_value(field_kind, val);
+
+        assert_eq!(
+            result,
+            Value::List(vec![
+                Value::BigDecimal(
+                    BigDecimal::from_str("1234567890123456789012345678901234567890.1234567890123456789012345678901234567890").unwrap()
+                ),
+                Value::BigDecimal(
+                    BigDecimal::from_str("1234567890123456789012345678901234567890.1234567890123456789012345678901234567890").unwrap()
+                ),
+            ])
+        );
     }
 }
