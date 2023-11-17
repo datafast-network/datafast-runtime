@@ -25,8 +25,7 @@ pub struct FieldKind {
 
 #[derive(Clone, Default)]
 pub struct SchemaLookup {
-    // Load schema.graphql
-    schema: HashMap<EntityType, HashMap<FieldName, FieldKind>>, // entity_name -> field_name -> field_type
+    schema: HashMap<EntityType, HashMap<FieldName, FieldKind>>,
 }
 
 impl SchemaLookup {
@@ -116,6 +115,14 @@ impl SchemaLookup {
             .kind;
     }
 
+    fn get_field(&self, entity_type: &str, field_name: &str) -> Option<FieldKind> {
+        self.schema
+            .get(entity_type)
+            .unwrap()
+            .get(field_name)
+            .cloned()
+    }
+
     pub fn json_to_entity(
         &self,
         entity_name: &str,
@@ -124,8 +131,8 @@ impl SchemaLookup {
         let mut result = HashMap::new();
 
         for (key, val) in json {
-            let field_type = self.look_up(entity_name, &key);
-            let value = Self::field_to_store_value(field_type, val);
+            let field_type = self.get_field(entity_name, &key).unwrap();
+            let value = self.field_to_store_value(field_type, val);
             result.insert(key, value);
         }
 
@@ -140,7 +147,7 @@ impl SchemaLookup {
         let mut result = serde_json::Map::new();
 
         for (key, value) in data {
-            let value = Self::store_value_to_json_value(value);
+            let value = self.store_value_to_json_value(value);
             result.insert(key, value);
         }
 
@@ -209,8 +216,8 @@ impl SchemaLookup {
         }
     }
 
-    fn field_to_store_value(field_type: StoreValueKind, val: serde_json::Value) -> Value {
-        match field_type {
+    fn field_to_store_value(&self, field_kind: FieldKind, val: serde_json::Value) -> Value {
+        match field_kind.kind {
             StoreValueKind::String => Value::String(val.as_str().unwrap().to_owned()),
             StoreValueKind::Int => Value::Int(val.as_i64().unwrap() as i32),
             StoreValueKind::Int8 => Value::Int8(val.as_i64().unwrap()),
@@ -225,17 +232,20 @@ impl SchemaLookup {
             StoreValueKind::Array => {
                 if val.is_array() {
                     let mut result = Vec::new();
+                    let inner_kind = field_kind.list_inner_kind.unwrap();
                     for item in val.as_array().unwrap() {
-                        let item = Self::field_to_store_value(
-                            Self::json_value_to_store_kind(item),
-                            item.clone(),
-                        );
+                        let field_kind_array = FieldKind {
+                            kind: inner_kind,
+                            relation: None,
+                            list_inner_kind: None,
+                        };
+                        let item = self.field_to_store_value(field_kind_array, item.clone());
                         result.push(item);
                     }
                     Value::List(result)
                 } else {
                     error!(field_to_store_value, "Array type is not array";
-                        field_type => format!("{:?}", field_type),
+                        field_type => format!("{:?}", field_kind),
                         val => format!("{:?}", val)
                     );
                     panic!("Array type is not array");
@@ -245,28 +255,7 @@ impl SchemaLookup {
         }
     }
 
-    fn json_value_to_store_kind(value: &serde_json::Value) -> StoreValueKind {
-        match value {
-            serde_json::Value::String(value) => {
-                if value.starts_with("0x") {
-                    StoreValueKind::Bytes
-                } else if BigInt::from_str(value).is_ok() {
-                    StoreValueKind::BigInt
-                } else if BigDecimal::from_str(value).is_ok() {
-                    StoreValueKind::BigDecimal
-                } else {
-                    StoreValueKind::String
-                }
-            }
-            serde_json::Value::Number(_) => StoreValueKind::Int,
-            serde_json::Value::Bool(_) => StoreValueKind::Bool,
-            serde_json::Value::Array(_) => StoreValueKind::Array,
-            serde_json::Value::Null => StoreValueKind::Null,
-            serde_json::Value::Object(_) => unimplemented!(),
-        }
-    }
-
-    fn store_value_to_json_value(value: Value) -> serde_json::Value {
+    fn store_value_to_json_value(&self, value: Value) -> serde_json::Value {
         match value {
             Value::Int(number) => serde_json::Value::from(number),
             Value::Int8(number) => serde_json::Value::from(number),
@@ -278,7 +267,7 @@ impl SchemaLookup {
             Value::List(list) => {
                 let mut result = Vec::new();
                 for item in list {
-                    let item = Self::store_value_to_json_value(item);
+                    let item = self.store_value_to_json_value(item);
                     result.push(item);
                 }
                 serde_json::Value::Array(result)
@@ -310,13 +299,18 @@ mod test {
     #[test]
     fn test_parse_array() {
         env_logger::try_init().unwrap_or_default();
-        let field_type = StoreValueKind::Array;
+        let field_kind = FieldKind {
+            kind: StoreValueKind::Array,
+            relation: None,
+            list_inner_kind: Some(StoreValueKind::String),
+        };
         let val = serde_json::Value::Array(vec![
             serde_json::Value::String("a".to_string()),
             serde_json::Value::String("b".to_string()),
             serde_json::Value::String("c".to_string()),
         ]);
-        let result = SchemaLookup::field_to_store_value(field_type, val);
+        let schema = SchemaLookup::new();
+        let result = schema.field_to_store_value(field_kind, val);
 
         assert_eq!(
             result,
@@ -327,12 +321,17 @@ mod test {
             ])
         );
         //case string is bytes
+        let field_kind = FieldKind {
+            kind: StoreValueKind::Array,
+            relation: None,
+            list_inner_kind: Some(StoreValueKind::Bytes),
+        };
         let val = serde_json::Value::Array(vec![
             serde_json::Value::String("0x8A9d69Aa686fA0f9BbDec21294F67D4D9CFb4A3E".to_string()),
             serde_json::Value::String("0xd69B8fF1888e78d9C337C2f2e6b3Bf3E7357800E".to_string()),
         ]);
 
-        let result = SchemaLookup::field_to_store_value(field_type, val);
+        let result = schema.field_to_store_value(field_kind, val);
         assert_eq!(
             result,
             Value::List(vec![
@@ -345,12 +344,17 @@ mod test {
             ])
         );
         //case string is bigint
+        let field_kind = FieldKind {
+            kind: StoreValueKind::Array,
+            relation: None,
+            list_inner_kind: Some(StoreValueKind::BigInt),
+        };
         let val = serde_json::Value::Array(vec![
             serde_json::Value::String("1234567890123456789012345678901234567890".to_string()),
             serde_json::Value::String("1234567890123456789012345678901234567890".to_string()),
         ]);
 
-        let result = SchemaLookup::field_to_store_value(field_type, val);
+        let result = schema.field_to_store_value(field_kind, val);
 
         assert_eq!(
             result,
@@ -365,6 +369,11 @@ mod test {
         );
 
         //case string is bigdecimal
+        let field_kind = FieldKind {
+            kind: StoreValueKind::Array,
+            relation: None,
+            list_inner_kind: Some(StoreValueKind::BigDecimal),
+        };
         let val = serde_json::Value::Array(vec![
             serde_json::Value::String(
                 "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890"
@@ -376,7 +385,7 @@ mod test {
             ),
         ]);
 
-        let result = SchemaLookup::field_to_store_value(field_type, val);
+        let result = schema.field_to_store_value(field_kind, val);
 
         assert_eq!(
             result,
