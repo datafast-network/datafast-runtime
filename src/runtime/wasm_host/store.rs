@@ -1,4 +1,5 @@
 use super::Env;
+use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::base::asc_get;
@@ -55,7 +56,8 @@ pub fn store_get(
     match result {
         StoreRequestResult::Load(data) => {
             if let Some(data) = data {
-                let asc_result = asc_new(&mut fenv, &data.into_iter().collect::<Vec<_>>())?;
+                let entity = remove_internal_field(vec![data]).pop().unwrap();
+                let asc_result = asc_new(&mut fenv, &entity.into_iter().collect::<Vec<_>>())?;
                 Ok(asc_result)
             } else {
                 Ok(AscPtr::null())
@@ -112,6 +114,7 @@ pub fn store_load_related(
         .map_err(|e| RuntimeError::new(e.to_string()))?;
     match result {
         StoreRequestResult::LoadRelated(entities) => {
+            let entities = remove_internal_field(entities);
             let vec_entities: Vec<Vec<(String, Value)>> = entities
                 .into_iter()
                 .map(|e| e.into_iter().collect::<Vec<_>>())
@@ -123,6 +126,17 @@ pub fn store_load_related(
         }
         _ => unimplemented!(),
     }
+}
+
+fn remove_internal_field(entities: Vec<RawEntity>) -> Vec<RawEntity> {
+    entities
+        .into_iter()
+        .map(|mut entity| {
+            entity.remove("block_ptr_number");
+            entity.remove("is_deleted");
+            entity
+        })
+        .collect()
 }
 
 // there is no reactor running, must be called from the context of a Tokio 1.x runtime
