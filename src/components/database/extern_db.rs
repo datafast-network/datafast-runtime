@@ -68,6 +68,8 @@ pub trait ExternDBTrait: Sized {
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError>;
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError>;
+
+    async fn load_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError>;
 }
 
 #[async_trait]
@@ -159,6 +161,13 @@ impl ExternDBTrait for ExternDB {
         match self {
             ExternDB::Scylla(db) => db.save_block_ptr(block_ptr).await,
             ExternDB::None => Ok(()),
+        }
+    }
+
+    async fn load_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+        match self {
+            ExternDB::Scylla(db) => db.load_block_ptr().await,
+            ExternDB::None => Ok(None),
         }
     }
 }

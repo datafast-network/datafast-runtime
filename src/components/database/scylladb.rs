@@ -221,7 +221,7 @@ impl ExternDBTrait for Scylladb {
             CREATE TABLE IF NOT EXISTS {}.block_ptr (
                 block_number bigint,
                 block_hash text,
-                PRIMARY KEY (block_number, block_hash)
+                PRIMARY KEY (block_number)
             ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}}"#,
             self.keyspace
         );
@@ -374,6 +374,25 @@ impl ExternDBTrait for Scylladb {
             .query(query, (block_ptr.number as i64, block_ptr.hash))
             .await?;
         Ok(())
+    }
+
+    async fn load_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+        let query = format!(
+            "SELECT JSON {}.block_ptr ORDER BY block_number DESC LIMIT 1",
+            self.keyspace
+        );
+        let result = self.session.query(query, &[]).await?;
+
+        match result.single_row() {
+            Ok(row) => {
+                let json_row = row.columns.first().cloned().unwrap().unwrap();
+                let json_row_as_str = json_row.as_text().unwrap().to_owned();
+                let block_ptr: BlockPtr = serde_json::from_str(&json_row_as_str)
+                    .map_err(|e| DatabaseError::InvalidValue("block_ptr".to_string()))?;
+                Ok(Some(block_ptr))
+            }
+            Err(_) => Ok(None),
+        }
     }
 }
 
