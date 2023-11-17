@@ -98,24 +98,21 @@ impl SchemaLookup {
         self.schema.keys().cloned().collect()
     }
 
-    fn look_up(&self, entity_name: &str, field_name: &str) -> StoreValueKind {
+    fn get_field(&self, entity_type: &str, field_name: &str) -> Option<FieldKind> {
         if field_name == "block_ptr_number" {
-            return StoreValueKind::Int8;
+            return Some(FieldKind {
+                kind: StoreValueKind::Int8,
+                relation: None,
+                list_inner_kind: None,
+            });
         }
         if field_name == "is_deleted" {
-            return StoreValueKind::Bool;
+            return Some(FieldKind {
+                kind: StoreValueKind::Bool,
+                relation: None,
+                list_inner_kind: None,
+            });
         }
-        return self
-            .schema
-            .get(entity_name)
-            .unwrap()
-            .get(field_name)
-            .cloned()
-            .unwrap()
-            .kind;
-    }
-
-    fn get_field(&self, entity_type: &str, field_name: &str) -> Option<FieldKind> {
         self.schema
             .get(entity_type)
             .unwrap()
