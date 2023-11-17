@@ -340,19 +340,22 @@ impl ExternDBTrait for Scylladb {
             .get_entity(query, vec![entity_id], entity_type, Some(false))
             .await?;
 
-        if let Some(mut entity) = result {
-            if let Some((entity_name, field_name)) =
+        if let Some(entity) = result {
+            if let Some((relation_table, field_name)) =
                 self.schema_lookup.get_relation(entity_type, relation_field)
             {
                 let query_relation = format!(
                     r#"
                     SELECT JSON * from {}.{}
-                    WHERE id = ?
+                    WHERE {} = ?
                     ORDER BY block_ptr_number DESC
-                    LIMIT 1
                     "#,
-                    self.keyspace, entity_name
+                    self.keyspace, relation_table, field_name
                 );
+
+                let result = self
+                    .get_entity(query_relation, vec![entity_id], entity_type, Some(false))
+                    .await?;
             }
 
             Ok(Some(entity))
