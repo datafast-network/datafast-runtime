@@ -136,6 +136,10 @@ impl Agent {
         handle.block_on(db.handle_store_request(message))
     }
 
+    pub async fn get_last_processed_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+        self.db.lock().await.db.load_block_ptr().await
+    }
+
     pub async fn migrate(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         let mut db = self.db.lock().await;
         db.migrate_from_mem_to_db(block_ptr).await
