@@ -192,6 +192,10 @@ pub enum ProgressCtrlError {
     LoadLastBlockPtrFail(#[from] DatabaseError),
     #[error("Not a valid start-block (require `{0}`, actual = `{1}`)")]
     InvalidStartBlock(u64, u64),
+    #[error("Unexpected block gap")]
+    BlockGap,
+    #[error("Possible reorg")]
+    PossibleReorg,
 }
 
 #[derive(Debug, Error)]

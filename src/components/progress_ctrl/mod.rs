@@ -7,19 +7,23 @@ use super::database::Agent;
 
 pub struct ProgressCtrl {
     db: Agent,
-    last_block_ptr: Option<BlockPtr>,
+    recent_block_ptrs: Vec<BlockPtr>,
     sources: Vec<Source>,
 }
 
 impl ProgressCtrl {
-    pub async fn new(db: Agent, sources: Vec<Source>) -> Result<Self, ProgressCtrlError> {
-        let last_block_ptr = db
-            .get_last_processed_block_ptr()
+    pub async fn new(
+        db: Agent,
+        sources: Vec<Source>,
+        reorg_threshold: u16,
+    ) -> Result<Self, ProgressCtrlError> {
+        let recent_block_ptrs = db
+            .get_recent_block_pointers(reorg_threshold)
             .await
             .map_err(ProgressCtrlError::LoadLastBlockPtrFail)?;
         let this = Self {
             db,
-            last_block_ptr,
+            recent_block_ptrs,
             sources,
         };
         Ok(this)
@@ -31,7 +35,7 @@ impl ProgressCtrl {
     }
 
     pub fn progress_check(&mut self, new_block_ptr: BlockPtr) -> Result<(), ProgressCtrlError> {
-        match &self.last_block_ptr {
+        match &self.recent_block_ptrs.last() {
             None => {
                 let min_start_block = self.get_min_start_block();
 
@@ -44,12 +48,24 @@ impl ProgressCtrl {
                     new_block_ptr.number,
                 ))
             }
-            Some(BlockPtr {
-                number,
-                hash,
-                parent_hash,
-            }) => {
-                todo!()
+            Some(recent_block_ptrs) => {
+                if recent_block_ptrs.is_parent(new_block_ptr.clone()) {
+                    return Ok(());
+                }
+
+                // reorg or not?
+                // Block gap: 8 - 9 - (missing 10) - 11
+                if recent_block_ptrs.number + 1 < new_block_ptr.number {
+                    return Err(ProgressCtrlError::BlockGap);
+                }
+
+                // reorg happen some where..., but not this block
+                if recent_block_ptrs.number + 1 == new_block_ptr.number {
+                    return Err(ProgressCtrlError::PossibleReorg);
+                }
+
+                // A proper reorg-block...
+                Ok(())
             }
         }
     }

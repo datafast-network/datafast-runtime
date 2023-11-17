@@ -210,15 +210,21 @@ impl ExternDBTrait for Scylladb {
         Ok(())
     }
 
+    /// For Scylla DB, block_ptr table has to use the same primary `sgd` value for all row so the table can be properly sorted,
+    /// Though anti-pattern, we only need to change the prefix if the block_ptr table
+    /// grows too big to be stored in a single db node
+    /// TODO: we can dynamically config this prefix later
     async fn create_block_ptr_table(&self) -> Result<(), DatabaseError> {
         let query = format!(
             r#"
             CREATE TABLE IF NOT EXISTS {}.block_ptr (
+                sgd text,
                 block_number bigint,
                 block_hash text,
                 parent_hash text,
-                PRIMARY KEY (block_hash, block_number)
-            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_number DESC)"#,
+                PRIMARY KEY (sgd, block_number)
+            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_number DESC)
+"#,
             self.keyspace
         );
         self.session.query(query, ()).await?;
@@ -361,9 +367,10 @@ impl ExternDBTrait for Scylladb {
     }
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let partition_key = "swr";
         let query = format!(
             r#"
-            INSERT INTO {}.block_ptr (block_number, block_hash, parent_hash) VALUES (?, ?, ?)"#,
+            INSERT INTO {}.block_ptr (sgd, block_number, block_hash, parent_hash) VALUES ('{partition_key}', ?, ?, ?)"#,
             self.keyspace
         );
         self.session
@@ -379,22 +386,38 @@ impl ExternDBTrait for Scylladb {
         Ok(())
     }
 
-    async fn load_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+    async fn load_recent_block_ptrs(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
         let query = format!(
-            "SELECT JSON block_number as number, block_hash as hash, parent_hash FROM {}.block_ptr LIMIT 1;",
-            self.keyspace
+            "SELECT JSON block_number as number, block_hash as hash, parent_hash FROM {}.block_ptr LIMIT {};",
+            self.keyspace, number_of_blocks
         );
         let result = self.session.query(query, &[]).await?;
 
-        match result.single_row() {
-            Ok(row) => {
-                let json_row = row.columns.first().cloned().unwrap().unwrap();
-                let json_row_as_str = json_row.as_text().unwrap().to_owned();
-                let block_ptr: BlockPtr = serde_json::from_str(&json_row_as_str)
-                    .map_err(|_| DatabaseError::InvalidValue("block_ptr".to_string()))?;
-                Ok(Some(block_ptr))
+        match result.rows() {
+            Ok(mut rows) => {
+                let block_ptrs = rows
+                    .iter_mut()
+                    .rev()
+                    .filter_map(|r| {
+                        let json = r
+                            .columns
+                            .first()
+                            .cloned()
+                            .unwrap()
+                            .unwrap()
+                            .as_text()
+                            .cloned()
+                            .unwrap();
+                        serde_json::from_str::<BlockPtr>(&json).ok()
+                    })
+                    .collect::<Vec<_>>();
+
+                Ok(block_ptrs)
             }
-            Err(_) => Ok(None),
+            Err(_) => Ok(Vec::new()),
         }
     }
 }
@@ -647,40 +670,21 @@ mod tests {
     async fn test_scylla_05_save_load_block_ptr() {
         let (db, _entity_name) = setup_db("Tokens_04").await;
 
-        let block_ptr = BlockPtr {
-            number: 10,
-            hash: "hash10".to_string(),
-            parent_hash: "parent_hash1".to_string(),
-        };
+        for i in 7..12 {
+            db.save_block_ptr(BlockPtr {
+                number: i,
+                hash: format!("hash-{i}"),
+                parent_hash: format!("parent-hash-{i}"),
+            })
+            .await
+            .unwrap();
+        }
 
-        db.save_block_ptr(block_ptr.clone()).await.unwrap();
+        let number_of_blocks = 10;
+        let recent_block_ptrs = db.load_recent_block_ptrs(number_of_blocks).await.unwrap();
 
-        let block_ptr = BlockPtr {
-            number: 11,
-            hash: "hash11".to_string(),
-            parent_hash: "parent_hash1".to_string(),
-        };
-
-        db.save_block_ptr(block_ptr.clone()).await.unwrap();
-
-        let largest_block_ptr = BlockPtr {
-            number: 12,
-            hash: "hash12".to_string(),
-            parent_hash: "parent_hash1".to_string(),
-        };
-
-        db.save_block_ptr(largest_block_ptr.clone()).await.unwrap();
-
-        let block_ptr = BlockPtr {
-            number: 9,
-            hash: "hash9".to_string(),
-            parent_hash: "parent_hash1".to_string(),
-        };
-
-        db.save_block_ptr(block_ptr.clone()).await.unwrap();
-
-        let loaded_block_ptr = db.load_block_ptr().await.unwrap().unwrap();
-
-        assert_eq!(largest_block_ptr, loaded_block_ptr);
+        assert_eq!(recent_block_ptrs.len(), 5);
+        assert_eq!(recent_block_ptrs.last().cloned().unwrap().number, 11);
+        assert_eq!(recent_block_ptrs.first().cloned().unwrap().number, 7);
     }
 }

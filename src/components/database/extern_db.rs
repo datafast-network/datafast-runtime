@@ -69,7 +69,10 @@ pub trait ExternDBTrait: Sized {
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError>;
 
-    async fn load_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError>;
+    async fn load_recent_block_ptrs(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError>;
 }
 
 #[async_trait]
@@ -164,10 +167,13 @@ impl ExternDBTrait for ExternDB {
         }
     }
 
-    async fn load_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+    async fn load_recent_block_ptrs(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
         match self {
-            ExternDB::Scylla(db) => db.load_block_ptr().await,
-            ExternDB::None => Ok(None),
+            ExternDB::Scylla(db) => db.load_recent_block_ptrs(number_of_blocks).await,
+            ExternDB::None => Ok(vec![]),
         }
     }
 }

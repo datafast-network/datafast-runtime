@@ -136,8 +136,16 @@ impl Agent {
         handle.block_on(db.handle_store_request(message))
     }
 
-    pub async fn get_last_processed_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
-        self.db.lock().await.db.load_block_ptr().await
+    pub async fn get_recent_block_pointers(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
+        self.db
+            .lock()
+            .await
+            .db
+            .load_recent_block_ptrs(number_of_blocks)
+            .await
     }
 
     pub async fn migrate(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
