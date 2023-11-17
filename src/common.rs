@@ -68,7 +68,7 @@ pub enum Chain {
     Ethereum,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Default, Serialize)]
 pub struct BlockPtr {
     pub number: u64,
     pub hash: String,

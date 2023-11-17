@@ -163,12 +163,6 @@ impl Scylladb {
         }
         Ok(ids)
     }
-    #[cfg(test)]
-    async fn truncate_block_ptr(&self) -> Result<(), DatabaseError> {
-        let query = format!("DROP TABLE IF EXISTS {}.block_ptr", self.keyspace);
-        self.session.query(query, ()).await?;
-        self.create_block_ptr_table().await
-    }
 
     #[cfg(test)]
     async fn drop_tables(&self) -> Result<(), DatabaseError> {
@@ -176,8 +170,9 @@ impl Scylladb {
         for (table_name, _) in schema.iter() {
             let query = format!("DROP TABLE IF EXISTS {}.{}", self.keyspace, table_name);
             self.session.query(query, ()).await?;
-            self.create_block_ptr_table().await.unwrap();
         }
+        let query = format!("DROP TABLE IF EXISTS {}.block_ptr", self.keyspace);
+        self.session.query(query, ()).await?;
         Ok(())
     }
 }
@@ -221,8 +216,8 @@ impl ExternDBTrait for Scylladb {
             CREATE TABLE IF NOT EXISTS {}.block_ptr (
                 block_number bigint,
                 block_hash text,
-                PRIMARY KEY (block_number)
-            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}}"#,
+                PRIMARY KEY (block_hash, block_number)
+            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_number DESC)"#,
             self.keyspace
         );
         self.session.query(query, ()).await?;
@@ -378,7 +373,7 @@ impl ExternDBTrait for Scylladb {
 
     async fn load_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
         let query = format!(
-            "SELECT JSON {}.block_ptr ORDER BY block_number DESC LIMIT 1",
+            "SELECT JSON block_number as number, block_hash as hash FROM {}.block_ptr LIMIT 1;",
             self.keyspace
         );
         let result = self.session.query(query, &[]).await?;
@@ -388,7 +383,7 @@ impl ExternDBTrait for Scylladb {
                 let json_row = row.columns.first().cloned().unwrap().unwrap();
                 let json_row_as_str = json_row.as_text().unwrap().to_owned();
                 let block_ptr: BlockPtr = serde_json::from_str(&json_row_as_str)
-                    .map_err(|e| DatabaseError::InvalidValue("block_ptr".to_string()))?;
+                    .map_err(|_| DatabaseError::InvalidValue("block_ptr".to_string()))?;
                 Ok(Some(block_ptr))
             }
             Err(_) => Ok(None),
@@ -426,7 +421,7 @@ mod tests {
         let db = Scylladb::new(uri, keyspace, schema).await.unwrap();
         db.drop_tables().await.unwrap();
         db.create_entity_tables().await.unwrap();
-        db.truncate_block_ptr().await.unwrap();
+        db.create_block_ptr_table().await.unwrap();
         db.revert_from_block(0).await.unwrap();
         (db, entity_name.to_string())
     }
@@ -634,5 +629,42 @@ mod tests {
             latest.get("total_supply"),
             Some(&Value::BigInt(BigInt::from(1000)))
         );
+    }
+
+    #[tokio::test]
+    async fn test_scylla_05_save_load_block_ptr() {
+        let (db, _entity_name) = setup_db("Tokens_04").await;
+
+        let block_ptr = BlockPtr {
+            number: 10,
+            hash: "hash10".to_string(),
+        };
+
+        db.save_block_ptr(block_ptr.clone()).await.unwrap();
+
+        let block_ptr = BlockPtr {
+            number: 11,
+            hash: "hash11".to_string(),
+        };
+
+        db.save_block_ptr(block_ptr.clone()).await.unwrap();
+
+        let largest_block_ptr = BlockPtr {
+            number: 12,
+            hash: "hash12".to_string(),
+        };
+
+        db.save_block_ptr(largest_block_ptr.clone()).await.unwrap();
+
+        let block_ptr = BlockPtr {
+            number: 9,
+            hash: "hash9".to_string(),
+        };
+
+        db.save_block_ptr(block_ptr.clone()).await.unwrap();
+
+        let loaded_block_ptr = db.load_block_ptr().await.unwrap().unwrap();
+
+        assert_eq!(largest_block_ptr, loaded_block_ptr);
     }
 }
