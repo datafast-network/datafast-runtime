@@ -28,7 +28,6 @@ use crate::runtime::bignumber::bigint::BigInt;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::FromIterator;
-use crate::messages::RawEntity;
 
 /// Implementations of `ToAscObj` and `FromAscObj` for Rust types.
 /// Standard Rust types go in `mod.rs` and external types in `external.rs`.

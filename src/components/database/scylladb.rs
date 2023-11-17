@@ -164,7 +164,7 @@ impl Scylladb {
         Ok(ids)
     }
 
-    pub async fn get_entities(
+    async fn get_entities(
         &self,
         entity_type: &str,
         ids: Vec<String>,
@@ -420,8 +420,15 @@ impl ExternDBTrait for Scylladb {
         Ok(())
     }
 
-    fn get_schema(&self) -> &SchemaLookup {
-        &self.schema_lookup
+    fn get_schema(&self) -> SchemaLookup {
+        self.schema_lookup.clone()
+    }
+    async fn load_entities(
+        &self,
+        entity_name: String,
+        ids: Vec<String>,
+    ) -> Result<Vec<RawEntity>, DatabaseError> {
+        self.get_entities(&entity_name, ids, Some(false)).await
     }
 }
 
