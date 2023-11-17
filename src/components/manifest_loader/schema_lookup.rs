@@ -96,7 +96,7 @@ impl SchemaLookup {
         self.schema.insert(entity_name.to_owned(), schema);
     }
 
-    pub fn get_relation(
+    pub fn get_relation_field(
         &self,
         entity_name: &str,
         field_name: &str,
@@ -193,7 +193,7 @@ impl SchemaLookup {
                     .to_owned();
                 let mut relation = None;
                 let kind = match type_name.as_str() {
-                    "ID" => StoreValueKind::Bytes,
+                    "ID" => StoreValueKind::String,
                     "BigInt" => StoreValueKind::BigInt,
                     "BigDecimal" => StoreValueKind::BigDecimal,
                     "Bytes" => StoreValueKind::Bytes,

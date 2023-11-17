@@ -164,7 +164,7 @@ impl Scylladb {
         Ok(ids)
     }
 
-    async fn get_entities(
+    pub async fn get_entities(
         &self,
         entity_type: &str,
         ids: Vec<String>,
@@ -319,49 +319,6 @@ impl ExternDBTrait for Scylladb {
         Ok(result)
     }
 
-    async fn load_entity_relations(
-        &self,
-        entity_type: &str,
-        entity_id: &str,
-        relation_field: &str,
-    ) -> Result<Option<RawEntity>, DatabaseError> {
-        let query = format!(
-            r#"
-            SELECT JSON * from {}.{}
-            WHERE id = ?
-            ORDER BY block_ptr_number DESC
-            LIMIT 1
-            "#,
-            self.keyspace, entity_type
-        );
-        let result = self
-            .get_entity(query, vec![entity_id], entity_type, Some(false))
-            .await?;
-
-        if let Some(entity) = result {
-            if let Some((relation_table, field_name)) =
-                self.schema_lookup.get_relation(entity_type, relation_field)
-            {
-                let query_relation = format!(
-                    r#"
-                    SELECT JSON * from {}.{}
-                    WHERE {} = ?
-                    ORDER BY block_ptr_number DESC
-                    "#,
-                    self.keyspace, relation_table, field_name
-                );
-
-                let result = self
-                    .get_entity(query_relation, vec![entity_id], entity_type, Some(false))
-                    .await?;
-            }
-
-            Ok(Some(entity))
-        } else {
-            Ok(None)
-        }
-    }
-
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
@@ -461,6 +418,10 @@ impl ExternDBTrait for Scylladb {
             .query(query, (block_ptr.number as i64, block_ptr.hash))
             .await?;
         Ok(())
+    }
+
+    fn get_schema(&self) -> &SchemaLookup {
+        &self.schema_lookup
     }
 }
 

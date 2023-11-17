@@ -45,13 +45,6 @@ pub trait ExternDBTrait: Sized {
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError>;
 
-    async fn load_entity_relations(
-        &self,
-        entity_type: &str,
-        entity_id: &str,
-        relation_name: &str,
-    ) -> Result<Option<RawEntity>, DatabaseError>;
-
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
@@ -75,6 +68,14 @@ pub trait ExternDBTrait: Sized {
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError>;
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError>;
+
+    fn get_schema(&self) -> &SchemaLookup;
+
+    async fn load_entities(
+        &self,
+        entity_name: String,
+        ids: Vec<String>,
+    ) -> Result<Vec<RawEntity>, DatabaseError>;
 }
 
 #[async_trait]
@@ -116,18 +117,10 @@ impl ExternDBTrait for ExternDB {
         }
     }
 
-    async fn load_entity_relations(
-        &self,
-        entity_type: &str,
-        entity_id: &str,
-        relation_name: &str,
-    ) -> Result<Option<RawEntity>, DatabaseError> {
+    fn get_schema(&self) -> &SchemaLookup {
         match self {
-            ExternDB::Scylla(db) => {
-                db.load_entity_relations(entity_type, entity_id, relation_name)
-                    .await
-            }
-            ExternDB::None => Ok(None),
+            ExternDB::Scylla(db) => db.get_schema(),
+            ExternDB::None => &SchemaLookup::new(),
         }
     }
 
@@ -181,6 +174,17 @@ impl ExternDBTrait for ExternDB {
         match self {
             ExternDB::Scylla(db) => db.save_block_ptr(block_ptr).await,
             ExternDB::None => Ok(()),
+        }
+    }
+
+    async fn load_entities(
+        &self,
+        entity_name: String,
+        ids: Vec<String>,
+    ) -> Result<Vec<RawEntity>, DatabaseError> {
+        match self {
+            ExternDB::Scylla(db) => db.get_entities(&entity_name, ids, Some(false)).await,
+            ExternDB::None => Ok(vec![]),
         }
     }
 }

@@ -4,6 +4,7 @@ use crate::config::Config;
 use crate::errors::DatabaseError;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
+use crate::messages::FieldName;
 use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
@@ -40,6 +41,7 @@ impl Database {
             StoreOperationMessage::Load(data) => self.handle_load(data).await,
             StoreOperationMessage::Update(data) => self.handle_update(data).await,
             StoreOperationMessage::Delete(data) => self.handle_delete(data).await,
+            StoreOperationMessage::LoadRelated(data) => self.handle_load_related(data).await,
         }
     }
 
@@ -100,6 +102,67 @@ impl Database {
         let (entity_type, entity_id) = data;
         self.mem.soft_delete(entity_type, entity_id)?;
         Ok(StoreRequestResult::Delete)
+    }
+
+    async fn handle_load_related(
+        &mut self,
+        data: (EntityType, EntityID, FieldName),
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let (entity_type, entity_id, field_name) = data;
+        let entity = self
+            .mem
+            .load_entity_latest(entity_type.clone(), entity_id)?;
+
+        //In memory always have the latest version of the entity by action load before.
+        //We don't need to check the db
+
+        let entity = entity.unwrap();
+        let field_related_ids = entity.get(&field_name).cloned().unwrap();
+        let schema = self.db.get_schema();
+        let ids = match field_related_ids {
+            Value::String(id) => vec![id],
+            Value::List(list) => {
+                let mut ids = vec![];
+                for value in list {
+                    if let Value::String(entity_id) = value {
+                        ids.push(entity_id)
+                    }
+                }
+                ids
+            }
+            _ => vec![],
+            //Todo check null field
+        };
+
+        if let Some((relation_table, _field_name)) =
+            schema.get_relation_field(&entity_type, &field_name)
+        {
+            let mut related_entities = vec![];
+            let mut missing_ids = vec![];
+            for id in ids {
+                let entity = self
+                    .mem
+                    .load_entity_latest(relation_table.clone(), id.clone())?;
+                if entity.is_none() {
+                    missing_ids.push(id);
+                } else {
+                    related_entities.push(entity.unwrap());
+                }
+            }
+            if missing_ids.len() > 0 {
+                let entities = self
+                    .db
+                    .load_entities(relation_table.clone(), missing_ids)
+                    .await?;
+                for entity in entities {
+                    related_entities.push(entity.clone());
+                    self.mem.create_entity(relation_table.clone(), entity)?;
+                }
+            }
+            Ok(StoreRequestResult::LoadRelated(related_entities))
+        } else {
+            Ok(StoreRequestResult::LoadRelated(vec![]))
+        }
     }
 
     async fn migrate_from_mem_to_db(&mut self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {

@@ -3,10 +3,15 @@ use super::json::JsonValueKind;
 use super::r#enum::AscEnum;
 use super::store::StoreValueKind;
 use super::string::AscString;
+use crate::errors::AscError;
 use crate::impl_asc_type_struct;
+use crate::messages::RawEntity;
+use crate::runtime::asc::base::asc_new;
+use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscIndexId;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::base::IndexForAscTypeId;
+use crate::runtime::asc::base::ToAscObj;
 use semver::Version;
 
 #[repr(C)]

@@ -95,12 +95,34 @@ pub fn store_get_in_block(
 }
 
 pub fn store_load_related(
-    _fenv: FunctionEnvMut<Env>,
-    _entity_type_ptr: AscPtr<AscString>,
-    _entity_id_ptr: AscPtr<AscString>,
-    _field_ptr: AscPtr<AscString>,
+    mut fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
+    field_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<Array<AscPtr<AscEntity>>>, RuntimeError> {
-    todo!()
+    let env = fenv.data();
+    let db = env.db_agent.clone();
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+    let field_name: String = asc_get(&fenv, field_ptr, 0)?;
+
+    let request = StoreOperationMessage::LoadRelated((entity_type, entity_id, field_name));
+    let result = db
+        .wasm_send_store_request(request)
+        .map_err(|e| RuntimeError::new(e.to_string()))?;
+    match result {
+        StoreRequestResult::LoadRelated(entities) => {
+            let vec_entities: Vec<Vec<(String, Value)>> = entities
+                .into_iter()
+                .map(|e| e.into_iter().collect::<Vec<_>>())
+                .collect();
+
+            let array_ptr = asc_new(&mut fenv, &vec_entities)?;
+
+            Ok(array_ptr)
+        }
+        _ => unimplemented!(),
+    }
 }
 
 // there is no reactor running, must be called from the context of a Tokio 1.x runtime
@@ -119,12 +141,12 @@ pub fn store_load_related(
 //     use crate::runtime::bignumber::bigint::BigInt;
 //     use std::collections::HashMap;
 //     use std::str::FromStr;
-// 
+//
 //     host_fn_test!("TestStore", test_store_set, host {
 //         let entity_type = "Token".to_string();
 //         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
 //         let data = host.db_agent.wasm_send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
-// 
+//
 //         if let StoreRequestResult::Load(Some(entity)) = data {
 //             let id = entity.get("id").unwrap().to_owned();
 //             assert_eq!(id, Value::String(entity_id));
@@ -132,12 +154,12 @@ pub fn store_load_related(
 //             panic!("Failed")
 //         }
 //     });
-// 
+//
 //     host_fn_test!("TestStore", test_store_get, host, result {
 //         let entity_type = "Token".to_string();
 //         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
 //         let mut entity_data = HashMap::new();
-// 
+//
 //         // "totalValueLockedUSD": BigDecimal(BigDecimal(0)),
 //         entity_data.insert("totalValueLockedUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
 //         // "whitelistPools": List([]),
@@ -170,7 +192,7 @@ pub fn store_load_related(
 //         entity_data.insert("totalValueLocked".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
 //         // "id": String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
 //         entity_data.insert("id".to_string(), Value::String(entity_id.clone()));
-// 
+//
 //         let db = host.db_agent.clone();
 //         db.wasm_send_store_request(StoreOperationMessage::Update((entity_type.clone(), entity_id,entity_data))).unwrap();
 //         []
