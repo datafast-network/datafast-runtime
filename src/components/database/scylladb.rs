@@ -9,11 +9,9 @@ use crate::runtime::asc::native_types::store::Value;
 use async_trait::async_trait;
 use scylla::transport::session::Session;
 use scylla::SessionBuilder;
-use scylla::_macro_internal::Row;
 use scylla::_macro_internal::ValueList;
 use scylla::batch::Batch;
 use scylla::query::Query;
-use scylla::transport::query_result::RowsExpectedError;
 
 pub struct Scylladb {
     session: Session,
