@@ -53,11 +53,20 @@ impl SchemaLookup {
         });
         for def in doc.definitions() {
             if let Definition::ObjectTypeDefinition(object) = def {
-                let entity_type = object.name().unwrap().text().to_string();
+                let entity_type = object
+                    .name()
+                    .unwrap_or_else(|| panic!("Name of Object Definition invalid"))
+                    .text()
+                    .to_string();
                 let mut schema = HashMap::new();
                 for field in object.fields_definition().unwrap().field_definitions() {
-                    let ty = field.ty().unwrap();
-                    let field_name = field.name().unwrap().text();
+                    let ty = field
+                        .ty()
+                        .unwrap_or_else(|| panic!("Type of field {:?} error", field));
+                    let field_name = field
+                        .name()
+                        .unwrap_or_else(|| panic!("Name of field {:?} error", field))
+                        .text();
                     let mut field_kind = schema_lookup.parse_entity_field(ty)?;
                     if let Some(dir) = field.directives() {
                         let fist = dir.directives().next();
