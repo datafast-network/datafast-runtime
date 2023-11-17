@@ -69,9 +69,9 @@ impl SchemaLookup {
                         .text();
                     let mut field_kind = schema_lookup.parse_entity_field(ty)?;
                     if let Some(dir) = field.directives() {
-                        let fist = dir.directives().next();
-                        if fist.is_some() {
-                            let first = fist.unwrap();
+                        let first = dir.directives().next();
+                        if first.is_some() {
+                            let first = first.unwrap();
                             let arg = first.arguments().unwrap().arguments().next().unwrap();
                             let name = arg.name().unwrap().text();
                             if field_kind.relation.is_some() && name == "field" {
@@ -104,30 +104,28 @@ impl SchemaLookup {
         self.schema.keys().cloned().collect()
     }
 
-    fn get_field(&self, entity_type: &str, field_name: &str) -> Option<FieldKind> {
+    fn get_field(&self, entity_type: &str, field_name: &str) -> FieldKind {
         if field_name == "block_ptr_number" {
-            return Some(FieldKind {
+            return FieldKind {
                 kind: StoreValueKind::Int8,
                 relation: None,
                 list_inner_kind: None,
-            });
+            };
         }
         if field_name == "is_deleted" {
-            return Some(FieldKind {
+            return FieldKind {
                 kind: StoreValueKind::Bool,
                 relation: None,
                 list_inner_kind: None,
-            });
+            };
         }
-        if let Some(table) = self.schema.get(entity_type) {
-            table.get(field_name).cloned()
-        } else {
-            error!(get_field, "Unknown entity type";
-                entity_type => entity_type,
-                field_name => field_name
-            );
-            None
-        }
+
+        self.schema
+            .get(entity_type)
+            .expect("get entity type error")
+            .get(field_name)
+            .expect("get field error")
+            .clone()
     }
 
     pub fn json_to_entity(
@@ -138,7 +136,7 @@ impl SchemaLookup {
         let mut result = HashMap::new();
 
         for (key, val) in json {
-            let field_type = self.get_field(entity_name, &key).unwrap();
+            let field_type = self.get_field(entity_name, &key);
             let value = self.field_to_store_value(field_type, val);
             result.insert(key, value);
         }
@@ -241,26 +239,18 @@ impl SchemaLookup {
                 Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap())
             }
             StoreValueKind::Array => {
-                if val.is_array() {
-                    let mut result = Vec::new();
-                    let inner_kind = field_kind.list_inner_kind.unwrap();
-                    for item in val.as_array().unwrap() {
-                        let field_kind_array = FieldKind {
-                            kind: inner_kind,
-                            relation: None,
-                            list_inner_kind: None,
-                        };
-                        let item = self.field_to_store_value(field_kind_array, item.clone());
-                        result.push(item);
-                    }
-                    Value::List(result)
-                } else {
-                    error!(field_to_store_value, "Array type is not array";
-                        field_type => format!("{:?}", field_kind),
-                        val => format!("{:?}", val)
-                    );
-                    panic!("Array type is not array");
+                let mut result = Vec::new();
+                let inner_kind = field_kind.list_inner_kind.unwrap();
+                for item in val.as_array().expect("get array error").iter() {
+                    let field_kind_array = FieldKind {
+                        kind: inner_kind,
+                        relation: None,
+                        list_inner_kind: None,
+                    };
+                    let item = self.field_to_store_value(field_kind_array, item.clone());
+                    result.push(item);
                 }
+                Value::List(result)
             }
             StoreValueKind::Null => Value::Null,
         }
