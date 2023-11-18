@@ -1,5 +1,6 @@
 use super::extern_db::ExternDBTrait;
 use crate::common::BlockPtr;
+use crate::components::manifest_loader::schema_lookup::FieldKind;
 use crate::components::manifest_loader::schema_lookup::SchemaLookup;
 use crate::error;
 use crate::errors::DatabaseError;
@@ -49,8 +50,8 @@ impl Scylladb {
         Ok(())
     }
 
-    fn store_kind_to_db_type(&self, kind: StoreValueKind) -> String {
-        match kind {
+    fn store_kind_to_db_type(&self, field_kind: FieldKind) -> String {
+        match field_kind.kind {
             StoreValueKind::Int => "int",
             StoreValueKind::Int8 => "bigint",
             StoreValueKind::String => "text",
@@ -58,7 +59,15 @@ impl Scylladb {
             StoreValueKind::BigDecimal => "text",
             StoreValueKind::BigInt => "text",
             StoreValueKind::Bytes => "blob",
-            StoreValueKind::Array => unimplemented!(),
+            StoreValueKind::Array => {
+                let inner_type = self.store_kind_to_db_type(FieldKind {
+                    kind: field_kind.list_inner_kind.unwrap(),
+                    relation: None,
+                    list_inner_kind: None,
+                });
+                let array_type = format!("list<{}>", inner_type);
+                return array_type;
+            }
             StoreValueKind::Null => unimplemented!(),
         }
         .to_string()
@@ -239,7 +248,7 @@ impl ExternDBTrait for Scylladb {
         for (entity_name, schema) in self.schema_lookup.get_schemas() {
             let mut column_definitions: Vec<String> = vec![];
             for (colum_name, store_kind) in schema.iter() {
-                let column_type = self.store_kind_to_db_type(store_kind.kind);
+                let column_type = self.store_kind_to_db_type(store_kind.clone());
                 let definition = format!("{colum_name} {column_type}");
                 column_definitions.push(definition);
             }
