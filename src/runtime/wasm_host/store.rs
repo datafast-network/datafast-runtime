@@ -93,7 +93,6 @@ pub fn store_get_in_block(
     entity_type_ptr: AscPtr<AscString>,
     entity_id_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<AscEntity>, RuntimeError> {
-    
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
     let db = fenv.data().db_agent.clone();
@@ -103,7 +102,7 @@ pub fn store_get_in_block(
         .map_err(|e| RuntimeError::new(e.to_string()))?;
 
     match result {
-        StoreRequestResult::Load(raw_entity) => {
+        StoreRequestResult::LoadBlockInMemory(raw_entity) => {
             if let Some(entity) = raw_entity {
                 let entity = remove_internal_field(vec![entity]).pop().unwrap();
                 let asc_result = asc_new(&mut fenv, &entity.into_iter().collect::<Vec<_>>())?;

@@ -61,6 +61,7 @@ pub enum StoreOperationMessage {
     Update((EntityType, EntityID, RawEntity)),
     Delete((EntityType, EntityID)),
     LoadRelated((EntityType, EntityID, FieldName)),
+    LoadBlockInMemory((EntityType, EntityID)),
 }
 
 #[derive(Debug)]
@@ -70,4 +71,5 @@ pub enum StoreRequestResult {
     Delete,
     Update,
     LoadRelated(Vec<RawEntity>),
+    LoadBlockInMemory(Option<RawEntity>),
 }

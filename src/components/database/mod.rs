@@ -42,6 +42,9 @@ impl Database {
             StoreOperationMessage::Update(data) => self.handle_update(data).await,
             StoreOperationMessage::Delete(data) => self.handle_delete(data).await,
             StoreOperationMessage::LoadRelated(data) => self.handle_load_related(data).await,
+            StoreOperationMessage::LoadBlockInMemory(data) => {
+                self.handle_load_block_in_memory(data)
+            }
         }
     }
 
@@ -84,6 +87,18 @@ impl Database {
 
         let data = entity.unwrap();
         Ok(StoreRequestResult::Load(Some(data)))
+    }
+
+    fn handle_load_block_in_memory(
+        &self,
+        data: (EntityType, EntityID),
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let (entity_type, entity_id) = data;
+
+        let entity = self
+            .mem
+            .load_entity_latest(entity_type.clone(), entity_id.clone())?;
+        Ok(StoreRequestResult::Load(entity))
     }
 
     async fn handle_update(
@@ -143,13 +158,13 @@ impl Database {
                 let entity = self
                     .mem
                     .load_entity_latest(relation_table.clone(), id.clone())?;
-                if entity.is_none() {
-                    missing_ids.push(id);
-                } else {
+                if entity.is_some() {
                     related_entities.push(entity.unwrap());
+                } else {
+                    missing_ids.push(id);
                 }
             }
-            if missing_ids.len() > 0 {
+            if !missing_ids.is_empty() {
                 let entities = self
                     .db
                     .load_entities(relation_table.clone(), missing_ids)
