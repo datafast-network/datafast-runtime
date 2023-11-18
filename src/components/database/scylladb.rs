@@ -512,6 +512,7 @@ mod tests {
     use crate::schema;
     use env_logger;
     use log::info;
+    use std::collections::HashMap;
     use std::str::FromStr;
 
     async fn setup_db(entity_name: &str) -> (Scylladb, String) {
@@ -608,6 +609,7 @@ mod tests {
         let block_ptr = BlockPtr {
             number: 1,
             hash: "hash_1".to_string(),
+            parent_hash: "".to_string(),
         };
         db.create_entity(block_ptr.clone(), &entity_name, entity_data)
             .await
@@ -645,6 +647,7 @@ mod tests {
             let block_ptr = BlockPtr {
                 number: id,
                 hash: format!("hash_{}", id),
+                parent_hash: "".to_string(),
             };
 
             db.create_entity(block_ptr.clone(), &entity_name, entity_data)
@@ -672,6 +675,7 @@ mod tests {
             BlockPtr {
                 number: 5,
                 hash: "hash".to_string(),
+                parent_hash: "".to_string(),
             },
             &entity_name,
             "token-id",
@@ -812,6 +816,7 @@ mod tests {
         let block_ptr = BlockPtr {
             number: 0,
             hash: "hash".to_string(),
+            parent_hash: "".to_string(),
         };
         for token in 0..5 {
             let token_entity: RawEntity = entity! {
