@@ -41,11 +41,11 @@ async fn main() -> Result<(), SwrError> {
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
 
     // TODO: impl raw-data serializer
-    let serializer = Serializer::new(config.clone())?;
+    let serializer = Serializer::new(config.clone(), registry)?;
 
     let subgraph_filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
 
-    let database = Database::new(&config, manifest.get_schema().clone()).await?;
+    let database = Database::new(&config, manifest.get_schema().clone(), registry).await?;
     let agent = Agent::from(database);
 
     let progress_ctrl = ProgressCtrl::new(
@@ -60,8 +60,7 @@ async fn main() -> Result<(), SwrError> {
         .clone()
         .unwrap_or(config.subgraph_name.clone());
 
-    let mut subgraph =
-        Subgraph::new_empty(&config.subgraph_name, subgraph_id.to_owned(), &registry);
+    let mut subgraph = Subgraph::new_empty(&config.subgraph_name, subgraph_id.to_owned(), registry);
 
     for datasource in manifest.datasources() {
         let api_version = datasource.mapping.apiVersion.to_owned();

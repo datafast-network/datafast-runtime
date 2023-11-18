@@ -136,6 +136,7 @@ mod test {
     use super::datasource_wasm_instance::DatasourceWasmInstance;
     use super::datasource_wasm_instance::EthereumHandlers;
     use super::datasource_wasm_instance::Handler;
+    use super::metrics::SubgraphMetrics;
     use super::Subgraph;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
@@ -145,6 +146,7 @@ mod test {
     use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
     use crate::runtime::wasm_host::test::mock_wasm_host;
     use async_std::task;
+    use prometheus::default_registry;
     use std::collections::HashMap;
 
     #[::rstest::rstest]
@@ -152,11 +154,13 @@ mod test {
     #[case("0.0.5")]
     async fn test_subgraph(#[case] version: &str) {
         env_logger::try_init().unwrap_or_default();
+        let registry = default_registry();
 
         let mut subgraph = Subgraph {
             id: "TestSubgraph".to_string(),
             name: "TestSubgraph".to_string(),
             sources: HashMap::new(),
+            metrics: SubgraphMetrics::new(registry),
         };
 
         let subgraph_sources = vec!["TestDataSource1"];
@@ -165,7 +169,7 @@ mod test {
             let (version, wasm_path) = get_subgraph_testing_resource(version, "TestDataSource");
 
             let id = source_name.to_string();
-            let host = mock_wasm_host(version.clone(), &wasm_path);
+            let host = mock_wasm_host(version.clone(), &wasm_path, registry);
             let mut ethereum_handlers = EthereumHandlers {
                 block: HashMap::new(),
                 events: HashMap::new(),
@@ -193,7 +197,7 @@ mod test {
         log::info!("Finished setup");
 
         let (sender, receiver) = kanal::bounded_async(1);
-        let agent = Agent::empty();
+        let agent = Agent::empty(registry);
         let t = task::spawn(async move { subgraph.run_async(receiver, agent).await });
 
         // Test sending block data

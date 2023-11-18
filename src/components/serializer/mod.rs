@@ -10,6 +10,7 @@ use crate::messages::SourceDataMessage;
 use crate::runtime::wasm_host::create_wasm_host;
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
+use prometheus::Registry;
 use semver::Version;
 use transform::Transform;
 
@@ -20,7 +21,7 @@ pub enum Serializer {
 }
 
 impl Serializer {
-    pub fn new(config: Config) -> Result<Self, SerializerError> {
+    pub fn new(config: Config, registry: &Registry) -> Result<Self, SerializerError> {
         match config.transform {
             Some(transform_cfg) => {
                 if config.transform_wasm.is_none() {
@@ -32,7 +33,7 @@ impl Serializer {
                 let transform_wasm = config.transform_wasm.clone().unwrap();
                 let wasm_bytes = std::fs::read(config.transform_wasm.unwrap())
                     .map_err(|_| TransformError::BadTransformWasm(transform_wasm))?;
-                let empty_db = Agent::empty();
+                let empty_db = Agent::empty(registry);
                 let wasm_version = Version::new(0, 0, 5);
                 let host =
                     create_wasm_host(wasm_version, wasm_bytes, empty_db, "Serializer".to_string())?;

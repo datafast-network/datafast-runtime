@@ -187,10 +187,11 @@ impl Agent {
         self.db.lock().await.revert_from_block(block_number).await
     }
 
-    pub fn empty() -> Self {
+    pub fn empty(registry: &Registry) -> Self {
         let mem = MemoryDb::default();
         let db = ExternDB::None;
-        let database = Database { mem, db };
+        let metrics = DatabaseMetrics::new(registry);
+        let database = Database { mem, db, metrics };
         Agent::from(database)
     }
 }

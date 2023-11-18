@@ -17,19 +17,19 @@ impl SubgraphMetrics {
             IntCounter::new("block_process_counter", "count block process").unwrap();
         registry
             .register(Box::new(block_process_counter.clone()))
-            .unwrap();
+            .unwrap_or_default();
 
         let opts = HistogramOpts::new("block_process_duration", "duration of block processing");
         let block_process_duration = Histogram::with_opts(opts).unwrap();
         registry
             .register(Box::new(block_process_duration.clone()))
-            .unwrap();
+            .unwrap_or_default();
 
         let current_block_number =
             IntGauge::new("current_block_number", "current block being processed").unwrap();
         registry
             .register(Box::new(current_block_number.clone()))
-            .unwrap();
+            .unwrap_or_default();
 
         Self {
             block_process_duration,
