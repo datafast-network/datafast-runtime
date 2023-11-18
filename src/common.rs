@@ -68,10 +68,17 @@ pub enum Chain {
     Ethereum,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Default, Serialize)]
 pub struct BlockPtr {
     pub number: u64,
     pub hash: String,
+    pub parent_hash: String,
+}
+
+impl BlockPtr {
+    pub fn is_parent(&self, child_block_ptr: BlockPtr) -> bool {
+        self.number == child_block_ptr.number - 1 && self.hash == child_block_ptr.parent_hash
+    }
 }
 
 impl Display for BlockPtr {
