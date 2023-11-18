@@ -44,6 +44,7 @@ pub struct Config {
     pub transform_wasm: Option<String>,
     pub database: Option<DatabaseConfig>,
     pub reorg_threshold: u16,
+    pub metric_port: Option<u16>,
 }
 
 #[derive(Deserialize, Debug, Clone)]

@@ -5,6 +5,7 @@ mod config;
 mod errors;
 mod logger_macros;
 mod messages;
+mod metrics;
 mod runtime;
 
 use components::database::Agent;
@@ -22,6 +23,7 @@ use errors::SwrError;
 use messages::FilteredDataMessage;
 use messages::SerializedDataMessage;
 use messages::SourceDataMessage;
+use metrics::run_metric_server;
 use runtime::wasm_host::create_wasm_host;
 
 #[tokio::main]
@@ -86,6 +88,7 @@ async fn main() -> Result<(), SwrError> {
         progress_ctrl_run,
         subgraph_filter_run,
         subgraph_run,
+        run_metric_server(config.metric_port.unwrap_or(8081))
     );
 
     log::info!("Results: {:?}", results);
