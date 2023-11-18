@@ -22,6 +22,7 @@ pub struct EthereumRPC {
     supports_eip_1898: bool,
     abis: HashMap<String, ethabi::Contract>,
     block_ptr: Option<BlockPtr>,
+    //TODO: add cache result into memory or db
 }
 
 impl EthereumRPC {
@@ -50,6 +51,12 @@ impl EthereumRPC {
         &self,
         call: UnresolvedContractCall,
     ) -> Result<EthereumContractCall, RPCClientError> {
+        if self.block_ptr.is_none() {
+            return Err(RPCClientError::RPCClient(
+                "Block pointer is not set".to_string(),
+            ));
+        }
+
         //get contract abi
         let abi = self
             .abis
@@ -146,16 +153,15 @@ impl EthereumRPC {
                 error!(
                     ethereum_call,
                     "Contract function call failed";
-                    error => format!("{:?}", e)
+                    error => format!("{:?}", e),
+                    contract_address => format!("{:?}", request_data.address),
+                    function_name => format!("{:?}", request_data.function.name),
+                    block_number => block_ptr.number,
+                    block_hash => block_ptr.hash
                 );
                 return Err(RPCClientError::RPCClient(e.to_string()));
             }
         };
-        if self.block_ptr.is_none() {
-            return Err(RPCClientError::RPCClient(
-                "Block pointer is not set".to_string(),
-            ));
-        }
         let block_ptr = self.block_ptr.clone().unwrap();
 
         let block_id = if !self.supports_eip_1898 {
@@ -183,8 +189,12 @@ impl EthereumRPC {
             .map_err(|e| {
                 error!(
                     ethereum_call,
-                    "Contract function call failed";
-                    error => format!("{:?}", e)
+                    "calling contract function failed";
+                    error => format!("{:?}", e),
+                    contract_address => format!("{:?}", request_data.address),
+                    function_name => format!("{:?}", request_data.function.name),
+                    block_number => block_ptr.number,
+                    block_hash => block_ptr.hash
                 );
                 RPCClientError::RPCClient(e.to_string())
             })?;
@@ -194,8 +204,12 @@ impl EthereumRPC {
             .map_err(|e| {
                 error!(
                     ethereum_call,
-                    "Contract function call failed";
-                    error => format!("{:?}", e)
+                    "Decoding contract function call failed";
+                    error => format!("{:?}", e),
+                    contract_address => format!("{:?}", request_data.address),
+                    function_name => format!("{:?}", request_data.function.name),
+                    block_number => block_ptr.number,
+                    block_hash => block_ptr.hash
                 );
                 RPCClientError::RPCClient(e.to_string())
             })?;

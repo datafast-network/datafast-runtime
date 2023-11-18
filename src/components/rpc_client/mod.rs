@@ -27,6 +27,7 @@ impl RPCChain {
         };
         Ok(client)
     }
+
     pub fn handle_request(&self, request: CallRequest) -> Result<CallResponse, RPCClientError> {
         match self {
             RPCChain::Ethereum(client) => {
@@ -51,12 +52,12 @@ impl RPCChain {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CallRequest {
     EthereumContractCall(UnresolvedContractCall),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CallResponse {
     EthereumContractCall(Option<Vec<ethabi::Token>>),
 }
