@@ -170,14 +170,20 @@ impl Scylladb {
         ids: Vec<String>,
         is_deleted: Option<bool>,
     ) -> Result<Vec<RawEntity>, DatabaseError> {
+        let ids = format!(
+            "({})",
+            ids.into_iter()
+                .map(|e| format!("'{}'", e))
+                .collect::<Vec<_>>()
+                .join(",")
+        );
         let query = format!(
             r#"
             SELECT JSON * from {}.{}
-            WHERE id IN ?"#,
-            self.keyspace, entity_type
+            WHERE id IN {}"#,
+            self.keyspace, entity_type, ids
         );
-
-        let result = self.session.query(query, ids).await?;
+        let result = self.session.query(query, ()).await?;
         match result.rows() {
             Ok(rows) => {
                 let mut entities = vec![];
@@ -203,7 +209,7 @@ impl Scylladb {
             }
             Err(e) => {
                 error!(Scylladb, "Error when get entities"; error => e);
-                return Err(DatabaseError::InvalidValue(e.to_string()));
+                Err(DatabaseError::InvalidValue(e.to_string()))
             }
         }
     }
@@ -627,14 +633,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_scylla_04_batch_insert() {
-        let (db, entity_name) = setup_db("Tokens_03").await;
+        let (db, entity_name) = setup_db("Tokens").await;
 
         let mut entities = Vec::new();
         let block_ptr = BlockPtr {
             number: 0,
             hash: "hash".to_string(),
         };
-
+        let mut ids = Vec::new();
         for id in 0..10 {
             let entity_data: RawEntity = entity! {
                 id => Value::String(format!("token-id_{}", id)),
@@ -643,13 +649,20 @@ mod tests {
                 total_supply => Value::BigInt(BigInt::from(id*1000)),
                 is_deleted => Value::Bool(id % 2 == 0)
             };
-
+            ids.push(format!("token-id_{}", id));
             entities.push((entity_name.clone(), entity_data));
         }
 
         db.batch_insert_entities(block_ptr.clone(), entities)
             .await
             .unwrap();
+
+        let entities_values = db
+            .get_entities(&entity_name, ids, Some(false))
+            .await
+            .unwrap();
+
+        assert_eq!(entities_values.len(), 5);
 
         let latest = db
             .load_entity_latest(&entity_name, "token-id_0")

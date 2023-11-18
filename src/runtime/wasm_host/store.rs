@@ -89,11 +89,31 @@ pub fn store_remove(
 }
 
 pub fn store_get_in_block(
-    _fenv: FunctionEnvMut<Env>,
-    _entity_type_ptr: AscPtr<AscString>,
-    _entity_id_ptr: AscPtr<AscString>,
+    mut fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<AscEntity>, RuntimeError> {
-    todo!()
+    
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+    let db = fenv.data().db_agent.clone();
+    let request = StoreOperationMessage::Load((entity_type, entity_id));
+    let result = db
+        .wasm_send_store_request(request)
+        .map_err(|e| RuntimeError::new(e.to_string()))?;
+
+    match result {
+        StoreRequestResult::Load(raw_entity) => {
+            if let Some(entity) = raw_entity {
+                let entity = remove_internal_field(vec![entity]).pop().unwrap();
+                let asc_result = asc_new(&mut fenv, &entity.into_iter().collect::<Vec<_>>())?;
+                Ok(asc_result)
+            } else {
+                Ok(AscPtr::null())
+            }
+        }
+        _ => unimplemented!(),
+    }
 }
 
 pub fn store_load_related(
