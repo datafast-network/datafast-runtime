@@ -135,11 +135,11 @@ impl Database {
             Value::String(id) => vec![id],
             Value::List(list) => {
                 let mut ids = vec![];
-                for value in list {
+                list.iter().for_each(|value| {
                     if let Value::String(entity_id) = value {
-                        ids.push(entity_id)
+                        ids.push(entity_id.clone())
                     }
-                }
+                });
                 ids
             }
             _ => vec![],
