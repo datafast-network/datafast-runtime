@@ -23,6 +23,7 @@ use errors::SwrError;
 use messages::FilteredDataMessage;
 use messages::SerializedDataMessage;
 use messages::SourceDataMessage;
+use metrics::default_registry;
 use metrics::run_metric_server;
 use runtime::wasm_host::create_wasm_host;
 
@@ -31,6 +32,8 @@ async fn main() -> Result<(), SwrError> {
     env_logger::try_init().unwrap_or_default();
     // TODO: impl CLI
     let config = Config::load()?;
+
+    let registry = default_registry();
 
     let block_source = Source::new(&config).await?;
 
@@ -57,7 +60,8 @@ async fn main() -> Result<(), SwrError> {
         .clone()
         .unwrap_or(config.subgraph_name.clone());
 
-    let mut subgraph = Subgraph::new_empty(&config.subgraph_name, subgraph_id.to_owned());
+    let mut subgraph =
+        Subgraph::new_empty(&config.subgraph_name, subgraph_id.to_owned(), &registry);
 
     for datasource in manifest.datasources() {
         let api_version = datasource.mapping.apiVersion.to_owned();

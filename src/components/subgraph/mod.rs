@@ -13,6 +13,8 @@ use crate::messages::FilteredDataMessage;
 use crate::runtime::wasm_host::AscHost;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use kanal::AsyncReceiver;
+use metrics::SubgraphMetrics;
+use prometheus::Registry;
 use std::collections::HashMap;
 
 pub struct Subgraph {
@@ -20,13 +22,15 @@ pub struct Subgraph {
     pub id: String,
     pub name: String,
     sources: HashMap<String, DatasourceWasmInstance>,
+    metrics: SubgraphMetrics,
 }
 
 impl Subgraph {
-    pub fn new_empty(name: &str, id: String) -> Self {
+    pub fn new_empty(name: &str, id: String, registry: &Registry) -> Self {
         Self {
             sources: HashMap::new(),
             name: name.to_owned(),
+            metrics: SubgraphMetrics::new(registry),
             id,
         }
     }
@@ -99,8 +103,14 @@ impl Subgraph {
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
             let block_ptr = msg.get_block_ptr();
+            self.metrics
+                .current_block_number
+                .set(block_ptr.number as i64);
 
+            let timer = self.metrics.block_process_duration.start_timer();
             self.handle_filtered_data(msg)?;
+            timer.stop_and_record();
+            self.metrics.block_process_counter.inc();
 
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
                 error!(Subgraph, "Failed to migrate db";

@@ -5,13 +5,13 @@ use prometheus::IntGauge;
 use prometheus::Registry;
 
 #[derive(Clone)]
-pub struct Metrics {
+pub struct SubgraphMetrics {
     pub block_process_duration: Histogram,
     pub block_process_counter: IntCounter,
     pub current_block_number: IntGauge,
 }
 
-impl Metrics {
+impl SubgraphMetrics {
     pub fn new(registry: &Registry) -> Self {
         let block_process_counter =
             IntCounter::new("block_process_counter", "count block process").unwrap();
