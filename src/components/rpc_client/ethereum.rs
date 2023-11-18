@@ -166,7 +166,7 @@ impl EthereumRPC {
         let req = web3::types::CallRequest {
             to: Some(request_data.address),
             gas: Some(web3::types::U256::from(ETH_CALL_GAS)),
-            data: Some(call_data.clone()),
+            data: Some(call_data),
             from: None,
             gas_price: None,
             value: None,
