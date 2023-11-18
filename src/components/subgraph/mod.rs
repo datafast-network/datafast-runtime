@@ -2,6 +2,7 @@ mod datasource_wasm_instance;
 mod metrics;
 
 use crate::chain::ethereum::block::EthereumBlockData;
+use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::components::database::Agent;
@@ -51,14 +52,22 @@ impl Subgraph {
         block: EthereumBlockData,
     ) -> Result<(), SubgraphError> {
         let mut block_handlers = HashMap::new();
-
-        for (source_name, source_instance) in self.sources.iter() {
+        let block_ptr = BlockPtr {
+            number: block.number.as_u64(),
+            hash: block.hash.to_string(),
+            parent_hash: block.parent_hash.to_string(),
+        };
+        for (source_name, source_instance) in self.sources.iter_mut() {
             let source_block_handlers = source_instance
                 .ethereum_handlers
                 .block
                 .keys()
                 .cloned()
                 .collect::<Vec<String>>();
+            source_instance
+                .host
+                .rpc_client
+                .set_block_ptr(block_ptr.clone());
             block_handlers.insert(source_name.to_owned(), source_block_handlers);
         }
 
@@ -91,6 +100,7 @@ impl Subgraph {
                     events => events.len(),
                     block => format!("{:?}", block.number)
                 );
+
                 self.handle_ethereum_filtered_data(events, block)
             }
         }

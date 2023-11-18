@@ -45,6 +45,7 @@ pub struct Config {
     pub database: Option<DatabaseConfig>,
     pub reorg_threshold: u16,
     pub metric_port: Option<u16>,
+    pub rpc_endpoint: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]

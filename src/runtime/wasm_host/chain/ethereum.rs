@@ -1,4 +1,10 @@
 use crate::chain::ethereum::asc::EthereumValueKind;
+use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCall;
+use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCall_0_0_4;
+use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
+use crate::components::rpc_client::CallRequest;
+use crate::components::rpc_client::CallResponse;
+use crate::error;
 use crate::errors::AscError;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_new;
@@ -10,6 +16,7 @@ use crate::runtime::asc::native_types::Uint8Array;
 use crate::runtime::wasm_host::Env;
 use ethabi::decode;
 use ethabi::param_type::Reader;
+use semver::Version;
 use tiny_keccak::Hasher;
 use wasmer::FunctionEnvMut;
 
@@ -60,10 +67,42 @@ pub fn crypto_keccak_256(
 }
 
 pub fn ethereum_call(
-    _fenv: FunctionEnvMut<Env>,
-    _wasm_ptr: i32,
+    mut fenv: FunctionEnvMut<Env>,
+    wasm_ptr: i32,
 ) -> Result<AscEnumArray<EthereumValueKind>, AscError> {
-    todo!()
+    let asc_ptr = wasm_ptr as u32;
+    let env = fenv.data();
+    let call: UnresolvedContractCall = if fenv.data().api_version >= Version::new(0, 0, 4) {
+        asc_get::<_, AscUnresolvedContractCall_0_0_4, _>(&fenv, asc_ptr.into(), 0)?
+    } else {
+        asc_get::<_, AscUnresolvedContractCall, _>(&fenv, asc_ptr.into(), 0)?
+    };
+
+    let request = CallRequest::EthereumContractCall(call);
+    let result = env.rpc_client.handle_request(request).map_err(|e| {
+        error!(
+            ethereum_call,
+            "Contract function call failed";
+            error => format!("{:?}", e)
+        );
+        AscError::Plain(format!("Contract function call failed: {}", e.to_string()))
+    })?;
+
+    match result {
+        CallResponse::EthereumContractCall(result) => {
+            if result.is_none() {
+                error!(
+                    ethereum_call,
+                    "Contract function call failed";
+                    error => "No result returned"
+                );
+                return Ok(AscPtr::null());
+            }
+            let tokens = result.unwrap();
+            let asc_result = asc_new(&mut fenv, tokens.as_slice())?;
+            Ok(asc_result)
+        }
+    }
 }
 
 #[cfg(test)]
