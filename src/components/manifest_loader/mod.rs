@@ -1,7 +1,8 @@
 mod local;
 pub mod schema_lookup;
 
-use crate::common::{Datasource, Source};
+use crate::common::Datasource;
+use crate::common::Source;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use local::LocalFileLoader;
