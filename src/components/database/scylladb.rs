@@ -65,8 +65,7 @@ impl Scylladb {
                     relation: None,
                     list_inner_kind: None,
                 });
-                let array_type = format!("list<{}>", inner_type);
-                return array_type;
+                return format!("list<{}>", inner_type);
             }
             StoreValueKind::Null => unimplemented!(),
         }
