@@ -94,10 +94,7 @@ impl Database {
         data: (EntityType, EntityID),
     ) -> Result<StoreRequestResult, DatabaseError> {
         let (entity_type, entity_id) = data;
-
-        let entity = self
-            .mem
-            .load_entity_latest(entity_type.clone(), entity_id.clone())?;
+        let entity = self.mem.load_entity_latest(entity_type, entity_id)?;
         Ok(StoreRequestResult::Load(entity))
     }
 
