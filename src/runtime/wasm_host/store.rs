@@ -96,7 +96,7 @@ pub fn store_get_in_block(
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
     let db = fenv.data().db_agent.clone();
-    let request = StoreOperationMessage::Load((entity_type, entity_id));
+    let request = StoreOperationMessage::LoadBlockInMemory((entity_type, entity_id));
     let result = db
         .wasm_send_store_request(request)
         .map_err(|e| RuntimeError::new(e.to_string()))?;
