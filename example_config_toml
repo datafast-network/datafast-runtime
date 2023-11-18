@@ -1,13 +1,9 @@
 chain = "ethereum"
-source = "readline"
+# source = "readline"
 subgraph_name = "mysub"
 subgraph_id = "xxxxxx"
 subgraph_dir = "fs://User/vutr/mysub"
-
-[transform.ethereum]
-block = "transform_block"
-logs = "transform_logs"
-transactions = "transform_tx"
+reorg_threshold = 500
 
 # [source.readdir]
 # source_dir = "/Users/quannguyen/blocks/blocks_ingestor"

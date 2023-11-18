@@ -196,6 +196,8 @@ pub enum ProgressCtrlError {
     BlockGap,
     #[error("Possible reorg")]
     PossibleReorg,
+    #[error("Send result failed: {0}")]
+    ChannelSendFail(#[from] SendError),
 }
 
 #[derive(Debug, Error)]
@@ -216,4 +218,6 @@ pub enum SwrError {
     SerializerError(#[from] SerializerError),
     #[error(transparent)]
     SourceErr(#[from] SourceError),
+    #[error(transparent)]
+    ProgressCtrlError(#[from] ProgressCtrlError),
 }

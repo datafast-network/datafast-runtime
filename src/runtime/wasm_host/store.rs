@@ -119,12 +119,12 @@ pub fn store_load_related(
 //     use crate::runtime::bignumber::bigint::BigInt;
 //     use std::collections::HashMap;
 //     use std::str::FromStr;
-// 
+//
 //     host_fn_test!("TestStore", test_store_set, host {
 //         let entity_type = "Token".to_string();
 //         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
 //         let data = host.db_agent.wasm_send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
-// 
+//
 //         if let StoreRequestResult::Load(Some(entity)) = data {
 //             let id = entity.get("id").unwrap().to_owned();
 //             assert_eq!(id, Value::String(entity_id));
@@ -132,12 +132,12 @@ pub fn store_load_related(
 //             panic!("Failed")
 //         }
 //     });
-// 
+//
 //     host_fn_test!("TestStore", test_store_get, host, result {
 //         let entity_type = "Token".to_string();
 //         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
 //         let mut entity_data = HashMap::new();
-// 
+//
 //         // "totalValueLockedUSD": BigDecimal(BigDecimal(0)),
 //         entity_data.insert("totalValueLockedUSD".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
 //         // "whitelistPools": List([]),
@@ -170,7 +170,7 @@ pub fn store_load_related(
 //         entity_data.insert("totalValueLocked".to_string(), Value::BigDecimal(BigDecimal::from_str("0").unwrap()));
 //         // "id": String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
 //         entity_data.insert("id".to_string(), Value::String(entity_id.clone()));
-// 
+//
 //         let db = host.db_agent.clone();
 //         db.wasm_send_store_request(StoreOperationMessage::Update((entity_type.clone(), entity_id,entity_data))).unwrap();
 //         []

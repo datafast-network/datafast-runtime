@@ -1,7 +1,11 @@
+use kanal::AsyncReceiver;
+use kanal::AsyncSender;
+
 use super::database::Agent;
 use crate::common::BlockPtr;
 use crate::common::Source;
 use crate::errors::ProgressCtrlError;
+use crate::messages::SerializedDataMessage;
 
 pub struct ProgressCtrl {
     db: Agent,
@@ -41,6 +45,7 @@ impl ProgressCtrl {
                 let min_start_block = self.get_min_start_block();
 
                 if new_block_ptr.number == min_start_block {
+                    self.recent_block_ptrs.push(new_block_ptr);
                     return Ok(());
                 }
 
@@ -51,6 +56,8 @@ impl ProgressCtrl {
             }
             Some(recent_block_ptrs) => {
                 if recent_block_ptrs.is_parent(new_block_ptr.clone()) {
+                    self.recent_block_ptrs.push(new_block_ptr);
+                    self.recent_block_ptrs.remove(0);
                     return Ok(());
                 }
 
@@ -74,14 +81,41 @@ impl ProgressCtrl {
                         // Reorg happened somewhere before this new-block, we should be waiting
                         return Err(ProgressCtrlError::PossibleReorg);
                     }
-                    Some(_) => {
+                    Some(parent_block) => {
                         // This new-block is the reorg block,
                         // We will process this block after having discarded all the obsolete blocks
                         self.db.revert_from_block(new_block_ptr.number).await?;
+                        self.recent_block_ptrs
+                            .retain(|b| b.number > parent_block.number);
+                        self.recent_block_ptrs.push(new_block_ptr);
                         Ok(())
                     }
                 }
             }
         }
+    }
+
+    async fn handle_serialized_message(
+        &mut self,
+        message: SerializedDataMessage,
+    ) -> Result<SerializedDataMessage, ProgressCtrlError> {
+        let new_block_ptr = message.get_block_ptr();
+        // We can abort or raise error here
+        match self.progress_check(new_block_ptr).await {
+            Ok(()) => Ok(message),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub async fn run_async(
+        mut self,
+        recv: AsyncReceiver<SerializedDataMessage>,
+        sender: AsyncSender<SerializedDataMessage>,
+    ) -> Result<(), ProgressCtrlError> {
+        while let Ok(msg) = recv.recv().await {
+            let ok_msg = self.handle_serialized_message(msg).await?;
+            sender.send(ok_msg).await?;
+        }
+        Ok(())
     }
 }

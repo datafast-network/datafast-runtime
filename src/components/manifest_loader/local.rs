@@ -113,6 +113,14 @@ impl LoaderTrait for LocalFileLoader {
     fn get_schema(&self) -> &SchemaLookup {
         &self.schema
     }
+
+    fn get_sources(&self) -> Vec<Source> {
+        self.subgraph_yaml
+            .dataSources
+            .iter()
+            .map(|ds| ds.source.clone())
+            .collect()
+    }
 }
 
 #[cfg(test)]
