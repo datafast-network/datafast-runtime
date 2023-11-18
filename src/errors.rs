@@ -187,6 +187,20 @@ pub enum SourceError {
 }
 
 #[derive(Debug, Error)]
+pub enum ProgressCtrlError {
+    #[error("Load block-ptr failed")]
+    LoadLastBlockPtrFail(#[from] DatabaseError),
+    #[error("Not a valid start-block (require `{0}`, actual = `{1}`)")]
+    InvalidStartBlock(u64, u64),
+    #[error("Unexpected block gap")]
+    BlockGap,
+    #[error("Possible reorg")]
+    PossibleReorg,
+    #[error("Send result failed: {0}")]
+    ChannelSendFail(#[from] SendError),
+}
+
+#[derive(Debug, Error)]
 pub enum SwrError {
     #[error(transparent)]
     ManifestLoader(#[from] ManifestLoaderError),
@@ -204,4 +218,6 @@ pub enum SwrError {
     SerializerError(#[from] SerializerError),
     #[error(transparent)]
     SourceErr(#[from] SourceError),
+    #[error(transparent)]
+    ProgressCtrlError(#[from] ProgressCtrlError),
 }

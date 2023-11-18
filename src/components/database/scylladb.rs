@@ -240,8 +240,9 @@ impl Scylladb {
         for (table_name, _) in schema.iter() {
             let query = format!("DROP TABLE IF EXISTS {}.{}", self.keyspace, table_name);
             self.session.query(query, ()).await?;
-            self.create_block_ptr_table().await.unwrap();
         }
+        let query = format!("DROP TABLE IF EXISTS {}.block_ptr", self.keyspace);
+        self.session.query(query, ()).await?;
         Ok(())
     }
 }
@@ -278,14 +279,21 @@ impl ExternDBTrait for Scylladb {
         Ok(())
     }
 
+    /// For Scylla DB, block_ptr table has to use the same primary `sgd` value for all row so the table can be properly sorted,
+    /// Though anti-pattern, we only need to change the prefix if the block_ptr table
+    /// grows too big to be stored in a single db node
+    /// TODO: we can dynamically config this prefix later
     async fn create_block_ptr_table(&self) -> Result<(), DatabaseError> {
         let query = format!(
             r#"
             CREATE TABLE IF NOT EXISTS {}.block_ptr (
+                sgd text,
                 block_number bigint,
                 block_hash text,
-                PRIMARY KEY (block_number, block_hash)
-            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}}"#,
+                parent_hash text,
+                PRIMARY KEY (sgd, block_number)
+            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_number DESC)
+"#,
             self.keyspace
         );
         self.session.query(query, ()).await?;
@@ -427,13 +435,21 @@ impl ExternDBTrait for Scylladb {
     }
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let partition_key = "swr";
         let query = format!(
             r#"
-            INSERT INTO {}.block_ptr (block_number, block_hash) VALUES (?, ?)"#,
+            INSERT INTO {}.block_ptr (sgd, block_number, block_hash, parent_hash) VALUES ('{partition_key}', ?, ?, ?)"#,
             self.keyspace
         );
         self.session
-            .query(query, (block_ptr.number as i64, block_ptr.hash))
+            .query(
+                query,
+                (
+                    block_ptr.number as i64,
+                    block_ptr.hash,
+                    block_ptr.parent_hash,
+                ),
+            )
             .await?;
         Ok(())
     }
@@ -449,6 +465,41 @@ impl ExternDBTrait for Scylladb {
     ) -> Result<Vec<RawEntity>, DatabaseError> {
         self.get_entities(&entity_name, ids, Some(false)).await
     }
+
+    async fn load_recent_block_ptrs(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
+        let query = format!(
+            "SELECT JSON block_number as number, block_hash as hash, parent_hash FROM {}.block_ptr LIMIT {};",
+            self.keyspace, number_of_blocks
+        );
+        let result = self.session.query(query, &[]).await?;
+
+        match result.rows() {
+            Ok(mut rows) => {
+                let block_ptrs = rows
+                    .iter_mut()
+                    .rev()
+                    .filter_map(|r| {
+                        let json = r
+                            .columns
+                            .first()
+                            .cloned()
+                            .unwrap()
+                            .unwrap()
+                            .as_text()
+                            .cloned()
+                            .unwrap();
+                        serde_json::from_str::<BlockPtr>(&json).ok()
+                    })
+                    .collect::<Vec<_>>();
+
+                Ok(block_ptrs)
+            }
+            Err(_) => Ok(Vec::new()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -461,7 +512,6 @@ mod tests {
     use crate::schema;
     use env_logger;
     use log::info;
-    use std::collections::HashMap;
     use std::str::FromStr;
 
     async fn setup_db(entity_name: &str) -> (Scylladb, String) {
@@ -653,6 +703,7 @@ mod tests {
         let block_ptr = BlockPtr {
             number: 0,
             hash: "hash".to_string(),
+            parent_hash: "parent_hash1".to_string(),
         };
         let mut ids = Vec::new();
         for id in 0..10 {
@@ -814,5 +865,27 @@ mod tests {
             .unwrap();
 
         assert_eq!(tokens_relation.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_scylla_05_save_load_block_ptr() {
+        let (db, _entity_name) = setup_db("Tokens_04").await;
+
+        for i in 7..12 {
+            db.save_block_ptr(BlockPtr {
+                number: i,
+                hash: format!("hash-{i}"),
+                parent_hash: format!("parent-hash-{i}"),
+            })
+            .await
+            .unwrap();
+        }
+
+        let number_of_blocks = 10;
+        let recent_block_ptrs = db.load_recent_block_ptrs(number_of_blocks).await.unwrap();
+
+        assert_eq!(recent_block_ptrs.len(), 5);
+        assert_eq!(recent_block_ptrs.last().cloned().unwrap().number, 11);
+        assert_eq!(recent_block_ptrs.first().cloned().unwrap().number, 7);
     }
 }

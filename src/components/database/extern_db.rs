@@ -76,6 +76,11 @@ pub trait ExternDBTrait: Sized {
         entity_name: String,
         ids: Vec<String>,
     ) -> Result<Vec<RawEntity>, DatabaseError>;
+
+    async fn load_recent_block_ptrs(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError>;
 }
 
 #[async_trait]
@@ -184,6 +189,16 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<Vec<RawEntity>, DatabaseError> {
         match self {
             ExternDB::Scylla(db) => db.load_entities(entity_name, ids).await,
+            ExternDB::None => Ok(vec![]),
+        }
+    }
+
+    async fn load_recent_block_ptrs(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
+        match self {
+            ExternDB::Scylla(db) => db.load_recent_block_ptrs(number_of_blocks).await,
             ExternDB::None => Ok(vec![]),
         }
     }

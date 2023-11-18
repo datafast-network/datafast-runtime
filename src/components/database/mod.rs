@@ -182,6 +182,11 @@ impl Database {
         self.db.save_block_ptr(block_ptr).await?;
         Ok(())
     }
+
+    async fn revert_from_block(&mut self, block_number: u64) -> Result<(), DatabaseError> {
+        self.mem.clear();
+        self.db.revert_from_block(block_number).await
+    }
 }
 
 // Draft
@@ -204,8 +209,26 @@ impl Agent {
         message: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
         let mut db = self.db.blocking_lock();
+
+        #[cfg(test)]
+        {
+            return async_std::task::block_on(db.handle_store_request(message));
+        }
+
         let handle = tokio::runtime::Handle::current();
         handle.block_on(db.handle_store_request(message))
+    }
+
+    pub async fn get_recent_block_pointers(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
+        self.db
+            .lock()
+            .await
+            .db
+            .load_recent_block_ptrs(number_of_blocks)
+            .await
     }
 
     pub async fn migrate(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
@@ -216,6 +239,10 @@ impl Agent {
     pub async fn clear_in_memory(&self) -> Result<(), DatabaseError> {
         self.db.lock().await.mem.clear();
         Ok(())
+    }
+
+    pub async fn revert_from_block(&self, block_number: u64) -> Result<(), DatabaseError> {
+        self.db.lock().await.revert_from_block(block_number).await
     }
 
     pub fn empty() -> Self {

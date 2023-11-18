@@ -22,6 +22,18 @@ pub enum SerializedDataMessage {
     },
 }
 
+impl SerializedDataMessage {
+    pub fn get_block_ptr(&self) -> BlockPtr {
+        match self {
+            Self::Ethereum { block, .. } => BlockPtr {
+                number: block.number.as_u64(),
+                hash: block.hash.to_string(),
+                parent_hash: block.parent_hash.to_string(),
+            },
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct EthereumFilteredEvent {
     pub datasource: String,
@@ -43,6 +55,7 @@ impl FilteredDataMessage {
             FilteredDataMessage::Ethereum { block, .. } => BlockPtr {
                 number: block.number.as_u64(),
                 hash: block.hash.to_string(),
+                parent_hash: block.parent_hash.to_string(),
             },
         }
     }

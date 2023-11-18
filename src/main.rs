@@ -11,6 +11,7 @@ use components::database::Agent;
 use components::database::Database;
 use components::manifest_loader::LoaderTrait;
 use components::manifest_loader::ManifestLoader;
+use components::progress_ctrl::ProgressCtrl;
 use components::serializer::Serializer;
 use components::source::Source;
 use components::subgraph::Subgraph;
@@ -42,6 +43,13 @@ async fn main() -> Result<(), SwrError> {
     let database = Database::new(&config, manifest.get_schema().clone()).await?;
     let agent = Agent::from(database);
 
+    let progress_ctrl = ProgressCtrl::new(
+        agent.clone(),
+        manifest.get_sources(),
+        config.reorg_threshold,
+    )
+    .await?;
+
     let subgraph_id = config
         .subgraph_id
         .clone()
@@ -63,19 +71,24 @@ async fn main() -> Result<(), SwrError> {
 
     let (sender1, recv1) = kanal::bounded_async::<SourceDataMessage>(1);
     let (sender2, recv2) = kanal::bounded_async::<SerializedDataMessage>(1);
-    let (sender3, recv3) = kanal::bounded_async::<FilteredDataMessage>(1);
+    let (sender3, recv3) = kanal::bounded_async::<SerializedDataMessage>(1);
+    let (sender4, recv4) = kanal::bounded_async::<FilteredDataMessage>(1);
 
     let stream_run = block_source.run_async(sender1);
     let serializer_run = serializer.run_async(recv1, sender2);
-    let subgraph_filter_run = subgraph_filter.run_async(recv2, sender3);
-    let subgraph_run = subgraph.run_async(recv3, agent);
+    let progress_ctrl_run = progress_ctrl.run_async(recv2, sender3);
+    let subgraph_filter_run = subgraph_filter.run_async(recv3, sender4);
+    let subgraph_run = subgraph.run_async(recv4, agent);
 
     let results = tokio::join!(
         stream_run,
         serializer_run,
+        progress_ctrl_run,
         subgraph_filter_run,
         subgraph_run,
     );
+
     log::info!("Results: {:?}", results);
+
     Ok(())
 }
