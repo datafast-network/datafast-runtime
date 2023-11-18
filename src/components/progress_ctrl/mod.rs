@@ -1,9 +1,7 @@
-use crate::{
-    common::{BlockPtr, Source},
-    errors::ProgressCtrlError,
-};
-
 use super::database::Agent;
+use crate::common::BlockPtr;
+use crate::common::Source;
+use crate::errors::ProgressCtrlError;
 
 pub struct ProgressCtrl {
     db: Agent,
@@ -34,7 +32,10 @@ impl ProgressCtrl {
         return min_start_block.unwrap_or(0);
     }
 
-    pub fn progress_check(&mut self, new_block_ptr: BlockPtr) -> Result<(), ProgressCtrlError> {
+    pub async fn progress_check(
+        &mut self,
+        new_block_ptr: BlockPtr,
+    ) -> Result<(), ProgressCtrlError> {
         match &self.recent_block_ptrs.last() {
             None => {
                 let min_start_block = self.get_min_start_block();
@@ -59,13 +60,27 @@ impl ProgressCtrl {
                     return Err(ProgressCtrlError::BlockGap);
                 }
 
-                // reorg happen some where..., but not this block
-                if recent_block_ptrs.number + 1 == new_block_ptr.number {
-                    return Err(ProgressCtrlError::PossibleReorg);
-                }
+                // reorg happen some where...
+                // First, check if the new block's parent-hash is hash of any block
+                // in the current chain within threshold
+                let maybe_parent_block = self
+                    .recent_block_ptrs
+                    .iter()
+                    .find(|b| b.hash == new_block_ptr.parent_hash)
+                    .cloned();
 
-                // A proper reorg-block...
-                Ok(())
+                match maybe_parent_block {
+                    None => {
+                        // Reorg happened somewhere before this new-block, we should be waiting
+                        return Err(ProgressCtrlError::PossibleReorg);
+                    }
+                    Some(_) => {
+                        // This new-block is the reorg block,
+                        // We will process this block after having discarded all the obsolete blocks
+                        self.db.revert_from_block(new_block_ptr.number).await?;
+                        Ok(())
+                    }
+                }
             }
         }
     }

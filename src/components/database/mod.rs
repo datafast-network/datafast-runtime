@@ -110,6 +110,11 @@ impl Database {
         self.db.save_block_ptr(block_ptr).await?;
         Ok(())
     }
+
+    async fn revert_from_block(&mut self, block_number: u64) -> Result<(), DatabaseError> {
+        self.mem.clear();
+        self.db.revert_from_block(block_number).await
+    }
 }
 
 // Draft
@@ -156,6 +161,10 @@ impl Agent {
     pub async fn clear_in_memory(&self) -> Result<(), DatabaseError> {
         self.db.lock().await.mem.clear();
         Ok(())
+    }
+
+    pub async fn revert_from_block(&self, block_number: u64) -> Result<(), DatabaseError> {
+        self.db.lock().await.revert_from_block(block_number).await
     }
 
     pub fn empty() -> Self {
