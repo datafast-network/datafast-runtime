@@ -1,4 +1,5 @@
 mod datasource_wasm_instance;
+mod metrics;
 
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
@@ -12,6 +13,8 @@ use crate::messages::FilteredDataMessage;
 use crate::runtime::wasm_host::AscHost;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use kanal::AsyncReceiver;
+use metrics::SubgraphMetrics;
+use prometheus::Registry;
 use std::collections::HashMap;
 
 pub struct Subgraph {
@@ -19,13 +22,15 @@ pub struct Subgraph {
     pub id: String,
     pub name: String,
     sources: HashMap<String, DatasourceWasmInstance>,
+    metrics: SubgraphMetrics,
 }
 
 impl Subgraph {
-    pub fn new_empty(name: &str, id: String) -> Self {
+    pub fn new_empty(name: &str, id: String, registry: &Registry) -> Self {
         Self {
             sources: HashMap::new(),
             name: name.to_owned(),
+            metrics: SubgraphMetrics::new(registry),
             id,
         }
     }
@@ -98,8 +103,14 @@ impl Subgraph {
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
             let block_ptr = msg.get_block_ptr();
+            self.metrics
+                .current_block_number
+                .set(block_ptr.number as i64);
 
+            let timer = self.metrics.block_process_duration.start_timer();
             self.handle_filtered_data(msg)?;
+            timer.stop_and_record();
+            self.metrics.block_process_counter.inc();
 
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
                 error!(Subgraph, "Failed to migrate db";
@@ -125,6 +136,7 @@ mod test {
     use super::datasource_wasm_instance::DatasourceWasmInstance;
     use super::datasource_wasm_instance::EthereumHandlers;
     use super::datasource_wasm_instance::Handler;
+    use super::metrics::SubgraphMetrics;
     use super::Subgraph;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
@@ -134,6 +146,7 @@ mod test {
     use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
     use crate::runtime::wasm_host::test::mock_wasm_host;
     use async_std::task;
+    use prometheus::default_registry;
     use std::collections::HashMap;
 
     #[::rstest::rstest]
@@ -141,11 +154,13 @@ mod test {
     #[case("0.0.5")]
     async fn test_subgraph(#[case] version: &str) {
         env_logger::try_init().unwrap_or_default();
+        let registry = default_registry();
 
         let mut subgraph = Subgraph {
             id: "TestSubgraph".to_string(),
             name: "TestSubgraph".to_string(),
             sources: HashMap::new(),
+            metrics: SubgraphMetrics::new(registry),
         };
 
         let subgraph_sources = vec!["TestDataSource1"];
@@ -154,7 +169,7 @@ mod test {
             let (version, wasm_path) = get_subgraph_testing_resource(version, "TestDataSource");
 
             let id = source_name.to_string();
-            let host = mock_wasm_host(version.clone(), &wasm_path);
+            let host = mock_wasm_host(version.clone(), &wasm_path, registry);
             let mut ethereum_handlers = EthereumHandlers {
                 block: HashMap::new(),
                 events: HashMap::new(),
@@ -182,7 +197,7 @@ mod test {
         log::info!("Finished setup");
 
         let (sender, receiver) = kanal::bounded_async(1);
-        let agent = Agent::empty();
+        let agent = Agent::empty(registry);
         let t = task::spawn(async move { subgraph.run_async(receiver, agent).await });
 
         // Test sending block data

@@ -1,3 +1,9 @@
+mod extern_db;
+mod memory_db;
+mod metrics;
+mod scylladb;
+mod utils;
+
 use crate::common::BlockPtr;
 use crate::components::manifest_loader::SchemaLookup;
 use crate::config::Config;
@@ -12,24 +18,27 @@ use crate::runtime::asc::native_types::store::Value;
 use extern_db::ExternDB;
 use extern_db::ExternDBTrait;
 use memory_db::MemoryDb;
+use metrics::DatabaseMetrics;
+use prometheus::Registry;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-mod extern_db;
-mod memory_db;
-mod scylladb;
-mod utils;
 
 pub struct Database {
     pub mem: MemoryDb,
     pub db: ExternDB,
+    metrics: DatabaseMetrics,
 }
 
 impl Database {
-    pub async fn new(config: &Config, schema_lookup: SchemaLookup) -> Result<Self, DatabaseError> {
+    pub async fn new(
+        config: &Config,
+        schema_lookup: SchemaLookup,
+        registry: &Registry,
+    ) -> Result<Self, DatabaseError> {
         let mem = MemoryDb::default();
         let db = ExternDB::new(config, schema_lookup).await?;
-        Ok(Database { mem, db })
+        let metrics = DatabaseMetrics::new(registry);
+        Ok(Database { mem, db, metrics })
     }
 
     async fn handle_store_request(
@@ -72,6 +81,8 @@ impl Database {
             .load_entity_latest(entity_type.clone(), entity_id.clone())?;
 
         if entity.is_none() {
+            self.metrics.cache_miss.inc();
+            self.metrics.extern_db_load.inc();
             let entity = self.db.load_entity_latest(&entity_type, &entity_id).await?;
 
             if entity.is_none() {
@@ -83,6 +94,7 @@ impl Database {
             return Ok(StoreRequestResult::Load(Some(data)));
         }
 
+        self.metrics.cache_hit.inc();
         let data = entity.unwrap();
         Ok(StoreRequestResult::Load(Some(data)))
     }
@@ -176,9 +188,11 @@ impl Database {
 
     async fn migrate_from_mem_to_db(&mut self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         let values = self.mem.extract_data()?;
+        self.metrics.extern_db_write.inc();
         self.db
             .batch_insert_entities(block_ptr.clone(), values)
             .await?;
+        self.metrics.extern_db_write.inc();
         self.db.save_block_ptr(block_ptr).await?;
         Ok(())
     }
@@ -245,10 +259,11 @@ impl Agent {
         self.db.lock().await.revert_from_block(block_number).await
     }
 
-    pub fn empty() -> Self {
+    pub fn empty(registry: &Registry) -> Self {
         let mem = MemoryDb::default();
         let db = ExternDB::None;
-        let database = Database { mem, db };
+        let metrics = DatabaseMetrics::new(registry);
+        let database = Database { mem, db, metrics };
         Agent::from(database)
     }
 }

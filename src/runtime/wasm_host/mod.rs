@@ -226,9 +226,10 @@ pub fn create_wasm_host(
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use prometheus::Registry;
     use std::path::PathBuf;
 
-    pub fn mock_wasm_host(api_version: Version, wasm_path: &str) -> AscHost {
+    pub fn mock_wasm_host(api_version: Version, wasm_path: &str, registry: &Registry) -> AscHost {
         ::log::warn!(
             r#"New test-host-instance being created with:
                 > api-version={api_version}
@@ -237,7 +238,7 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        let db_agent = Agent::empty();
+        let db_agent = Agent::empty(registry);
         create_wasm_host(api_version, wasm_bytes, db_agent, "Test".to_string()).unwrap()
     }
 
