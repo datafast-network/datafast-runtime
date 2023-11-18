@@ -201,13 +201,18 @@ impl Scylladb {
                     let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
                     if let serde_json::Value::Object(values) = json {
                         let result = self.schema_lookup.json_to_entity(entity_type, values);
+
+                        if is_deleted.is_none() {
+                            entities.push(result);
+                            continue;
+                        }
+
                         if is_deleted.is_some()
                             && result.get("is_deleted").cloned().unwrap()
                                 == Value::Bool(is_deleted.unwrap())
                         {
-                            continue;
+                            entities.push(result);
                         }
-                        entities.push(result);
                     } else {
                         error!(Scylladb, "Not an json object"; data => json);
                         continue;
@@ -261,7 +266,6 @@ impl ExternDBTrait for Scylladb {
             column_definitions.push("PRIMARY KEY (id, block_ptr_number)".to_string());
 
             let joint_column_definition = column_definitions.join(",\n");
-
             let query = format!(
                 r#"CREATE TABLE IF NOT EXISTS {}.{entity_name} (
             {joint_column_definition}
@@ -456,6 +460,7 @@ mod tests {
     use crate::schema;
     use env_logger;
     use log::info;
+    use std::collections::HashMap;
     use std::str::FromStr;
 
     async fn setup_db(entity_name: &str) -> (Scylladb, String) {
@@ -691,5 +696,122 @@ mod tests {
             latest.get("total_supply"),
             Some(&Value::BigInt(BigInt::from(1000)))
         );
+    }
+
+    #[tokio::test]
+    async fn test_scylla_05_get_relation() {
+        env_logger::try_init().unwrap_or_default();
+
+        let uri = "localhost:9042";
+        let keyspace = "ks";
+        let mut schema = SchemaLookup::new();
+        let entity_name = "test_relation";
+        let tokens = "tokens_relation";
+        let mut entity_1: HashMap<String, FieldKind> = HashMap::new();
+        entity_1.insert(
+            "id".to_string(),
+            FieldKind {
+                kind: StoreValueKind::String,
+                relation: None,
+                list_inner_kind: None,
+            },
+        );
+        entity_1.insert(
+            "name".to_string(),
+            FieldKind {
+                kind: StoreValueKind::String,
+                relation: None,
+                list_inner_kind: None,
+            },
+        );
+        entity_1.insert(
+            "token_id".to_string(),
+            FieldKind {
+                kind: StoreValueKind::Array,
+                relation: Some((tokens.to_string(), "id".to_string())),
+                list_inner_kind: Some(StoreValueKind::String),
+            },
+        );
+        schema.add_schema(entity_name, entity_1);
+
+        let mut entity_2: HashMap<String, FieldKind> = HashMap::new();
+        entity_2.insert(
+            "id".to_string(),
+            FieldKind {
+                kind: StoreValueKind::String,
+                relation: None,
+                list_inner_kind: None,
+            },
+        );
+        entity_2.insert(
+            "name".to_string(),
+            FieldKind {
+                kind: StoreValueKind::String,
+                relation: None,
+                list_inner_kind: None,
+            },
+        );
+        schema.add_schema(tokens, entity_2);
+
+        let db = Scylladb::new(uri, keyspace, schema).await.unwrap();
+        db.drop_tables().await.unwrap();
+        db.create_entity_tables().await.unwrap();
+
+        let block_ptr = BlockPtr {
+            number: 0,
+            hash: "hash".to_string(),
+        };
+        for token in 0..5 {
+            let token_entity: RawEntity = entity! {
+                id => Value::String(format!("token-id_{}", token)),
+                name => Value::String(format!("token-name_{}", token)),
+            };
+            db.insert_entity(block_ptr.clone(), tokens, token_entity, false)
+                .await
+                .unwrap();
+        }
+
+        let mut entity_data: RawEntity = entity! {
+            id => Value::String(format!("entity-id_{}", 1)),
+            name => Value::String("entity-name".to_string()),
+        };
+        entity_data.insert(
+            "token_id".to_string(),
+            Value::List(vec![
+                Value::String("token-id_0".to_string()),
+                Value::String("token-id_1".to_string()),
+                Value::String("token-id_2".to_string()),
+            ]),
+        );
+
+        db.insert_entity(block_ptr.clone(), entity_name, entity_data, false)
+            .await
+            .unwrap();
+
+        let latest = db
+            .load_entity_latest(entity_name, "entity-id_1")
+            .await
+            .unwrap()
+            .unwrap();
+        let relations = latest.get("token_id").cloned().unwrap();
+        let relation_ids = match relations {
+            Value::List(list) => {
+                let mut relation = vec![];
+                list.iter().for_each(|value| {
+                    if let Value::String(entity_id) = value {
+                        relation.push(entity_id.clone())
+                    }
+                });
+                relation
+            }
+            _ => panic!("Not a list"),
+        };
+        log::info!("relation: {:?}", relation_ids);
+        let tokens_relation = db
+            .load_entities(tokens.to_string(), relation_ids)
+            .await
+            .unwrap();
+
+        assert_eq!(tokens_relation.len(), 3);
     }
 }

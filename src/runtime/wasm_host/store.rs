@@ -56,7 +56,7 @@ pub fn store_get(
     match result {
         StoreRequestResult::Load(data) => {
             if let Some(data) = data {
-                let entity = remove_internal_field(vec![data]).pop().unwrap();
+                let entity = remove_private_field(vec![data]).pop().unwrap();
                 let asc_result = asc_new(&mut fenv, &entity.into_iter().collect::<Vec<_>>())?;
                 Ok(asc_result)
             } else {
@@ -96,15 +96,15 @@ pub fn store_get_in_block(
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
     let db = fenv.data().db_agent.clone();
-    let request = StoreOperationMessage::LoadBlockInMemory((entity_type, entity_id));
+    let request = StoreOperationMessage::LoadInBlock((entity_type, entity_id));
     let result = db
         .wasm_send_store_request(request)
         .map_err(|e| RuntimeError::new(e.to_string()))?;
 
     match result {
-        StoreRequestResult::LoadBlockInMemory(raw_entity) => {
+        StoreRequestResult::LoadInBlock(raw_entity) => {
             if let Some(entity) = raw_entity {
-                let entity = remove_internal_field(vec![entity]).pop().unwrap();
+                let entity = remove_private_field(vec![entity]).pop().unwrap();
                 let asc_result = asc_new(&mut fenv, &entity.into_iter().collect::<Vec<_>>())?;
                 Ok(asc_result)
             } else {
@@ -133,7 +133,7 @@ pub fn store_load_related(
         .map_err(|e| RuntimeError::new(e.to_string()))?;
     match result {
         StoreRequestResult::LoadRelated(entities) => {
-            let entities = remove_internal_field(entities);
+            let entities = remove_private_field(entities);
             let vec_entities: Vec<Vec<(String, Value)>> = entities
                 .into_iter()
                 .map(|e| e.into_iter().collect::<Vec<_>>())
@@ -147,7 +147,7 @@ pub fn store_load_related(
     }
 }
 
-fn remove_internal_field(entities: Vec<RawEntity>) -> Vec<RawEntity> {
+fn remove_private_field(entities: Vec<RawEntity>) -> Vec<RawEntity> {
     entities
         .into_iter()
         .map(|mut entity| {

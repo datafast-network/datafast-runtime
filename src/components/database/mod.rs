@@ -42,9 +42,7 @@ impl Database {
             StoreOperationMessage::Update(data) => self.handle_update(data).await,
             StoreOperationMessage::Delete(data) => self.handle_delete(data).await,
             StoreOperationMessage::LoadRelated(data) => self.handle_load_related(data).await,
-            StoreOperationMessage::LoadBlockInMemory(data) => {
-                self.handle_load_block_in_memory(data)
-            }
+            StoreOperationMessage::LoadInBlock(data) => self.handle_load_in_block(data),
         }
     }
 
@@ -89,7 +87,7 @@ impl Database {
         Ok(StoreRequestResult::Load(Some(data)))
     }
 
-    fn handle_load_block_in_memory(
+    fn handle_load_in_block(
         &self,
         data: (EntityType, EntityID),
     ) -> Result<StoreRequestResult, DatabaseError> {
