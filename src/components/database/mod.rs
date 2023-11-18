@@ -137,6 +137,12 @@ impl Agent {
         message: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
         let mut db = self.db.blocking_lock();
+
+        #[cfg(test)]
+        {
+            return async_std::task::block_on(db.handle_store_request(message));
+        }
+
         let handle = tokio::runtime::Handle::current();
         handle.block_on(db.handle_store_request(message))
     }
