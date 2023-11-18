@@ -1,4 +1,5 @@
 mod datasource_wasm_instance;
+mod metrics;
 
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
