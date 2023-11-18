@@ -1,4 +1,5 @@
 use super::Env;
+use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::base::asc_get;
@@ -87,20 +88,73 @@ pub fn store_remove(
 }
 
 pub fn store_get_in_block(
-    _fenv: FunctionEnvMut<Env>,
-    _entity_type_ptr: AscPtr<AscString>,
-    _entity_id_ptr: AscPtr<AscString>,
+    mut fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<AscEntity>, RuntimeError> {
-    todo!()
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+    let db = fenv.data().db_agent.clone();
+    let request = StoreOperationMessage::LoadInBlock((entity_type, entity_id));
+    let result = db
+        .wasm_send_store_request(request)
+        .map_err(|e| RuntimeError::new(e.to_string()))?;
+
+    match result {
+        StoreRequestResult::LoadInBlock(raw_entity) => {
+            if let Some(entity) = raw_entity {
+                let entity = remove_private_field(vec![entity]).pop().unwrap();
+                let asc_result = asc_new(&mut fenv, &entity.into_iter().collect::<Vec<_>>())?;
+                Ok(asc_result)
+            } else {
+                Ok(AscPtr::null())
+            }
+        }
+        _ => unimplemented!(),
+    }
 }
 
 pub fn store_load_related(
-    _fenv: FunctionEnvMut<Env>,
-    _entity_type_ptr: AscPtr<AscString>,
-    _entity_id_ptr: AscPtr<AscString>,
-    _field_ptr: AscPtr<AscString>,
+    mut fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
+    field_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<Array<AscPtr<AscEntity>>>, RuntimeError> {
-    todo!()
+    let env = fenv.data();
+    let db = env.db_agent.clone();
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+    let field_name: String = asc_get(&fenv, field_ptr, 0)?;
+
+    let request = StoreOperationMessage::LoadRelated((entity_type, entity_id, field_name));
+    let result = db
+        .wasm_send_store_request(request)
+        .map_err(|e| RuntimeError::new(e.to_string()))?;
+    match result {
+        StoreRequestResult::LoadRelated(entities) => {
+            let entities = remove_private_field(entities);
+            let vec_entities: Vec<Vec<(String, Value)>> = entities
+                .into_iter()
+                .map(|e| e.into_iter().collect::<Vec<_>>())
+                .collect();
+
+            let array_ptr = asc_new(&mut fenv, &vec_entities)?;
+
+            Ok(array_ptr)
+        }
+        _ => unimplemented!(),
+    }
+}
+
+fn remove_private_field(entities: Vec<RawEntity>) -> Vec<RawEntity> {
+    entities
+        .into_iter()
+        .map(|mut entity| {
+            entity.remove("block_ptr_number");
+            entity.remove("is_deleted");
+            entity
+        })
+        .collect()
 }
 
 #[cfg(test)]

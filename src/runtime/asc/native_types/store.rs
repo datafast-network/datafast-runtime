@@ -108,7 +108,7 @@ pub enum Value {
 }
 
 #[repr(u32)]
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum StoreValueKind {
     String,
     Int,

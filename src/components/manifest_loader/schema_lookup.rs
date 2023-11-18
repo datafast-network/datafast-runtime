@@ -96,6 +96,30 @@ impl SchemaLookup {
         self.schema.insert(entity_name.to_owned(), schema);
     }
 
+    pub fn get_relation_field(
+        &self,
+        entity_name: &str,
+        field_name: &str,
+    ) -> Option<(EntityType, FieldName)> {
+        let entity = self.schema.get(entity_name);
+        if entity.is_none() {
+            return None;
+        }
+        let field = entity.unwrap().get(field_name);
+
+        if field.is_none() {
+            return None;
+        }
+
+        let field = field.unwrap();
+
+        if field.relation.is_none() {
+            return None;
+        }
+        let relation = field.relation.clone().unwrap();
+        Some(relation)
+    }
+
     pub fn get_schemas(&self) -> &HashMap<String, HashMap<String, FieldKind>> {
         &self.schema
     }
@@ -169,7 +193,7 @@ impl SchemaLookup {
                     .to_owned();
                 let mut relation = None;
                 let kind = match type_name.as_str() {
-                    "ID" => StoreValueKind::Bytes,
+                    "ID" => StoreValueKind::String,
                     "BigInt" => StoreValueKind::BigInt,
                     "BigDecimal" => StoreValueKind::BigDecimal,
                     "Bytes" => StoreValueKind::Bytes,

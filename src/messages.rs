@@ -65,12 +65,16 @@ pub type EntityType = String;
 pub type EntityID = String;
 pub type RawEntity = HashMap<String, Value>;
 
+pub type FieldName = String;
+
 #[derive(Debug)]
 pub enum StoreOperationMessage {
     Create((EntityType, RawEntity)),
     Load((EntityType, EntityID)),
     Update((EntityType, EntityID, RawEntity)),
     Delete((EntityType, EntityID)),
+    LoadRelated((EntityType, EntityID, FieldName)),
+    LoadInBlock((EntityType, EntityID)),
 }
 
 #[derive(Debug)]
@@ -79,4 +83,6 @@ pub enum StoreRequestResult {
     Load(Option<RawEntity>),
     Delete,
     Update,
+    LoadRelated(Vec<RawEntity>),
+    LoadInBlock(Option<RawEntity>),
 }
