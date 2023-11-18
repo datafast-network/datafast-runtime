@@ -16,7 +16,7 @@ pub fn log_log(
     log_level: i32,
     msg_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
-    let datasource_name = format!("{}", fenv.data().datasource_name.clone());
+    let datasource_name = fenv.data().datasource_name.clone().to_string();
     let message: String = asc_get(&fenv, msg_ptr, 0)?;
     match log_level {
         0 => {

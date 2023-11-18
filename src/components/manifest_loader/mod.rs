@@ -1,20 +1,33 @@
 mod local;
+pub mod schema_lookup;
 
 use crate::common::Datasource;
+use crate::common::Source;
 use crate::errors::ManifestLoaderError;
 use async_trait::async_trait;
 use local::LocalFileLoader;
+pub use schema_lookup::SchemaLookup;
 use serde_json::Value;
 use std::collections::HashMap;
 
 #[async_trait]
 pub trait LoaderTrait: Sized {
     async fn new(path: &str) -> Result<Self, ManifestLoaderError>;
+
+    async fn load_schema(&mut self) -> Result<(), ManifestLoaderError>;
+
     async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError>;
+
     async fn load_abis(&mut self) -> Result<(), ManifestLoaderError>;
+
     // Load-Wasm is lazy, we only execute it when we need it
     async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
+
     fn get_abis(&self) -> &HashMap<String, serde_json::Value>;
+
+    fn get_schema(&self) -> &SchemaLookup;
+
+    fn get_sources(&self) -> Vec<Source>;
 
     fn load_ethereum_contract(
         &self,
@@ -47,6 +60,7 @@ pub trait LoaderTrait: Sized {
         Ok(contracts)
     }
 }
+
 pub enum ManifestLoader {
     Local(LocalFileLoader),
 }
@@ -77,6 +91,12 @@ impl LoaderTrait for ManifestLoader {
         }
     }
 
+    async fn load_schema(&mut self) -> Result<(), ManifestLoaderError> {
+        match self {
+            ManifestLoader::Local(loader) => loader.load_schema().await,
+        }
+    }
+
     async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError> {
         match self {
             ManifestLoader::Local(loader) => loader.load_yaml().await,
@@ -94,9 +114,22 @@ impl LoaderTrait for ManifestLoader {
             ManifestLoader::Local(loader) => loader.load_wasm(datasource_name).await,
         }
     }
+
     fn get_abis(&self) -> &HashMap<String, Value> {
         match self {
             ManifestLoader::Local(loader) => loader.get_abis(),
+        }
+    }
+
+    fn get_schema(&self) -> &SchemaLookup {
+        match self {
+            ManifestLoader::Local(loader) => loader.get_schema(),
+        }
+    }
+
+    fn get_sources(&self) -> Vec<Source> {
+        match self {
+            ManifestLoader::Local(loader) => loader.get_sources(),
         }
     }
 }

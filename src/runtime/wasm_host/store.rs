@@ -1,4 +1,5 @@
 use super::Env;
+use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::base::asc_get;
@@ -87,20 +88,73 @@ pub fn store_remove(
 }
 
 pub fn store_get_in_block(
-    _fenv: FunctionEnvMut<Env>,
-    _entity_type_ptr: AscPtr<AscString>,
-    _entity_id_ptr: AscPtr<AscString>,
+    mut fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<AscEntity>, RuntimeError> {
-    todo!()
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+    let db = fenv.data().db_agent.clone();
+    let request = StoreOperationMessage::LoadInBlock((entity_type, entity_id));
+    let result = db
+        .wasm_send_store_request(request)
+        .map_err(|e| RuntimeError::new(e.to_string()))?;
+
+    match result {
+        StoreRequestResult::LoadInBlock(raw_entity) => {
+            if let Some(entity) = raw_entity {
+                let entity = remove_private_field(vec![entity]).pop().unwrap();
+                let asc_result = asc_new(&mut fenv, &entity.into_iter().collect::<Vec<_>>())?;
+                Ok(asc_result)
+            } else {
+                Ok(AscPtr::null())
+            }
+        }
+        _ => unimplemented!(),
+    }
 }
 
 pub fn store_load_related(
-    _fenv: FunctionEnvMut<Env>,
-    _entity_type_ptr: AscPtr<AscString>,
-    _entity_id_ptr: AscPtr<AscString>,
-    _field_ptr: AscPtr<AscString>,
+    mut fenv: FunctionEnvMut<Env>,
+    entity_type_ptr: AscPtr<AscString>,
+    entity_id_ptr: AscPtr<AscString>,
+    field_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<Array<AscPtr<AscEntity>>>, RuntimeError> {
-    todo!()
+    let env = fenv.data();
+    let db = env.db_agent.clone();
+    let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
+    let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
+    let field_name: String = asc_get(&fenv, field_ptr, 0)?;
+
+    let request = StoreOperationMessage::LoadRelated((entity_type, entity_id, field_name));
+    let result = db
+        .wasm_send_store_request(request)
+        .map_err(|e| RuntimeError::new(e.to_string()))?;
+    match result {
+        StoreRequestResult::LoadRelated(entities) => {
+            let entities = remove_private_field(entities);
+            let vec_entities: Vec<Vec<(String, Value)>> = entities
+                .into_iter()
+                .map(|e| e.into_iter().collect::<Vec<_>>())
+                .collect();
+
+            let array_ptr = asc_new(&mut fenv, &vec_entities)?;
+
+            Ok(array_ptr)
+        }
+        _ => unimplemented!(),
+    }
+}
+
+fn remove_private_field(entities: Vec<RawEntity>) -> Vec<RawEntity> {
+    entities
+        .into_iter()
+        .map(|mut entity| {
+            entity.remove("block_ptr_number");
+            entity.remove("is_deleted");
+            entity
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -121,7 +175,7 @@ mod test {
     host_fn_test!("TestStore", test_store_set, host {
         let entity_type = "Token".to_string();
         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
-        let data = host.dbstore_agent.wasm_send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
+        let data = host.db_agent.wasm_send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
 
         if let StoreRequestResult::Load(Some(entity)) = data {
             let id = entity.get("id").unwrap().to_owned();
@@ -169,13 +223,13 @@ mod test {
         // "id": String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
         entity_data.insert("id".to_string(), Value::String(entity_id.clone()));
 
-        let db = host.dbstore_agent.clone();
+        let db = host.db_agent.clone();
         db.wasm_send_store_request(StoreOperationMessage::Update((entity_type.clone(), entity_id,entity_data))).unwrap();
         []
     } {
         let asc_entity = AscPtr::<AscEntity>::new(result.first().unwrap().unwrap_i32() as u32);
         let entity: HashMap<String, Value> = asc_get(&host, asc_entity, 0).unwrap();
-        assert_eq!(entity.len(), 16);
+        assert_eq!(entity.len(), 17);
         assert_eq!(*entity.get("id").unwrap(), Value::String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string()));
         assert_eq!(*entity.get("totalSupply").unwrap(), Value::BigInt(BigInt::from_str("1000000000000").unwrap()));
     });

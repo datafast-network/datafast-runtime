@@ -1,186 +1,269 @@
-mod in_memory;
+mod extern_db;
+mod memory_db;
+mod metrics;
+mod scylladb;
+mod utils;
 
 use crate::common::BlockPtr;
+use crate::components::manifest_loader::SchemaLookup;
 use crate::config::Config;
 use crate::errors::DatabaseError;
+use crate::messages::EntityID;
+use crate::messages::EntityType;
+use crate::messages::FieldName;
+use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
-use crate::runtime::asc;
-use std::collections::HashMap;
+use crate::runtime::asc::native_types::store::Value;
+use extern_db::ExternDB;
+use extern_db::ExternDBTrait;
+use memory_db::MemoryDb;
+use metrics::DatabaseMetrics;
+use prometheus::Registry;
 use std::sync::Arc;
-use std::sync::RwLock;
+use tokio::sync::Mutex;
 
-type RawEntity = HashMap<String, asc::native_types::store::Value>;
-
-#[derive(Clone)]
-pub enum Database {
-    Memory(in_memory::InMemoryDataStore),
-}
-
-pub trait DatabaseTrait {
-    fn handle_create(
-        &mut self,
-        block_ptr: BlockPtr,
-        entity_type: String,
-        data: RawEntity,
-    ) -> Result<(), DatabaseError>;
-
-    fn handle_load(
-        &self,
-        block_ptr: BlockPtr,
-        entity_type: String,
-        entity_id: String,
-    ) -> Result<Option<RawEntity>, DatabaseError>;
-
-    fn handle_load_latest(
-        &self,
-        entity_type: String,
-        entity_id: String,
-    ) -> Result<Option<RawEntity>, DatabaseError>;
-
-    fn soft_delete(
-        &mut self,
-        block_ptr: BlockPtr,
-        entity_type: String,
-        entity_id: String,
-    ) -> Result<(), DatabaseError>;
-
-    fn hard_delete(&mut self, entity_type: String, entity_id: String) -> Result<(), DatabaseError>;
-}
-
-impl DatabaseTrait for Database {
-    fn handle_create(
-        &mut self,
-        block_ptr: BlockPtr,
-        entity_type: String,
-        data: RawEntity,
-    ) -> Result<(), DatabaseError> {
-        match self {
-            Self::Memory(store) => store.handle_create(block_ptr, entity_type, data),
-        }
-    }
-
-    fn handle_load(
-        &self,
-        block_ptr: BlockPtr,
-        entity_type: String,
-        entity_id: String,
-    ) -> Result<Option<RawEntity>, DatabaseError> {
-        match self {
-            Self::Memory(store) => store.handle_load(block_ptr, entity_type, entity_id),
-        }
-    }
-
-    fn handle_load_latest(
-        &self,
-        entity_type: String,
-        entity_id: String,
-    ) -> Result<Option<RawEntity>, DatabaseError> {
-        match self {
-            Self::Memory(store) => store.handle_load_latest(entity_type, entity_id),
-        }
-    }
-
-    fn soft_delete(
-        &mut self,
-        block_ptr: BlockPtr,
-        entity_type: String,
-        entity_id: String,
-    ) -> Result<(), DatabaseError> {
-        match self {
-            Self::Memory(store) => store.soft_delete(block_ptr, entity_type, entity_id),
-        }
-    }
-
-    fn hard_delete(&mut self, entity_type: String, entity_id: String) -> Result<(), DatabaseError> {
-        match self {
-            Self::Memory(store) => store.hard_delete(entity_type, entity_id),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct DatabaseAgent {
-    db: Arc<RwLock<Database>>,
-    pub block_ptr: Option<BlockPtr>,
+pub struct Database {
+    pub mem: MemoryDb,
+    pub db: ExternDB,
+    metrics: DatabaseMetrics,
 }
 
 impl Database {
-    pub async fn new(_cfg: &Config) -> Result<Self, DatabaseError> {
-        Ok(Self::Memory(HashMap::new()))
+    pub async fn new(
+        config: &Config,
+        schema_lookup: SchemaLookup,
+        registry: &Registry,
+    ) -> Result<Self, DatabaseError> {
+        let mem = MemoryDb::default();
+        let db = ExternDB::new(config, schema_lookup).await?;
+        let metrics = DatabaseMetrics::new(registry);
+        Ok(Database { mem, db, metrics })
     }
 
-    pub fn new_memory_db() -> Self {
-        Self::Memory(HashMap::new())
-    }
-
-    pub fn handle_wasm_host_request(
+    async fn handle_store_request(
         &mut self,
-        block_ptr: BlockPtr,
-        request: StoreOperationMessage,
+        message: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
-        match request {
-            StoreOperationMessage::Load((entity_type, entity_id)) => {
-                // When Wasm-Host ask for a load action, it is always ask for the latest snapshot
-                match self.handle_load_latest(entity_type, entity_id)? {
-                    Some(e) => Ok(StoreRequestResult::Load(Some(e))),
-                    None => Ok(StoreRequestResult::Load(None)),
+        match message {
+            StoreOperationMessage::Create(data) => self.handle_create(data).await,
+            StoreOperationMessage::Load(data) => self.handle_load(data).await,
+            StoreOperationMessage::Update(data) => self.handle_update(data).await,
+            StoreOperationMessage::Delete(data) => self.handle_delete(data).await,
+            StoreOperationMessage::LoadRelated(data) => self.handle_load_related(data).await,
+            StoreOperationMessage::LoadInBlock(data) => self.handle_load_in_block(data),
+        }
+    }
+
+    async fn handle_create(
+        &mut self,
+        data: (EntityType, RawEntity),
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let (entity_type, data) = data;
+        let entity_id = data.get("id").cloned().expect("Missing ID in RawEntity");
+        self.mem.create_entity(entity_type, data)?;
+
+        if let Value::String(entity_id) = entity_id {
+            Ok(StoreRequestResult::Create(entity_id))
+        } else {
+            Err(DatabaseError::InvalidValue("id is not string".to_string()))
+        }
+    }
+
+    async fn handle_load(
+        &mut self,
+        data: (EntityType, EntityID),
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let (entity_type, entity_id) = data;
+
+        let entity = self
+            .mem
+            .load_entity_latest(entity_type.clone(), entity_id.clone())?;
+
+        if entity.is_none() {
+            self.metrics.cache_miss.inc();
+            self.metrics.extern_db_load.inc();
+            let entity = self.db.load_entity_latest(&entity_type, &entity_id).await?;
+
+            if entity.is_none() {
+                return Ok(StoreRequestResult::Load(None));
+            }
+
+            let data = entity.unwrap();
+            self.mem.create_entity(entity_type, data.clone())?;
+            return Ok(StoreRequestResult::Load(Some(data)));
+        }
+
+        self.metrics.cache_hit.inc();
+        let data = entity.unwrap();
+        Ok(StoreRequestResult::Load(Some(data)))
+    }
+
+    fn handle_load_in_block(
+        &self,
+        data: (EntityType, EntityID),
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let (entity_type, entity_id) = data;
+        let entity = self.mem.load_entity_latest(entity_type, entity_id)?;
+        Ok(StoreRequestResult::Load(entity))
+    }
+
+    async fn handle_update(
+        &mut self,
+        data: (EntityType, EntityID, RawEntity),
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let (entity_type, _entity_id, data) = data;
+        self.handle_create((entity_type, data)).await?;
+        Ok(StoreRequestResult::Update)
+    }
+
+    async fn handle_delete(
+        &mut self,
+        data: (EntityType, EntityID),
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let (entity_type, entity_id) = data;
+        self.mem.soft_delete(entity_type, entity_id)?;
+        Ok(StoreRequestResult::Delete)
+    }
+
+    async fn handle_load_related(
+        &mut self,
+        data: (EntityType, EntityID, FieldName),
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let (entity_type, entity_id, field_name) = data;
+        let entity = self
+            .mem
+            .load_entity_latest(entity_type.clone(), entity_id)?;
+
+        //In memory always have the latest version of the entity by action load before.
+        //We don't need to check the db
+
+        let entity = entity.unwrap();
+        let field_related_ids = entity.get(&field_name).cloned().unwrap();
+        let schema = self.db.get_schema();
+        let ids = match field_related_ids {
+            Value::String(id) => vec![id],
+            Value::List(list) => {
+                let mut ids = vec![];
+                list.iter().for_each(|value| {
+                    if let Value::String(entity_id) = value {
+                        ids.push(entity_id.clone())
+                    }
+                });
+                ids
+            }
+            _ => vec![],
+        };
+
+        if let Some((relation_table, _field_name)) =
+            schema.get_relation_field(&entity_type, &field_name)
+        {
+            let mut related_entities = vec![];
+            let mut missing_ids = vec![];
+            for id in ids {
+                let entity = self
+                    .mem
+                    .load_entity_latest(relation_table.clone(), id.clone())?;
+                if entity.is_some() {
+                    related_entities.push(entity.unwrap());
+                } else {
+                    missing_ids.push(id);
                 }
             }
-            StoreOperationMessage::Update((entity_type, _entity_id, data)) => {
-                // Any Update request will always lead to a new snapshot creation
-                self.handle_create(block_ptr, entity_type, data)?;
-                Ok(StoreRequestResult::Update)
+            if !missing_ids.is_empty() {
+                let entities = self
+                    .db
+                    .load_entities(relation_table.clone(), missing_ids)
+                    .await?;
+                for entity in entities {
+                    related_entities.push(entity.clone());
+                    self.mem.create_entity(relation_table.clone(), entity)?;
+                }
             }
-            StoreOperationMessage::Delete((entity_type, entity_id)) => {
-                /*
-                - If we are out of reorg-threshold, we can safely HARD-DELETE all snapshots of this Entity
-                - If we are within the reorg-threshold, we can only SOFT-DELETE all the snapshots
-                - If reorg happen, how do we know if the soft-delete action should be reverted or not?
-                - To handle this, we can make SOFT-DELETE column a Numeric value, and when soft-delete happens,
-                we add block-ptr's block-number to the SOFT-DELETE column
-                - When reorg happen, we know the reorg-block, then...
-                - If the reorg-block is > SOFT-DELETE's block, we do nothing
-                - Else, we clear the SOFT-DELETE column
-                */
-                self.soft_delete(block_ptr, entity_type, entity_id)?;
-                Ok(StoreRequestResult::Delete)
-            }
-            _ => Err(DatabaseError::WasmSendInvalidRequest),
+            Ok(StoreRequestResult::LoadRelated(related_entities))
+        } else {
+            Ok(StoreRequestResult::LoadRelated(vec![]))
         }
     }
 
-    pub fn agent(&self) -> DatabaseAgent {
-        DatabaseAgent {
-            db: Arc::new(RwLock::new(self.to_owned())),
-            block_ptr: None,
-        }
+    async fn migrate_from_mem_to_db(&mut self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let values = self.mem.extract_data()?;
+        self.metrics.extern_db_write.inc();
+        self.db
+            .batch_insert_entities(block_ptr.clone(), values)
+            .await?;
+        self.metrics.extern_db_write.inc();
+        self.db.save_block_ptr(block_ptr).await?;
+        Ok(())
+    }
+
+    async fn revert_from_block(&mut self, block_number: u64) -> Result<(), DatabaseError> {
+        self.mem.clear();
+        self.db.revert_from_block(block_number).await
     }
 }
 
-impl DatabaseAgent {
-    pub fn wasm_send_store_request(
-        self,
-        request: StoreOperationMessage,
-    ) -> Result<StoreRequestResult, DatabaseError> {
-        let mut db = self
-            .db
-            .try_write()
-            .map_err(|_| DatabaseError::MutexLockFailed)?;
-
-        if self.block_ptr.is_none() {
-            return Err(DatabaseError::MissingBlockPtr);
-        }
-
-        db.handle_wasm_host_request(self.block_ptr.to_owned().unwrap(), request)
-    }
+// Draft
+#[derive(Clone)]
+pub struct Agent {
+    db: Arc<Mutex<Database>>,
 }
 
-impl Default for DatabaseAgent {
-    fn default() -> Self {
+impl From<Database> for Agent {
+    fn from(value: Database) -> Self {
         Self {
-            db: Arc::new(RwLock::new(Database::new_memory_db())),
-            block_ptr: None,
+            db: Arc::new(Mutex::new(value)),
         }
+    }
+}
+
+impl Agent {
+    pub fn wasm_send_store_request(
+        &self,
+        message: StoreOperationMessage,
+    ) -> Result<StoreRequestResult, DatabaseError> {
+        let mut db = self.db.blocking_lock();
+
+        #[cfg(test)]
+        {
+            return async_std::task::block_on(db.handle_store_request(message));
+        }
+
+        let handle = tokio::runtime::Handle::current();
+        handle.block_on(db.handle_store_request(message))
+    }
+
+    pub async fn get_recent_block_pointers(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
+        self.db
+            .lock()
+            .await
+            .db
+            .load_recent_block_ptrs(number_of_blocks)
+            .await
+    }
+
+    pub async fn migrate(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let mut db = self.db.lock().await;
+        db.migrate_from_mem_to_db(block_ptr).await
+    }
+
+    pub async fn clear_in_memory(&self) -> Result<(), DatabaseError> {
+        self.db.lock().await.mem.clear();
+        Ok(())
+    }
+
+    pub async fn revert_from_block(&self, block_number: u64) -> Result<(), DatabaseError> {
+        self.db.lock().await.revert_from_block(block_number).await
+    }
+
+    pub fn empty(registry: &Registry) -> Self {
+        let mem = MemoryDb::default();
+        let db = ExternDB::None;
+        let metrics = DatabaseMetrics::new(registry);
+        let database = Database { mem, db, metrics };
+        Agent::from(database)
     }
 }

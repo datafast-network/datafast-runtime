@@ -7,8 +7,7 @@ use super::string::AscString;
 use super::typed_map::AscTypedMap;
 
 #[repr(u32)]
-#[derive(Copy, Clone)]
-#[derive(Default)]
+#[derive(Copy, Clone, Default)]
 pub enum JsonValueKind {
     #[default]
     Null,
@@ -28,8 +27,6 @@ impl_asc_type_enum!(
     Array => 4,
     Object => 5
 );
-
-
 
 impl AscValue for JsonValueKind {}
 

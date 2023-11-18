@@ -14,9 +14,13 @@ macro_rules! host_fn_test {
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
 
             env_logger::try_init().unwrap_or_default();
+
+            use prometheus::default_registry;
+            let registry = default_registry();
+
             let (version, wasm_path) = get_subgraph_testing_resource(version, $datasource_name);
 
-            let mut $host = mock_wasm_host(version, &wasm_path);
+            let mut $host = mock_wasm_host(version, &wasm_path, registry);
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
                 .instance
@@ -45,11 +49,14 @@ macro_rules! host_fn_test {
             use env_logger;
             use std::env;
 
+            use prometheus::default_registry;
+            let registry = default_registry();
+
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
             env_logger::try_init().unwrap_or_default();
             let (version, wasm_path) = get_subgraph_testing_resource(version, $datasource_name);
 
-            let mut $host = mock_wasm_host(version, &wasm_path);
+            let mut $host = mock_wasm_host(version, &wasm_path, registry);
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
                 .instance
@@ -80,8 +87,11 @@ macro_rules! host_fn_test {
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
             env_logger::try_init().unwrap_or_default();
 
+            use prometheus::default_registry;
+            let registry = default_registry();
+
             let (version, wasm_path) = get_subgraph_testing_resource(version, $datasource_name);
-            let mut $host = mock_wasm_host(version, &wasm_path);
+            let mut $host = mock_wasm_host(version, &wasm_path, registry);
 
             let args = $construct_args;
 

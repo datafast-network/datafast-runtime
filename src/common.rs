@@ -2,6 +2,7 @@ use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
+use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct MappingABI {
@@ -67,8 +68,21 @@ pub enum Chain {
     Ethereum,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Default, Serialize)]
 pub struct BlockPtr {
     pub number: u64,
     pub hash: String,
+    pub parent_hash: String,
+}
+
+impl BlockPtr {
+    pub fn is_parent(&self, child_block_ptr: BlockPtr) -> bool {
+        self.number == child_block_ptr.number - 1 && self.hash == child_block_ptr.parent_hash
+    }
+}
+
+impl Display for BlockPtr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{number: {}, hash: {}}}", self.number, self.hash)
+    }
 }
