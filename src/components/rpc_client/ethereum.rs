@@ -133,6 +133,8 @@ impl EthereumRPC {
         &self,
         request_data: EthereumContractCall,
     ) -> Result<CallResponse, RPCClientError> {
+        let block_ptr = self.block_ptr.clone().unwrap();
+
         // Emit custom error for type mismatches.
         for (token, kind) in request_data
             .args
@@ -162,7 +164,6 @@ impl EthereumRPC {
                 return Err(RPCClientError::RPCClient(e.to_string()));
             }
         };
-        let block_ptr = self.block_ptr.clone().unwrap();
 
         let block_id = if !self.supports_eip_1898 {
             BlockId::Number(block_ptr.number.into())
