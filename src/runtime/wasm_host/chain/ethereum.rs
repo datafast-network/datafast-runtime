@@ -1,6 +1,6 @@
 use crate::chain::ethereum::asc::EthereumValueKind;
 use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCall;
-use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCall_0_0_4;
+use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCallV4;
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::components::rpc_client::CallRequest;
 use crate::components::rpc_client::CallResponse;
@@ -73,7 +73,7 @@ pub fn ethereum_call(
     let asc_ptr = wasm_ptr as u32;
     let env = fenv.data();
     let call: UnresolvedContractCall = if fenv.data().api_version >= Version::new(0, 0, 4) {
-        asc_get::<_, AscUnresolvedContractCall_0_0_4, _>(&fenv, asc_ptr.into(), 0)?
+        asc_get::<_, AscUnresolvedContractCallV4, _>(&fenv, asc_ptr.into(), 0)?
     } else {
         asc_get::<_, AscUnresolvedContractCall, _>(&fenv, asc_ptr.into(), 0)?
     };

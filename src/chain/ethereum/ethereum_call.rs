@@ -16,7 +16,7 @@ use ethabi::Token;
 use web3::types::Address;
 
 #[repr(C)]
-pub struct AscUnresolvedContractCall_0_0_4 {
+pub struct AscUnresolvedContractCallV4 {
     pub contract_name: AscPtr<AscString>,
     pub contract_address: AscPtr<AscAddress>,
     pub function_name: AscPtr<AscString>,
@@ -25,7 +25,7 @@ pub struct AscUnresolvedContractCall_0_0_4 {
 }
 
 impl_asc_type_struct!(
-    AscUnresolvedContractCall_0_0_4;
+    AscUnresolvedContractCallV4;
     contract_name => AscPtr<AscString>,
     contract_address => AscPtr<AscAddress>,
     function_name => AscPtr<AscString>,
@@ -33,13 +33,13 @@ impl_asc_type_struct!(
     function_args => AscPtr<Array<AscPtr<AscEnum<EthereumValueKind>>>>
 );
 
-impl AscIndexId for AscUnresolvedContractCall_0_0_4 {
+impl AscIndexId for AscUnresolvedContractCallV4 {
     const INDEX_ASC_TYPE_ID: IndexForAscTypeId = IndexForAscTypeId::SmartContractCall;
 }
 
-impl FromAscObj<AscUnresolvedContractCall_0_0_4> for UnresolvedContractCall {
+impl FromAscObj<AscUnresolvedContractCallV4> for UnresolvedContractCall {
     fn from_asc_obj<H: AscHeap + ?Sized>(
-        asc_call: AscUnresolvedContractCall_0_0_4,
+        asc_call: AscUnresolvedContractCallV4,
         heap: &H,
         depth: usize,
     ) -> Result<Self, AscError> {
@@ -75,7 +75,7 @@ pub struct UnresolvedContractCall {
     pub contract_address: Address,
     pub function_name: String,
     pub function_signature: Option<String>,
-    pub function_args: Vec<ethabi::Token>,
+    pub function_args: Vec<Token>,
 }
 
 impl FromAscObj<AscUnresolvedContractCall> for UnresolvedContractCall {
