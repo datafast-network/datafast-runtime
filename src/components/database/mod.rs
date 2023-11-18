@@ -146,7 +146,6 @@ impl Database {
                 ids
             }
             _ => vec![],
-            //Todo check null field
         };
 
         if let Some((relation_table, _field_name)) =
