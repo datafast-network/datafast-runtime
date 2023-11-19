@@ -13,6 +13,7 @@ use crate::runtime::asc::native_types::r#enum::AscEnum;
 use crate::runtime::asc::native_types::string::AscString;
 use ethabi::Function;
 use ethabi::Token;
+use semver::Version;
 use web3::types::Address;
 
 #[repr(C)]
