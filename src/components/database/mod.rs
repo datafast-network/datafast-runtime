@@ -206,11 +206,11 @@ impl Database {
 
 // Draft
 #[derive(Clone)]
-pub struct Agent {
+pub struct DatabaseAgent {
     db: Arc<Mutex<Database>>,
 }
 
-impl From<Database> for Agent {
+impl From<Database> for DatabaseAgent {
     fn from(value: Database) -> Self {
         Self {
             db: Arc::new(Mutex::new(value)),
@@ -218,7 +218,7 @@ impl From<Database> for Agent {
     }
 }
 
-impl Agent {
+impl DatabaseAgent {
     pub fn wasm_send_store_request(
         &self,
         message: StoreOperationMessage,
@@ -260,6 +260,6 @@ impl Agent {
         let db = ExternDB::None;
         let metrics = DatabaseMetrics::new(registry);
         let database = Database { mem, db, metrics };
-        Agent::from(database)
+        DatabaseAgent::from(database)
     }
 }

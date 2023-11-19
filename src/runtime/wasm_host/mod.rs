@@ -20,7 +20,7 @@ use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
 
-use crate::components::database::Agent;
+use crate::components::database::DatabaseAgent;
 use crate::components::rpc_client::RpcAgent;
 use crate::warn;
 pub use asc::AscHost;
@@ -33,7 +33,7 @@ pub struct Env {
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
-    pub db_agent: Agent,
+    pub db_agent: DatabaseAgent,
     pub datasource_name: String,
     pub rpc_agent: RpcAgent,
 }
@@ -41,7 +41,7 @@ pub struct Env {
 pub fn create_wasm_host(
     api_version: Version,
     wasm_bytes: Vec<u8>,
-    db_agent: Agent,
+    db_agent: DatabaseAgent,
     datasource_name: String,
     rpc_agent: RpcAgent,
 ) -> Result<AscHost, WasmHostError> {
@@ -255,7 +255,7 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        let db_agent = Agent::empty(registry);
+        let db_agent = DatabaseAgent::empty(registry);
 
         create_wasm_host(
             api_version,

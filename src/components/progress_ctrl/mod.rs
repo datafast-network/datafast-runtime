@@ -1,21 +1,21 @@
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 
-use super::database::Agent;
+use super::database::DatabaseAgent;
 use crate::common::BlockPtr;
 use crate::common::Source;
 use crate::errors::ProgressCtrlError;
 use crate::messages::SerializedDataMessage;
 
 pub struct ProgressCtrl {
-    db: Agent,
+    db: DatabaseAgent,
     recent_block_ptrs: Vec<BlockPtr>,
     sources: Vec<Source>,
 }
 
 impl ProgressCtrl {
     pub async fn new(
-        db: Agent,
+        db: DatabaseAgent,
         sources: Vec<Source>,
         reorg_threshold: u16,
     ) -> Result<Self, ProgressCtrlError> {

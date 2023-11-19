@@ -9,8 +9,8 @@ mod metrics;
 mod runtime;
 
 use crate::components::rpc_client::RpcAgent;
-use components::database::Agent;
 use components::database::Database;
+use components::database::DatabaseAgent;
 use components::manifest_loader::LoaderTrait;
 use components::manifest_loader::ManifestLoader;
 use components::progress_ctrl::ProgressCtrl;
@@ -47,7 +47,7 @@ async fn main() -> Result<(), SwrError> {
     let subgraph_filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
 
     let database = Database::new(&config, manifest.get_schema().clone(), registry).await?;
-    let db_agent = Agent::from(database);
+    let db_agent = DatabaseAgent::from(database);
 
     let progress_ctrl = ProgressCtrl::new(
         db_agent.clone(),

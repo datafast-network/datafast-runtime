@@ -5,7 +5,7 @@ use super::rpc_client::RpcAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
-use crate::components::database::Agent;
+use crate::components::database::DatabaseAgent;
 use crate::error;
 use crate::errors::SubgraphError;
 use crate::info;
@@ -103,7 +103,7 @@ impl Subgraph {
     pub async fn run_async(
         mut self,
         recv: AsyncReceiver<FilteredDataMessage>,
-        db_agent: Agent,
+        db_agent: DatabaseAgent,
         rpc_agent: RpcAgent,
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
@@ -148,7 +148,7 @@ mod test {
     use super::Subgraph;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
-    use crate::components::database::Agent;
+    use crate::components::database::DatabaseAgent;
     use crate::components::rpc_client::RpcAgent;
     use crate::messages::EthereumFilteredEvent;
     use crate::messages::FilteredDataMessage;
@@ -206,7 +206,7 @@ mod test {
         log::info!("Finished setup");
 
         let (sender, receiver) = kanal::bounded_async(1);
-        let agent = Agent::empty(registry);
+        let agent = DatabaseAgent::empty(registry);
         let rpc_agent = RpcAgent::new_mock();
         let t = task::spawn(subgraph.run_async(receiver, agent, rpc_agent));
 
