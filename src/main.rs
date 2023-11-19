@@ -8,12 +8,12 @@ mod messages;
 mod metrics;
 mod runtime;
 
-use crate::components::rpc_client::RpcAgent;
 use components::database::Database;
 use components::database::DatabaseAgent;
 use components::manifest_loader::LoaderTrait;
 use components::manifest_loader::ManifestLoader;
 use components::progress_ctrl::ProgressCtrl;
+use components::rpc_client::RpcAgent;
 use components::serializer::Serializer;
 use components::source::Source;
 use components::subgraph::Subgraph;
