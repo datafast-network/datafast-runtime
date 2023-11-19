@@ -1,6 +1,5 @@
 use crate::info;
 pub use prometheus::default_registry;
-pub use prometheus::Registry;
 use prometheus::TextEncoder;
 
 use warp::Filter;

@@ -1,6 +1,7 @@
 use crate::chain::ethereum::ethereum_call::EthereumContractCall;
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::BlockPtr;
+use crate::components::rpc_client::metrics::RPCMetrics;
 use crate::components::rpc_client::CallRequest;
 use crate::components::rpc_client::CallResponse;
 use crate::components::rpc_client::RPCCache;
@@ -8,6 +9,7 @@ use crate::components::rpc_client::RPCTrait;
 use crate::error;
 use crate::errors::RPCClientError;
 use async_trait::async_trait;
+use prometheus::Registry;
 use std::collections::HashMap;
 use std::str::FromStr;
 use web3::transports::Http;
@@ -23,12 +25,14 @@ pub struct EthereumRPC {
     supports_eip_1898: bool,
     abis: HashMap<String, ethabi::Contract>,
     cache: RPCCache,
+    metric: RPCMetrics,
 }
 
 impl EthereumRPC {
     pub async fn new(
         url: &str,
         abis: HashMap<String, serde_json::Value>,
+        registry: &Registry,
     ) -> Result<Self, RPCClientError> {
         let client = Web3::new(Http::new(url).unwrap());
         let abis = abis
@@ -53,6 +57,7 @@ impl EthereumRPC {
             supports_eip_1898,
             abis,
             cache: HashMap::new(),
+            metric: RPCMetrics::new(registry, "ethereum"),
         })
     }
 
@@ -251,6 +256,10 @@ impl RPCTrait for EthereumRPC {
             self.cache.remove(&cache_key);
         }
         self.cache.insert(cache_key, call_response);
+    }
+
+    fn get_metric(&self) -> &RPCMetrics {
+        &self.metric
     }
 }
 
