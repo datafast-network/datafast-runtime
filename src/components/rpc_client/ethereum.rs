@@ -272,7 +272,10 @@ mod tests {
     async fn test_contract_call_rpc_client() {
         env_logger::try_init().unwrap_or_default();
         let rpc = "https://eth.llamarpc.com";
-        let abi_file = File::open("./src/tests/abis/ERC20.json").unwrap();
+        let abi_file = File::open(
+            "/Users/vutran/Works/hardbed/subgraph-testing/packages/v0_0_5/abis/ERC20.json",
+        )
+        .unwrap();
         let abi = serde_json::from_reader(abi_file).unwrap();
         let mut abis: HashMap<String, serde_json::Value> = HashMap::new();
         abis.insert("ERC20".to_string(), abi);
