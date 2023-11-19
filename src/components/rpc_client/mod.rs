@@ -6,8 +6,8 @@ use crate::errors::RPCClientError;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
-// use tokio::sync::Mutex;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
+use web3::futures::executor;
 mod ethereum;
 
 #[derive(Clone)]
@@ -73,15 +73,13 @@ impl RpcAgent {
         })
     }
 
-    pub fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
-        #[cfg(test)]
-        {
-            return async_std::task::block_on(
-                self.rpc_client.handle_request(call, self.block_ptr.clone()),
-            );
-        }
-        let handler = tokio::runtime::Handle::current();
-        handler.block_on(self.rpc_client.handle_request(call, self.block_ptr.clone()))
+    pub async fn handle_request(
+        &mut self,
+        call: CallRequest,
+    ) -> Result<CallResponse, RPCClientError> {
+        self.rpc_client
+            .handle_request(call, self.block_ptr.clone())
+            .await
     }
 
     pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
@@ -113,12 +111,14 @@ impl RPCWrapper {
     }
 
     pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
-        let mut rpc_agent = self.rpc_agent.lock().unwrap();
-        rpc_agent.handle_request(call)
+        executor::block_on(async {
+            let mut rpc_agent = self.rpc_agent.lock().await;
+            rpc_agent.handle_request(call).await
+        })
     }
 
     pub fn set_block_ptr(&self, block_ptr: BlockPtr) {
-        let mut rpc_agent = self.rpc_agent.lock().unwrap();
+        let mut rpc_agent = self.rpc_agent.blocking_lock();
         rpc_agent.set_block_ptr(block_ptr);
     }
 
@@ -133,11 +133,14 @@ pub mod tests {
     use super::*;
     use std::fs::File;
     use std::sync::Arc;
-    use std::sync::Mutex;
+    use tokio::sync::Mutex;
 
-    pub async fn create_rpc_client_test() -> RPCWrapper {
+    pub async fn create_rpc_client_test(version: &str) -> RPCWrapper {
         let rpc = "https://eth.llamarpc.com";
-        let abi_file = File::open("./src/tests/abis/aladin.json").unwrap();
+        let abi_file = File::open(format!(
+            "../subgraph-testing/packages/v{version}/abis/ERC20.json"
+        ))
+        .unwrap();
         let abi = serde_json::from_reader(abi_file).unwrap();
         let mut abis: HashMap<String, serde_json::Value> = HashMap::new();
         abis.insert("ERC20".to_string(), abi);

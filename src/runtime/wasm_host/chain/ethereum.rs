@@ -168,24 +168,24 @@ mod test {
         env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
         env_logger::try_init().unwrap_or_default();
 
-        let rt = tokio::runtime::Builder::new_current_thread()
+        tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .unwrap();
+            .unwrap()
+            .block_on(async {
+                let (version, wasm_path) =
+                    get_subgraph_testing_resource(version, "TestEthereumCall");
+                let rpc = create_rpc_client_test(&version.to_string().replace(".", "_")).await;
 
-        rt.block_on(async move {
-            let (version, wasm_path) = get_subgraph_testing_resource(version, "TestEthereumCall");
-            let rpc = create_rpc_client_test().await;
+                let mut host = mock_wasm_host(version, &wasm_path, registry, rpc);
+                let func = host
+                    .instance
+                    .exports
+                    .get_function("testEthereumCall")
+                    .unwrap();
 
-            let mut host = mock_wasm_host(version, &wasm_path, registry, rpc);
-            let func = host
-                .instance
-                .exports
-                .get_function("testEthereumCall")
-                .unwrap();
-
-            func.call(&mut host.store, &[])
-                .expect("Calling function failed!");
-        });
+                func.call(&mut host.store, &[])
+                    .expect("Calling function failed!");
+            });
     }
 }
