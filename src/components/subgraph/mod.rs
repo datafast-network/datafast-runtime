@@ -1,8 +1,8 @@
 mod datasource_wasm_instance;
 mod metrics;
 
+use super::rpc_client::RPCWrapper;
 use crate::chain::ethereum::block::EthereumBlockData;
-use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::components::database::Agent;
@@ -46,17 +46,12 @@ impl Subgraph {
         Ok(())
     }
 
-    fn handle_ethereum_filtered_data(
+    async fn handle_ethereum_filtered_data(
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
     ) -> Result<(), SubgraphError> {
         let mut block_handlers = HashMap::new();
-        let block_ptr = BlockPtr {
-            number: block.number.as_u64(),
-            hash: block.hash.to_string(),
-            parent_hash: block.parent_hash.to_string(),
-        };
         for (source_name, source_instance) in self.sources.iter_mut() {
             let source_block_handlers = source_instance
                 .ethereum_handlers
@@ -64,10 +59,6 @@ impl Subgraph {
                 .keys()
                 .cloned()
                 .collect::<Vec<String>>();
-            source_instance
-                .host
-                .rpc_agent
-                .set_block_ptr(block_ptr.clone());
             block_handlers.insert(source_name.to_owned(), source_block_handlers);
         }
 
@@ -91,7 +82,10 @@ impl Subgraph {
         Ok(())
     }
 
-    fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
+    async fn handle_filtered_data(
+        &mut self,
+        data: FilteredDataMessage,
+    ) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
                 info!(
@@ -101,24 +95,28 @@ impl Subgraph {
                     block => format!("{:?}", block.number)
                 );
 
-                self.handle_ethereum_filtered_data(events, block)
+                self.handle_ethereum_filtered_data(events, block).await
             }
         }
     }
 
     pub async fn run_async(
-        &mut self,
+        mut self,
         recv: AsyncReceiver<FilteredDataMessage>,
         db_agent: Agent,
+        rpc_agent: RPCWrapper,
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
             let block_ptr = msg.get_block_ptr();
+
+            rpc_agent.set_block_ptr(block_ptr.clone()).await;
+
             self.metrics
                 .current_block_number
                 .set(block_ptr.number as i64);
 
             let timer = self.metrics.block_process_duration.start_timer();
-            self.handle_filtered_data(msg)?;
+            self.handle_filtered_data(msg).await?;
             timer.stop_and_record();
             self.metrics.block_process_counter.inc();
 
@@ -214,7 +212,8 @@ mod test {
 
         let (sender, receiver) = kanal::bounded_async(1);
         let agent = Agent::empty(registry);
-        let t = task::spawn(async move { subgraph.run_async(receiver, agent).await });
+        let rpc_agent = RPCWrapper::new_mock();
+        let t = task::spawn(subgraph.run_async(receiver, agent, rpc_agent));
 
         // Test sending block data
         let block_data_msg = FilteredDataMessage::Ethereum {

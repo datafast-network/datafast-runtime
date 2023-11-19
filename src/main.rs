@@ -47,10 +47,10 @@ async fn main() -> Result<(), SwrError> {
     let subgraph_filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
 
     let database = Database::new(&config, manifest.get_schema().clone(), registry).await?;
-    let agent = Agent::from(database);
+    let db_agent = Agent::from(database);
 
     let progress_ctrl = ProgressCtrl::new(
-        agent.clone(),
+        db_agent.clone(),
         manifest.get_sources(),
         config.reorg_threshold,
     )
@@ -63,7 +63,7 @@ async fn main() -> Result<(), SwrError> {
 
     let mut subgraph = Subgraph::new_empty(&config.subgraph_name, subgraph_id.to_owned(), registry);
 
-    let rpc_wrapper = RPCWrapper::new(&config, manifest.get_abis().clone()).await?;
+    let rpc_agent = RPCWrapper::new(&config, manifest.get_abis().clone()).await?;
 
     for datasource in manifest.datasources() {
         let api_version = datasource.mapping.apiVersion.to_owned();
@@ -71,9 +71,9 @@ async fn main() -> Result<(), SwrError> {
         let wasm_host = create_wasm_host(
             api_version,
             wasm_bytes,
-            agent.clone(),
+            db_agent.clone(),
             datasource.name.clone(),
-            rpc_wrapper.clone(),
+            rpc_agent.clone(),
         )?;
         subgraph.create_source(wasm_host, datasource)?;
     }
@@ -87,7 +87,7 @@ async fn main() -> Result<(), SwrError> {
     let serializer_run = serializer.run_async(recv1, sender2);
     let progress_ctrl_run = progress_ctrl.run_async(recv2, sender3);
     let subgraph_filter_run = subgraph_filter.run_async(recv3, sender4);
-    let subgraph_run = subgraph.run_async(recv4, agent);
+    let subgraph_run = subgraph.run_async(recv4, db_agent, rpc_agent);
 
     let results = tokio::join!(
         stream_run,

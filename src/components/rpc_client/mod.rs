@@ -117,8 +117,8 @@ impl RPCWrapper {
         })
     }
 
-    pub fn set_block_ptr(&self, block_ptr: BlockPtr) {
-        let mut rpc_agent = self.rpc_agent.blocking_lock();
+    pub async fn set_block_ptr(&self, block_ptr: BlockPtr) {
+        let mut rpc_agent = self.rpc_agent.lock().await;
         rpc_agent.set_block_ptr(block_ptr);
     }
 
