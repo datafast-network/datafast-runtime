@@ -276,7 +276,9 @@ mod tests {
         let abi = serde_json::from_reader(abi_file).unwrap();
         let mut abis: HashMap<String, serde_json::Value> = HashMap::new();
         abis.insert("ERC20".to_string(), abi);
-        let mut rpc_client = EthereumRPC::new(rpc, abis).await.unwrap();
+        let mut rpc_client = EthereumRPC::new(rpc, abis, &Registry::default())
+            .await
+            .unwrap();
         let block_ptr = BlockPtr {
             number: 18362011,
             hash: "0xd5f60b37e43ee04d875dc50a3587915863eba289f88a133cfbcbe79733e3bee8".to_string(),

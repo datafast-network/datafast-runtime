@@ -208,6 +208,7 @@ impl RpcAgent {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use prometheus::Registry;
     use std::fs::File;
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -222,7 +223,9 @@ pub mod tests {
         let mut abis: HashMap<String, serde_json::Value> = HashMap::new();
         abis.insert("ERC20".to_string(), abi);
 
-        let client = ethereum::EthereumRPC::new(rpc, abis).await.unwrap();
+        let client = ethereum::EthereumRPC::new(rpc, abis, &Registry::default())
+            .await
+            .unwrap();
         let block_ptr = BlockPtr {
             number: 18362011,
             hash: "0xd5f60b37e43ee04d875dc50a3587915863eba289f88a133cfbcbe79733e3bee8".to_string(),
