@@ -1,10 +1,10 @@
+use super::types::CallRequest;
+use super::types::CallRequestContext;
+use super::types::CallResponse;
+use super::RPCTrait;
 use crate::chain::ethereum::ethereum_call::EthereumContractCall;
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::BlockPtr;
-use crate::components::rpc_client::CallRequest;
-use crate::components::rpc_client::CallResponse;
-use crate::components::rpc_client::RPCCache;
-use crate::components::rpc_client::RPCTrait;
 use crate::error;
 use crate::errors::RPCClientError;
 use async_trait::async_trait;
@@ -230,12 +230,11 @@ impl EthereumRPC {
 impl RPCTrait for EthereumRPC {
     async fn handle_request(
         &mut self,
-        call: CallRequest,
-        block_ptr: BlockPtr,
+        call: CallRequestContext,
     ) -> Result<CallResponse, RPCClientError> {
-        match call {
+        match call.call_request {
             CallRequest::EthereumContractCall(data) => {
-                self.handle_contract_call(data, block_ptr).await
+                self.handle_contract_call(data, call.block_ptr).await
             }
         }
     }
@@ -272,13 +271,14 @@ mod tests {
             function_signature: None,
             function_args: vec![],
         });
+        let call_context = CallRequestContext {
+            call_request,
+            block_ptr,
+        };
 
         let start = tokio::time::Instant::now();
 
-        let result = rpc_client
-            .handle_request(call_request, block_ptr)
-            .await
-            .unwrap();
+        let result = rpc_client.handle_request(call_context).await.unwrap();
         match result {
             CallResponse::EthereumContractCall(Some(tokens)) => {
                 assert_eq!(tokens.len(), 1);

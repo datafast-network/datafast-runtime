@@ -1,4 +1,3 @@
-use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
@@ -10,8 +9,10 @@ use tokio::sync::Mutex;
 use web3::futures::executor;
 
 mod ethereum;
+mod types;
 
-type RPCCache = HashMap<String, CallResponse>;
+pub use types::*;
+
 #[derive(Clone)]
 pub enum RPCChain {
     None,
@@ -22,11 +23,10 @@ pub enum RPCChain {
 impl RPCTrait for RPCChain {
     async fn handle_request(
         &mut self,
-        request: CallRequest,
-        block_ptr: BlockPtr,
+        request: CallRequestContext,
     ) -> Result<CallResponse, RPCClientError> {
         match self {
-            RPCChain::Ethereum(client) => client.handle_request(request, block_ptr).await,
+            RPCChain::Ethereum(client) => client.handle_request(request).await,
             RPCChain::None => Err(RPCClientError::RPCClient(
                 "RPCClient is not configured".to_string(),
             )),
@@ -34,22 +34,11 @@ impl RPCTrait for RPCChain {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum CallRequest {
-    EthereumContractCall(UnresolvedContractCall),
-}
-
-#[derive(Clone, Debug)]
-pub enum CallResponse {
-    EthereumContractCall(Option<Vec<ethabi::Token>>),
-}
-
 #[async_trait]
 pub trait RPCTrait {
     async fn handle_request(
         &mut self,
-        call: CallRequest,
-        block_ptr: BlockPtr,
+        call: CallRequestContext,
     ) -> Result<CallResponse, RPCClientError>;
 }
 
@@ -81,18 +70,18 @@ impl RpcClient {
         &mut self,
         call: CallRequest,
     ) -> Result<CallResponse, RPCClientError> {
-        let cache_key = self.get_cache_key(&call, &self.block_ptr);
-        if self.cache.contains_key(&cache_key) {
-            return Ok(self.cache.get(&cache_key).unwrap().clone());
+        let call_context = CallRequestContext {
+            block_ptr: self.block_ptr.clone(),
+            call_request: call,
+        };
+        match self.cache.get(&call_context) {
+            None => {
+                let result = self.rpc_client.handle_request(call_context.clone()).await?;
+                self.cache.insert(call_context, result.clone());
+                Ok(result)
+            }
+            Some(result) => Ok(result.clone()),
         }
-
-        let result = self
-            .rpc_client
-            .handle_request(call, self.block_ptr.clone())
-            .await?;
-
-        self.cache.insert(cache_key, result.clone());
-        Ok(result)
     }
 
     pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
@@ -105,26 +94,6 @@ impl RpcClient {
             block_ptr: BlockPtr::default(),
             cache: HashMap::new(),
         }
-    }
-
-    fn get_cache_key(&self, request: &CallRequest, block_ptr: &BlockPtr) -> String {
-        let mut keys = vec![block_ptr.number.to_string(), block_ptr.hash.clone()];
-        match request {
-            CallRequest::EthereumContractCall(call) => {
-                //Key = block_number + block_hash + contract_name + contract_address + function_name + function_args
-                keys.push(call.contract_name.clone());
-                keys.push(format!("{:?}", call.contract_address));
-                keys.push(call.function_name.clone());
-                let args = call
-                    .function_args
-                    .iter()
-                    .map(|token| token.to_string())
-                    .collect::<Vec<String>>()
-                    .join("_");
-                keys.push(args);
-            }
-        }
-        hex::encode(keys.join(""))
     }
 }
 

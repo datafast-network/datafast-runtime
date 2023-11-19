@@ -77,7 +77,6 @@ pub fn ethereum_call(
     } else {
         asc_get::<_, AscUnresolvedContractCall, _>(&fenv, asc_ptr.into(), 0)?
     };
-
     let request = CallRequest::EthereumContractCall(call);
     let result = env.rpc_agent.handle_request(request).map_err(|e| {
         error!(
