@@ -21,17 +21,24 @@ pub struct EthereumRPC {
     client: Web3<Http>,
     supports_eip_1898: bool,
     abis: HashMap<String, ethabi::Contract>,
-    block_ptr: Option<BlockPtr>,
-    //TODO: add cache result into memory or db
+    cache: HashMap<String, CallResponse>,
 }
 
 impl EthereumRPC {
     pub async fn new(
         url: &str,
-        abis: HashMap<String, ethabi::Contract>,
+        abis: HashMap<String, serde_json::Value>,
     ) -> Result<Self, RPCClientError> {
         let client = Web3::new(Http::new(url).unwrap());
-
+        let abis = abis
+            .iter()
+            .map(|(contract_name, abi)| {
+                (
+                    contract_name.clone(),
+                    serde_json::from_value(abi.clone()).expect("invalid abi"),
+                )
+            })
+            .collect();
         let supports_eip_1898 = client
             .web3()
             .client_version()
@@ -43,33 +50,43 @@ impl EthereumRPC {
             client,
             supports_eip_1898,
             abis,
-            block_ptr: None,
+            cache: HashMap::new(),
         })
     }
 
     fn handle_call_request(
         &self,
         call: UnresolvedContractCall,
-    ) -> Result<EthereumContractCall, RPCClientError> {
-        if self.block_ptr.is_none() {
-            return Err(RPCClientError::RPCClient(
-                "Block pointer is not set".to_string(),
-            ));
-        }
+        block_ptr: BlockPtr,
+    ) -> Result<(String, EthereumContractCall), RPCClientError> {
+        let contract_name = call.contract_name;
+        let function_name = call.function_name;
+        let contract_address = call.contract_address;
+        let args = call
+            .function_args
+            .iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<String>>();
+
+        let key = hex::encode(format!(
+            "{}{}{}{}{}{}",
+            contract_name,
+            function_name,
+            contract_address,
+            args.join(","),
+            block_ptr.clone().number,
+            block_ptr.clone().hash
+        ));
 
         //get contract abi
         let abi = self
             .abis
             .iter()
-            .find(|(name, contract)| **name == call.contract_name)
+            .find(|(name, _)| **name == contract_name)
             .ok_or_else(|| {
-                RPCClientError::RPCClient(format!("Contract \"{}\" not found", call.contract_name))
+                RPCClientError::RPCClient(format!("Contract \"{}\" not found", contract_name))
             })?
             .1;
-
-        let function_name = call.function_name;
-        let contract_name = call.contract_name;
-        let contract_address = call.contract_address;
 
         let function_call = match call.function_signature {
             // Behavior for apiVersion < 0.0.4: look up function by name; for overloaded
@@ -122,19 +139,21 @@ impl EthereumRPC {
                 })?,
         };
 
-        Ok(EthereumContractCall {
-            address: contract_address,
-            function: function_call.clone(),
-            args: call.function_args,
-        })
+        Ok((
+            key,
+            EthereumContractCall {
+                address: contract_address,
+                function: function_call.clone(),
+                args: call.function_args,
+            },
+        ))
     }
 
     async fn contract_call(
-        &self,
+        &mut self,
         request_data: EthereumContractCall,
+        block_ptr: BlockPtr,
     ) -> Result<CallResponse, RPCClientError> {
-        let block_ptr = self.block_ptr.clone().unwrap();
-
         // Emit custom error for type mismatches.
         for (token, kind) in request_data
             .args
@@ -164,7 +183,7 @@ impl EthereumRPC {
                 return Err(RPCClientError::RPCClient(e.to_string()));
             }
         };
-
+        // let key =
         let block_id = if !self.supports_eip_1898 {
             BlockId::Number(block_ptr.number.into())
         } else {
@@ -182,6 +201,7 @@ impl EthereumRPC {
             max_priority_fee_per_gas: None,
             transaction_type: None,
         };
+
         let result = self
             .client
             .eth()
@@ -199,6 +219,7 @@ impl EthereumRPC {
                 );
                 RPCClientError::RPCClient(e.to_string())
             })?;
+
         let data_result = request_data
             .function
             .decode_output(&result.0)
@@ -214,23 +235,76 @@ impl EthereumRPC {
                 );
                 RPCClientError::RPCClient(e.to_string())
             })?;
-
-        Ok(CallResponse::EthereumContractCall(Some(data_result)))
+        let response = CallResponse::EthereumContractCall(Some(data_result));
+        self.cache
+            .insert(request_data.function.name.clone(), response.clone());
+        Ok(response)
     }
 }
 
 #[async_trait]
 impl RPCTrait for EthereumRPC {
-    async fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
+    async fn handle_request(
+        &mut self,
+        call: CallRequest,
+        block_ptr: BlockPtr,
+    ) -> Result<CallResponse, RPCClientError> {
         match call {
             CallRequest::EthereumContractCall(data) => {
-                let request_data = self.handle_call_request(data)?;
-                self.contract_call(request_data).await
+                let (key, request_data) = self.handle_call_request(data, block_ptr.clone())?;
+
+                if let Some(response) = self.cache.get(&key) {
+                    return Ok(response.clone());
+                }
+
+                self.contract_call(request_data, block_ptr).await
             }
         }
     }
+}
 
-    fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
-        self.block_ptr = Some(block_ptr)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::components::rpc_client::RpcAgent;
+    use std::fs::File;
+
+    #[tokio::test]
+    async fn test_contract_call_rpc_client() {
+        let rpc = "https://eth.llamarpc.com";
+        let abi_file = File::open("./src/tests/abis/aladin.json").unwrap();
+        let abi = ethabi::Contract::load(abi_file).unwrap();
+        let mut abis = HashMap::new();
+        abis.insert("ERC20".to_string(), abi);
+        let mut rpc_client = RpcAgent::new_mock();
+        let block_ptr = BlockPtr {
+            number: 18362011,
+            hash: "0xd5f60b37e43ee04d875dc50a3587915863eba289f88a133cfbcbe79733e3bee8".to_string(),
+            parent_hash: "0x12bc04af20d07664aae1e09846aa0b1bf344b42f4c1dbb9b2e25c3a4c1dc36f8"
+                .to_string(),
+        };
+        // rpc_client
+        let call_request = CallRequest::EthereumContractCall(UnresolvedContractCall {
+            contract_name: "ERC20".to_string(),
+            contract_address: web3::types::Address::from_str(
+                "0x95a41fb80ca70306e9ecf4e51cea31bd18379c18",
+            )
+            .unwrap(),
+            function_name: "symbol".to_string(),
+            function_signature: None, //Some("symbol():(bytes32)".to_string()),
+            function_args: vec![],
+        });
+
+        let start = tokio::time::Instant::now();
+
+        let result = rpc_client.handle_request(call_request).unwrap();
+        match result {
+            CallResponse::EthereumContractCall(Some(tokens)) => {
+                assert_eq!(tokens.len(), 1);
+                assert_eq!(tokens[0].to_string(), "ADN");
+            }
+            _ => panic!("should not happen"),
+        }
+        log::info!("time: {:?}", start.elapsed());
     }
 }

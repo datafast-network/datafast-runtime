@@ -8,7 +8,7 @@ mod messages;
 mod metrics;
 mod runtime;
 
-use crate::components::rpc_client::RPCChain;
+use crate::components::rpc_client::RpcAgent;
 use components::database::Agent;
 use components::database::Database;
 use components::manifest_loader::LoaderTrait;
@@ -62,17 +62,8 @@ async fn main() -> Result<(), SwrError> {
         .unwrap_or(config.subgraph_name.clone());
 
     let mut subgraph = Subgraph::new_empty(&config.subgraph_name, subgraph_id.to_owned(), registry);
-    let abis = manifest
-        .get_abis()
-        .iter()
-        .map(|(source_name, abi)| {
-            (
-                source_name.clone(),
-                serde_json::from_value(abi.clone()).unwrap(),
-            )
-        })
-        .collect();
-    let rpc_client = RPCChain::new(&config.rpc_endpoint, config.chain.clone(), abis).await?;
+
+    let rpc_client = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
 
     for datasource in manifest.datasources() {
         let api_version = datasource.mapping.apiVersion.to_owned();

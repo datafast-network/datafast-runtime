@@ -79,7 +79,7 @@ pub fn ethereum_call(
     };
 
     let request = CallRequest::EthereumContractCall(call);
-    let result = env.rpc_client.handle_request(request).map_err(|e| {
+    let result = env.rpc_agent.handle_request(request).map_err(|e| {
         error!(
             ethereum_call,
             "Contract function call failed";

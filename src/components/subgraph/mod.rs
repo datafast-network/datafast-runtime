@@ -66,7 +66,7 @@ impl Subgraph {
                 .collect::<Vec<String>>();
             source_instance
                 .host
-                .rpc_client
+                .rpc_agent
                 .set_block_ptr(block_ptr.clone());
             block_handlers.insert(source_name.to_owned(), source_block_handlers);
         }
