@@ -226,13 +226,6 @@ impl EthereumRPC {
         let response = CallResponse::EthereumContractCall(Some(data_result));
         Ok(response)
     }
-
-    fn set_cache(&mut self, key: String, response: CallResponse) {
-        if self.cache.get(&key).is_some() {
-            self.cache.remove(&key);
-        }
-        self.cache.insert(key, response);
-    }
 }
 
 #[async_trait]
@@ -254,7 +247,10 @@ impl RPCTrait for EthereumRPC {
     }
 
     fn set_cache(&mut self, call_response: CallResponse, cache_key: String) {
-        self.set_cache(cache_key, call_response);
+        if self.cache.get(&cache_key).is_some() {
+            self.cache.remove(&cache_key);
+        }
+        self.cache.insert(cache_key, call_response);
     }
 }
 

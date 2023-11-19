@@ -32,7 +32,7 @@ impl RPCTrait for RPCChain {
         match self {
             RPCChain::Ethereum(client) => {
                 let response = client.handle_request(request, block_ptr).await?;
-                self.set_cache(response.clone(), cache_key);
+                client.set_cache(response.clone(), cache_key);
                 Ok(response)
             }
             RPCChain::None => Err(RPCClientError::RPCClient(
