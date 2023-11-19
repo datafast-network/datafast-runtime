@@ -1,3 +1,42 @@
+use crate::chain::ethereum::asc::EthereumValueKind;
+use crate::errors::AscError;
+use crate::runtime::asc::base::AscPtr;
+use crate::runtime::asc::native_types::r#enum::AscEnum;
+use crate::runtime::asc::native_types::r#enum::AscEnumArray;
+use crate::runtime::asc::native_types::string::AscString;
+use crate::runtime::asc::native_types::Uint8Array;
+use crate::runtime::wasm_host::Env;
+use wasmer::FunctionEnvMut;
+
+pub fn ethereum_encode(
+    _fenv: FunctionEnvMut<Env>,
+    _token: AscPtr<AscEnum<EthereumValueKind>>,
+) -> Result<AscPtr<Uint8Array>, AscError> {
+    todo!()
+}
+
+pub fn ethereum_decode(
+    _fenv: FunctionEnvMut<Env>,
+    _types_ptr: AscPtr<AscString>,
+    _data_ptr: AscPtr<Uint8Array>,
+) -> Result<AscPtr<AscEnum<EthereumValueKind>>, AscError> {
+    todo!()
+}
+
+pub fn crypto_keccak_256(
+    _fenv: FunctionEnvMut<Env>,
+    _input_ptr: AscPtr<Uint8Array>,
+) -> Result<AscPtr<Uint8Array>, AscError> {
+    todo!()
+}
+
+pub fn ethereum_call(
+    _fenv: FunctionEnvMut<Env>,
+    _wasm_ptr: i32,
+) -> Result<AscEnumArray<EthereumValueKind>, AscError> {
+    todo!()
+}
+
 #[cfg(test)]
 mod test {
     use crate::chain::ethereum::block::EthereumBlockData;
