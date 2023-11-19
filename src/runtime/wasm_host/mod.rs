@@ -21,7 +21,7 @@ use wasmer::Store;
 use wasmer::TypedFunction;
 
 use crate::components::database::Agent;
-use crate::components::rpc_client::RPCWrapper;
+use crate::components::rpc_client::RpcAgent;
 use crate::warn;
 pub use asc::AscHost;
 
@@ -35,7 +35,7 @@ pub struct Env {
     pub arena_free_size: i32,
     pub db_agent: Agent,
     pub datasource_name: String,
-    pub rpc_agent: RPCWrapper,
+    pub rpc_agent: RpcAgent,
 }
 
 pub fn create_wasm_host(
@@ -43,7 +43,7 @@ pub fn create_wasm_host(
     wasm_bytes: Vec<u8>,
     db_agent: Agent,
     datasource_name: String,
-    rpc_agent: RPCWrapper,
+    rpc_agent: RpcAgent,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -245,7 +245,7 @@ pub mod test {
         api_version: Version,
         wasm_path: &str,
         registry: &Registry,
-        rpc_agent: RPCWrapper,
+        rpc_agent: RpcAgent,
     ) -> AscHost {
         ::log::warn!(
             r#"New test-host-instance being created with:

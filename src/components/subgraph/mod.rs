@@ -1,7 +1,7 @@
 mod datasource_wasm_instance;
 mod metrics;
 
-use super::rpc_client::RPCWrapper;
+use super::rpc_client::RpcAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
@@ -104,7 +104,7 @@ impl Subgraph {
         mut self,
         recv: AsyncReceiver<FilteredDataMessage>,
         db_agent: Agent,
-        rpc_agent: RPCWrapper,
+        rpc_agent: RpcAgent,
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
             let block_ptr = msg.get_block_ptr();
@@ -149,7 +149,7 @@ mod test {
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::components::database::Agent;
-    use crate::components::rpc_client::RPCWrapper;
+    use crate::components::rpc_client::RpcAgent;
     use crate::messages::EthereumFilteredEvent;
     use crate::messages::FilteredDataMessage;
     use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
@@ -178,12 +178,7 @@ mod test {
             let (version, wasm_path) = get_subgraph_testing_resource(version, "TestDataSource");
 
             let id = source_name.to_string();
-            let host = mock_wasm_host(
-                version.clone(),
-                &wasm_path,
-                registry,
-                RPCWrapper::new_mock(),
-            );
+            let host = mock_wasm_host(version.clone(), &wasm_path, registry, RpcAgent::new_mock());
             let mut ethereum_handlers = EthereumHandlers {
                 block: HashMap::new(),
                 events: HashMap::new(),
@@ -212,7 +207,7 @@ mod test {
 
         let (sender, receiver) = kanal::bounded_async(1);
         let agent = Agent::empty(registry);
-        let rpc_agent = RPCWrapper::new_mock();
+        let rpc_agent = RpcAgent::new_mock();
         let t = task::spawn(subgraph.run_async(receiver, agent, rpc_agent));
 
         // Test sending block data

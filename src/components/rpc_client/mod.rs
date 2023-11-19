@@ -51,12 +51,12 @@ pub trait RPCTrait {
     ) -> Result<CallResponse, RPCClientError>;
 }
 
-pub struct RpcAgent {
+pub struct RpcClient {
     rpc_client: RPCChain,
     block_ptr: BlockPtr,
 }
 
-impl RpcAgent {
+impl RpcClient {
     async fn new(
         config: &Config,
         abis: HashMap<String, serde_json::Value>,
@@ -95,36 +95,36 @@ impl RpcAgent {
 }
 
 #[derive(Clone)]
-pub struct RPCWrapper {
-    rpc_agent: Arc<Mutex<RpcAgent>>,
+pub struct RpcAgent {
+    client: Arc<Mutex<RpcClient>>,
 }
 
-impl RPCWrapper {
+impl RpcAgent {
     pub async fn new(
         config: &Config,
         abis: HashMap<String, serde_json::Value>,
     ) -> Result<Self, RPCClientError> {
-        let rpc_client = RpcAgent::new(config, abis).await?;
+        let rpc_client = RpcClient::new(config, abis).await?;
         Ok(Self {
-            rpc_agent: Arc::new(Mutex::new(rpc_client)),
+            client: Arc::new(Mutex::new(rpc_client)),
         })
     }
 
     pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
         executor::block_on(async {
-            let mut rpc_agent = self.rpc_agent.lock().await;
+            let mut rpc_agent = self.client.lock().await;
             rpc_agent.handle_request(call).await
         })
     }
 
     pub async fn set_block_ptr(&self, block_ptr: BlockPtr) {
-        let mut rpc_agent = self.rpc_agent.lock().await;
+        let mut rpc_agent = self.client.lock().await;
         rpc_agent.set_block_ptr(block_ptr);
     }
 
     pub fn new_mock() -> Self {
-        let agent = Arc::new(Mutex::new(RpcAgent::new_mock()));
-        Self { rpc_agent: agent }
+        let client = Arc::new(Mutex::new(RpcClient::new_mock()));
+        Self { client }
     }
 }
 
@@ -135,7 +135,7 @@ pub mod tests {
     use std::sync::Arc;
     use tokio::sync::Mutex;
 
-    pub async fn create_rpc_client_test(version: &str) -> RPCWrapper {
+    pub async fn create_rpc_client_test(version: &str) -> RpcAgent {
         let rpc = "https://eth.llamarpc.com";
         let abi_file = File::open(format!(
             "../subgraph-testing/packages/v{version}/abis/ERC20.json"
@@ -153,13 +153,13 @@ pub mod tests {
                 .to_string(),
         };
         let chain = RPCChain::Ethereum(client);
-        let agent = RpcAgent {
+        let client = RpcClient {
             rpc_client: chain,
             block_ptr,
         };
 
-        RPCWrapper {
-            rpc_agent: Arc::new(Mutex::new(agent)),
+        RpcAgent {
+            client: Arc::new(Mutex::new(client)),
         }
     }
 }

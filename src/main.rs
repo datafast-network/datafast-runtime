@@ -8,7 +8,7 @@ mod messages;
 mod metrics;
 mod runtime;
 
-use crate::components::rpc_client::RPCWrapper;
+use crate::components::rpc_client::RpcAgent;
 use components::database::Agent;
 use components::database::Database;
 use components::manifest_loader::LoaderTrait;
@@ -63,7 +63,7 @@ async fn main() -> Result<(), SwrError> {
 
     let mut subgraph = Subgraph::new_empty(&config.subgraph_name, subgraph_id.to_owned(), registry);
 
-    let rpc_agent = RPCWrapper::new(&config, manifest.get_abis().clone()).await?;
+    let rpc_agent = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
 
     for datasource in manifest.datasources() {
         let api_version = datasource.mapping.apiVersion.to_owned();
