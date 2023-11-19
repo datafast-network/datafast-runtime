@@ -102,20 +102,14 @@ impl SchemaLookup {
         field_name: &str,
     ) -> Option<(EntityType, FieldName)> {
         let entity = self.schema.get(entity_name);
-        if entity.is_none() {
-            return None;
-        }
+        entity?;
         let field = entity.unwrap().get(field_name);
 
-        if field.is_none() {
-            return None;
-        }
+        field?;
 
         let field = field.unwrap();
 
-        if field.relation.is_none() {
-            return None;
-        }
+        field.relation.as_ref()?;
         let relation = field.relation.clone().unwrap();
         Some(relation)
     }

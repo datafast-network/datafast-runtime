@@ -175,7 +175,7 @@ mod test {
             .block_on(async {
                 let (version, wasm_path) =
                     get_subgraph_testing_resource(version, "TestEthereumCall");
-                let rpc = create_rpc_client_test(&version.to_string().replace(".", "_")).await;
+                let rpc = create_rpc_client_test(&version.to_string().replace('.', "_")).await;
 
                 let mut host = mock_wasm_host(version, &wasm_path, registry, rpc);
                 let func = host
