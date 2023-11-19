@@ -6,8 +6,8 @@ use crate::errors::RPCClientError;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-
+// use tokio::sync::Mutex;
+use std::sync::Mutex;
 mod ethereum;
 
 #[derive(Clone)]
@@ -74,8 +74,14 @@ impl RpcAgent {
     }
 
     pub fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
-        let handle = tokio::runtime::Handle::current();
-        handle.block_on(self.rpc_client.handle_request(call, self.block_ptr.clone()))
+        #[cfg(test)]
+        {
+            return async_std::task::block_on(
+                self.rpc_client.handle_request(call, self.block_ptr.clone()),
+            );
+        }
+        let handler = tokio::runtime::Handle::current();
+        handler.block_on(self.rpc_client.handle_request(call, self.block_ptr.clone()))
     }
 
     pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
@@ -107,17 +113,54 @@ impl RPCWrapper {
     }
 
     pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
-        let mut rpc_agent = self.rpc_agent.blocking_lock();
+        let mut rpc_agent = self.rpc_agent.lock().unwrap();
         rpc_agent.handle_request(call)
     }
 
-    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
-        let mut rpc_agent = self.rpc_agent.blocking_lock();
+    pub fn set_block_ptr(&self, block_ptr: BlockPtr) {
+        let mut rpc_agent = self.rpc_agent.lock().unwrap();
         rpc_agent.set_block_ptr(block_ptr);
     }
 
     pub fn new_mock() -> Self {
         let agent = Arc::new(Mutex::new(RpcAgent::new_mock()));
         Self { rpc_agent: agent }
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use async_std::prelude::FutureExt;
+    use std::fs::File;
+    use std::sync::Arc;
+    use std::sync::Mutex;
+
+    pub fn create_rpc_client_test() -> RPCWrapper {
+        env_logger::try_init().unwrap_or_default();
+        let rpc = "https://eth.llamarpc.com";
+        let abi_file = File::open("./src/tests/abis/aladin.json").unwrap();
+        let abi = serde_json::from_reader(abi_file).unwrap();
+        let mut abis: HashMap<String, serde_json::Value> = HashMap::new();
+        abis.insert("ERC20".to_string(), abi);
+        let runtime = tokio::runtime::Handle::current();
+        let client = runtime
+            .block_on(ethereum::EthereumRPC::new(rpc, abis))
+            .unwrap();
+        let block_ptr = BlockPtr {
+            number: 18362011,
+            hash: "0xd5f60b37e43ee04d875dc50a3587915863eba289f88a133cfbcbe79733e3bee8".to_string(),
+            parent_hash: "0x12bc04af20d07664aae1e09846aa0b1bf344b42f4c1dbb9b2e25c3a4c1dc36f8"
+                .to_string(),
+        };
+        let chain = RPCChain::Ethereum(client);
+        let agent = RpcAgent {
+            rpc_client: chain,
+            block_ptr,
+        };
+
+        RPCWrapper {
+            rpc_agent: Arc::new(Mutex::new(agent)),
+        }
     }
 }

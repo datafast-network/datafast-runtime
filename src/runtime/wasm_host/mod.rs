@@ -101,6 +101,13 @@ pub fn create_wasm_host(
         "json" => {
             "json.toBigInt" =>Function::new_typed_with_env(&mut store, &env, json::json_to_bigint),
         },
+        "ethereum" => {
+            //Ethereum fn
+            "ethereum.encode" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_encode),
+            "ethereum.decode" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_decode),
+            "ethereum.call" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_call),
+            "crypto.keccak256" => Function::new_typed_with_env(&mut store, &env, chain::ethereum::crypto_keccak_256),
+        },
         "index" => { //index for subgraph version <= 4
             "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
             "store.get" => Function::new_typed_with_env(&mut store, &env, store::store_get),
@@ -236,6 +243,7 @@ pub fn create_wasm_host(
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use crate::components::rpc_client::tests::create_rpc_client_test;
     use prometheus::Registry;
     use std::path::PathBuf;
 
@@ -249,12 +257,15 @@ pub mod test {
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
         let db_agent = Agent::empty(registry);
+        // let handler = tokio::runtime::Handle::try_current();
+        let rpc_agent = create_rpc_client_test();
+
         create_wasm_host(
             api_version,
             wasm_bytes,
             db_agent,
             "Test".to_string(),
-            RPCWrapper::new_mock(),
+            rpc_agent,
         )
         .unwrap()
     }
@@ -270,6 +281,7 @@ pub mod test {
             "../subgraph-testing/packages/v{version_as_package_dir}/build/{datasource_name}/{datasource_name}.wasm"
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
+
         (version, wasm_path)
     }
 }

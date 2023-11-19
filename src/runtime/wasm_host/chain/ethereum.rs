@@ -153,4 +153,6 @@ mod test {
         let expected_str = "block_number=153453, tx_hash=0x65077e1060e4d159d053afd8f3edc6fd1f56a06b94aab2987607e6850c9d5af4, event_address=0x388c818ca8b9251b393131c08a736a67ccb19297";
         assert_eq!(returned_str, expected_str);
     });
+
+    host_fn_test!("ethereum_call", test_ethereum_call, host {});
 }
