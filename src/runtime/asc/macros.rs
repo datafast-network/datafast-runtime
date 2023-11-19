@@ -7,7 +7,7 @@ macro_rules! impl_asc_type {
                     Ok(self.to_le_bytes().to_vec())
                 }
 
-                fn from_asc_bytes(asc_obj: &[u8], _api_version: &semver::Version) -> Result<Self, AscError> {
+                fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, AscError> {
                     let bytes = asc_obj.try_into().map_err(|_| {
                         AscError::Plain(format!("Incorrect size for {}. Expected {}, got {},", stringify!($T),
                             std::mem::size_of::<Self>(),
@@ -82,7 +82,7 @@ macro_rules! impl_asc_type_struct {
 
             #[allow(unused_variables)]
             #[allow(unused_assignments)]
-            fn from_asc_bytes(asc_obj: &[u8], api_version: &semver::Version) -> Result<Self, $crate::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, $crate::errors::AscError> {
                 // Sanity check
                 let content_size = std::mem::size_of::<Self>();
                 let aligned_size = $crate::runtime::asc::base::padding_to_16(content_size);
@@ -174,7 +174,7 @@ macro_rules! impl_asc_type_struct {
 
             #[allow(unused_variables)]
             #[allow(unused_assignments)]
-            fn from_asc_bytes(asc_obj: &[u8], api_version: &semver::Version) -> Result<Self, $crate::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, $crate::errors::AscError> {
                 // Sanity check
                 let content_size = std::mem::size_of::<Self>();
                 let aligned_size = $crate::runtime::asc::base::padding_to_16(content_size);
@@ -222,7 +222,7 @@ macro_rules! impl_asc_type_enum {
                 discriminant.to_asc_bytes()
             }
 
-            fn from_asc_bytes(asc_obj: &[u8], _api_version: &semver::Version) -> Result<Self, $crate::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8], _api_version: &Version) -> Result<Self, $crate::errors::AscError> {
                 let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
                     .map_err(|_| $crate::errors::AscError::Plain("invalid Kind".to_string()))?;
                 let discriminant = u32::from_le_bytes(u32_bytes);
@@ -244,7 +244,7 @@ macro_rules! impl_asc_type_enum {
                 }
             }
 
-            fn from_asc_bytes(asc_obj: &[u8], api_version: &semver::Version) -> Result<Self, $crate::errors::AscError> {
+            fn from_asc_bytes(asc_obj: &[u8], api_version: &Version) -> Result<Self, $crate::errors::AscError> {
                 let u32_bytes = ::std::convert::TryFrom::try_from(asc_obj)
                     .map_err(|_| $crate::errors::AscError::Plain("invalid enum type".to_string()))?;
                 let discriminant = u32::from_le_bytes(u32_bytes);
