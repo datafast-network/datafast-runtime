@@ -269,6 +269,7 @@ mod tests {
     use super::*;
     use std::fs::File;
 
+    #[tokio::test]
     async fn test_contract_call_rpc_client() {
         env_logger::try_init().unwrap_or_default();
         let rpc = "https://eth.llamarpc.com";
@@ -312,14 +313,5 @@ mod tests {
             _ => panic!("should not happen"),
         }
         log::info!("time: {:?}", start.elapsed());
-    }
-
-    #[rstest::rstest]
-    fn test_call_rstest() {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        rt.block_on(test_contract_call_rpc_client());
     }
 }
