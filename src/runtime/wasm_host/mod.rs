@@ -20,7 +20,8 @@ use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
 
-use crate::components::database::Agent;
+use crate::components::database::DatabaseAgent;
+use crate::components::rpc_client::RpcAgent;
 use crate::warn;
 pub use asc::AscHost;
 
@@ -32,15 +33,17 @@ pub struct Env {
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
-    pub db_agent: Agent,
+    pub db_agent: DatabaseAgent,
     pub datasource_name: String,
+    pub rpc_agent: RpcAgent,
 }
 
 pub fn create_wasm_host(
     api_version: Version,
     wasm_bytes: Vec<u8>,
-    db_agent: Agent,
+    db_agent: DatabaseAgent,
     datasource_name: String,
+    rpc_agent: RpcAgent,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -56,6 +59,7 @@ pub fn create_wasm_host(
             arena_free_size: 0,
             db_agent: db_agent.clone(),
             datasource_name,
+            rpc_agent: rpc_agent.clone(),
         },
     );
 
@@ -97,6 +101,13 @@ pub fn create_wasm_host(
         "json" => {
             "json.toBigInt" =>Function::new_typed_with_env(&mut store, &env, json::json_to_bigint),
         },
+        "ethereum" => {
+            //Ethereum fn
+            "ethereum.encode" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_encode),
+            "ethereum.decode" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_decode),
+            "ethereum.call" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_call),
+            "crypto.keccak256" => Function::new_typed_with_env(&mut store, &env, chain::ethereum::crypto_keccak_256),
+        },
         "index" => { //index for subgraph version <= 4
             "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
             "store.get" => Function::new_typed_with_env(&mut store, &env, store::store_get),
@@ -134,11 +145,6 @@ pub fn create_wasm_host(
             "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_times),
             "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_divided_by),
             "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
-            //Ethereum fn
-            "ethereum.encode" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_encode),
-            "ethereum.decode" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_decode),
-            "ethereum.call" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_call),
-            "crypto.keccak256" => Function::new_typed_with_env(&mut store, &env, chain::ethereum::crypto_keccak_256),
         }
     };
 
@@ -223,6 +229,7 @@ pub fn create_wasm_host(
         arena_start_ptr,
         arena_free_size,
         db_agent,
+        rpc_agent,
     };
 
     Ok(host)
@@ -234,7 +241,12 @@ pub mod test {
     use prometheus::Registry;
     use std::path::PathBuf;
 
-    pub fn mock_wasm_host(api_version: Version, wasm_path: &str, registry: &Registry) -> AscHost {
+    pub fn mock_wasm_host(
+        api_version: Version,
+        wasm_path: &str,
+        registry: &Registry,
+        rpc_agent: RpcAgent,
+    ) -> AscHost {
         ::log::warn!(
             r#"New test-host-instance being created with:
                 > api-version={api_version}
@@ -243,8 +255,16 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        let db_agent = Agent::empty(registry);
-        create_wasm_host(api_version, wasm_bytes, db_agent, "Test".to_string()).unwrap()
+        let db_agent = DatabaseAgent::empty(registry);
+
+        create_wasm_host(
+            api_version,
+            wasm_bytes,
+            db_agent,
+            "Test".to_string(),
+            rpc_agent,
+        )
+        .unwrap()
     }
 
     pub fn get_subgraph_testing_resource(
@@ -258,6 +278,7 @@ pub mod test {
             "../subgraph-testing/packages/v{version_as_package_dir}/build/{datasource_name}/{datasource_name}.wasm"
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
+
         (version, wasm_path)
     }
 }

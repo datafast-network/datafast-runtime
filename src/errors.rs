@@ -201,6 +201,12 @@ pub enum ProgressCtrlError {
 }
 
 #[derive(Debug, Error)]
+pub enum RPCClientError {
+    #[error("RPCClient error: {0}")]
+    RPCClient(String),
+}
+
+#[derive(Debug, Error)]
 pub enum SwrError {
     #[error(transparent)]
     ManifestLoader(#[from] ManifestLoaderError),
@@ -220,4 +226,6 @@ pub enum SwrError {
     SourceErr(#[from] SourceError),
     #[error(transparent)]
     ProgressCtrlError(#[from] ProgressCtrlError),
+    #[error(transparent)]
+    RPCClientError(#[from] RPCClientError),
 }

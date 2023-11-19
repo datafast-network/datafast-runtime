@@ -1,6 +1,7 @@
 mod transform;
 
-use super::database::Agent;
+use super::database::DatabaseAgent;
+use crate::components::rpc_client::RpcAgent;
 use crate::config::Config;
 use crate::debug;
 use crate::errors::SerializerError;
@@ -33,10 +34,15 @@ impl Serializer {
                 let transform_wasm = config.transform_wasm.clone().unwrap();
                 let wasm_bytes = std::fs::read(config.transform_wasm.unwrap())
                     .map_err(|_| TransformError::BadTransformWasm(transform_wasm))?;
-                let empty_db = Agent::empty(registry);
+                let empty_db = DatabaseAgent::empty(registry);
                 let wasm_version = Version::new(0, 0, 5);
-                let host =
-                    create_wasm_host(wasm_version, wasm_bytes, empty_db, "Serializer".to_string())?;
+                let host = create_wasm_host(
+                    wasm_version,
+                    wasm_bytes,
+                    empty_db,
+                    "Serializer".to_string(),
+                    RpcAgent::new_mock(),
+                )?;
                 let transform = Transform::new(host, config.chain, transform_cfg)?;
                 Ok(Self::Transform(transform))
             }

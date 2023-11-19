@@ -1,21 +1,21 @@
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 
-use super::database::Agent;
+use super::database::DatabaseAgent;
 use crate::common::BlockPtr;
 use crate::common::Source;
 use crate::errors::ProgressCtrlError;
 use crate::messages::SerializedDataMessage;
 
 pub struct ProgressCtrl {
-    db: Agent,
+    db: DatabaseAgent,
     recent_block_ptrs: Vec<BlockPtr>,
     sources: Vec<Source>,
 }
 
 impl ProgressCtrl {
     pub async fn new(
-        db: Agent,
+        db: DatabaseAgent,
         sources: Vec<Source>,
         reorg_threshold: u16,
     ) -> Result<Self, ProgressCtrlError> {
@@ -33,7 +33,7 @@ impl ProgressCtrl {
 
     fn get_min_start_block(&self) -> u64 {
         let min_start_block = self.sources.iter().filter_map(|s| s.startBlock).min();
-        return min_start_block.unwrap_or(0);
+        min_start_block.unwrap_or(0)
     }
 
     pub async fn progress_check(
@@ -79,7 +79,7 @@ impl ProgressCtrl {
                 match maybe_parent_block {
                     None => {
                         // Reorg happened somewhere before this new-block, we should be waiting
-                        return Err(ProgressCtrlError::PossibleReorg);
+                        Err(ProgressCtrlError::PossibleReorg)
                     }
                     Some(parent_block) => {
                         // This new-block is the reorg block,

@@ -70,13 +70,26 @@ impl_asc_type_struct!(
     function_args => AscPtr<Array<AscPtr<AscEnum<EthereumValueKind>>>>
 );
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UnresolvedContractCall {
     pub contract_name: String,
     pub contract_address: Address,
     pub function_name: String,
     pub function_signature: Option<String>,
     pub function_args: Vec<Token>,
+}
+
+impl Eq for UnresolvedContractCall {}
+impl std::hash::Hash for UnresolvedContractCall {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.contract_name.hash(state);
+        self.contract_address.hash(state);
+        self.function_name.hash(state);
+        self.function_signature.hash(state);
+        self.function_args
+            .iter()
+            .for_each(|t| t.clone().into_bytes().hash(state));
+    }
 }
 
 impl FromAscObj<AscUnresolvedContractCall> for UnresolvedContractCall {

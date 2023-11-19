@@ -1,10 +1,11 @@
 mod datasource_wasm_instance;
 mod metrics;
 
+use super::rpc_client::RpcAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
-use crate::components::database::Agent;
+use crate::components::database::DatabaseAgent;
 use crate::error;
 use crate::errors::SubgraphError;
 use crate::info;
@@ -45,14 +46,13 @@ impl Subgraph {
         Ok(())
     }
 
-    fn handle_ethereum_filtered_data(
+    async fn handle_ethereum_filtered_data(
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
     ) -> Result<(), SubgraphError> {
         let mut block_handlers = HashMap::new();
-
-        for (source_name, source_instance) in self.sources.iter() {
+        for (source_name, source_instance) in self.sources.iter_mut() {
             let source_block_handlers = source_instance
                 .ethereum_handlers
                 .block
@@ -82,7 +82,10 @@ impl Subgraph {
         Ok(())
     }
 
-    fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
+    async fn handle_filtered_data(
+        &mut self,
+        data: FilteredDataMessage,
+    ) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
                 info!(
@@ -91,24 +94,29 @@ impl Subgraph {
                     events => events.len(),
                     block => format!("{:?}", block.number)
                 );
-                self.handle_ethereum_filtered_data(events, block)
+
+                self.handle_ethereum_filtered_data(events, block).await
             }
         }
     }
 
     pub async fn run_async(
-        &mut self,
+        mut self,
         recv: AsyncReceiver<FilteredDataMessage>,
-        db_agent: Agent,
+        db_agent: DatabaseAgent,
+        rpc_agent: RpcAgent,
     ) -> Result<(), SubgraphError> {
         while let Ok(msg) = recv.recv().await {
             let block_ptr = msg.get_block_ptr();
+
+            rpc_agent.set_block_ptr(block_ptr.clone()).await;
+
             self.metrics
                 .current_block_number
                 .set(block_ptr.number as i64);
 
             let timer = self.metrics.block_process_duration.start_timer();
-            self.handle_filtered_data(msg)?;
+            self.handle_filtered_data(msg).await?;
             timer.stop_and_record();
             self.metrics.block_process_counter.inc();
 
@@ -140,7 +148,8 @@ mod test {
     use super::Subgraph;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
-    use crate::components::database::Agent;
+    use crate::components::database::DatabaseAgent;
+    use crate::components::rpc_client::RpcAgent;
     use crate::messages::EthereumFilteredEvent;
     use crate::messages::FilteredDataMessage;
     use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
@@ -169,7 +178,7 @@ mod test {
             let (version, wasm_path) = get_subgraph_testing_resource(version, "TestDataSource");
 
             let id = source_name.to_string();
-            let host = mock_wasm_host(version.clone(), &wasm_path, registry);
+            let host = mock_wasm_host(version.clone(), &wasm_path, registry, RpcAgent::new_mock());
             let mut ethereum_handlers = EthereumHandlers {
                 block: HashMap::new(),
                 events: HashMap::new(),
@@ -197,8 +206,9 @@ mod test {
         log::info!("Finished setup");
 
         let (sender, receiver) = kanal::bounded_async(1);
-        let agent = Agent::empty(registry);
-        let t = task::spawn(async move { subgraph.run_async(receiver, agent).await });
+        let agent = DatabaseAgent::empty(registry);
+        let rpc_agent = RpcAgent::new_mock();
+        let t = task::spawn(subgraph.run_async(receiver, agent, rpc_agent));
 
         // Test sending block data
         let block_data_msg = FilteredDataMessage::Ethereum {

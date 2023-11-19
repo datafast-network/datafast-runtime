@@ -1,4 +1,5 @@
-use crate::components::database::Agent;
+use crate::components::database::DatabaseAgent;
+use crate::components::rpc_client::RpcAgent;
 use crate::errors::AscError;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscPtr;
@@ -146,7 +147,8 @@ pub struct AscHost {
     pub memory_allocate: Option<TypedFunction<i32, i32>>,
     pub arena_start_ptr: i32,
     pub arena_free_size: i32,
-    pub db_agent: Agent,
+    pub db_agent: DatabaseAgent,
+    pub rpc_agent: RpcAgent,
 }
 
 impl AscHeap for AscHost {

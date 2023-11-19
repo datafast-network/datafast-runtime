@@ -22,6 +22,7 @@ use metrics::DatabaseMetrics;
 use prometheus::Registry;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use web3::futures::executor;
 
 pub struct Database {
     pub mem: MemoryDb,
@@ -205,11 +206,11 @@ impl Database {
 
 // Draft
 #[derive(Clone)]
-pub struct Agent {
+pub struct DatabaseAgent {
     db: Arc<Mutex<Database>>,
 }
 
-impl From<Database> for Agent {
+impl From<Database> for DatabaseAgent {
     fn from(value: Database) -> Self {
         Self {
             db: Arc::new(Mutex::new(value)),
@@ -217,20 +218,15 @@ impl From<Database> for Agent {
     }
 }
 
-impl Agent {
+impl DatabaseAgent {
     pub fn wasm_send_store_request(
         &self,
         message: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
-        let mut db = self.db.blocking_lock();
-
-        #[cfg(test)]
-        {
-            return async_std::task::block_on(db.handle_store_request(message));
-        }
-
-        let handle = tokio::runtime::Handle::current();
-        handle.block_on(db.handle_store_request(message))
+        executor::block_on(async {
+            let mut db = self.db.lock().await;
+            db.handle_store_request(message).await
+        })
     }
 
     pub async fn get_recent_block_pointers(
@@ -264,6 +260,6 @@ impl Agent {
         let db = ExternDB::None;
         let metrics = DatabaseMetrics::new(registry);
         let database = Database { mem, db, metrics };
-        Agent::from(database)
+        DatabaseAgent::from(database)
     }
 }
