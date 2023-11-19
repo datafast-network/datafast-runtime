@@ -151,6 +151,7 @@ mod test {
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::components::database::Agent;
+    use crate::components::rpc_client::RPCWrapper;
     use crate::messages::EthereumFilteredEvent;
     use crate::messages::FilteredDataMessage;
     use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
@@ -179,7 +180,12 @@ mod test {
             let (version, wasm_path) = get_subgraph_testing_resource(version, "TestDataSource");
 
             let id = source_name.to_string();
-            let host = mock_wasm_host(version.clone(), &wasm_path, registry);
+            let host = mock_wasm_host(
+                version.clone(),
+                &wasm_path,
+                registry,
+                RPCWrapper::new_mock(),
+            );
             let mut ethereum_handlers = EthereumHandlers {
                 block: HashMap::new(),
                 events: HashMap::new(),
