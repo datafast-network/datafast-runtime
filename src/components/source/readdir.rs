@@ -61,25 +61,28 @@ impl ReadDir {
 
 #[cfg(test)]
 mod test {
+    use tokio_stream::StreamExt;
     // NOTE: this Source Mode is only used for tesing / debugging,
     // we dont need to go through this too carefully
     use super::*;
-    use tokio_stream::StreamExt;
+    use crate::config::Config;
+    use crate::config::SourceTypes;
     use web3::futures::pin_mut;
 
     #[tokio::test]
     async fn test_readdir() {
         env_logger::try_init().unwrap_or_default();
-
-        let rd = ReadDir {
-            dir: std::env::var("JSON_DIR").unwrap_or("/Users/vutran/Downloads".to_string()),
+        let config = Config::load().unwrap();
+        let rd = match config.source {
+            SourceTypes::ReadDir { source_dir } => ReadDir::new(&source_dir),
+            _ => panic!("Wrong source type!"),
         };
-
         let stream = rd.get_json_in_dir_as_stream();
         pin_mut!(stream);
 
         while let Some(data) = stream.next().await {
-            ::log::info!("Received data: {:?}", data);
+            log::info!("Received data: {:?}", data);
+            break;
         }
     }
 }

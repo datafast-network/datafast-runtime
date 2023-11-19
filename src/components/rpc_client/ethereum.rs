@@ -22,7 +22,6 @@ pub struct EthereumRPC {
     client: Web3<Http>,
     supports_eip_1898: bool,
     abis: HashMap<String, ethabi::Contract>,
-    cache: RPCCache,
 }
 
 impl EthereumRPC {
@@ -52,7 +51,6 @@ impl EthereumRPC {
             client,
             supports_eip_1898,
             abis,
-            cache: HashMap::new(),
         })
     }
 
@@ -240,17 +238,6 @@ impl RPCTrait for EthereumRPC {
                 self.handle_contract_call(data, block_ptr).await
             }
         }
-    }
-
-    fn get_cache_instance(&self) -> &RPCCache {
-        &self.cache
-    }
-
-    fn set_cache(&mut self, call_response: CallResponse, cache_key: String) {
-        if self.cache.get(&cache_key).is_some() {
-            self.cache.remove(&cache_key);
-        }
-        self.cache.insert(cache_key, call_response);
     }
 }
 

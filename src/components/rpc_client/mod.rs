@@ -25,40 +25,11 @@ impl RPCTrait for RPCChain {
         request: CallRequest,
         block_ptr: BlockPtr,
     ) -> Result<CallResponse, RPCClientError> {
-        let cache = self.get_cache_instance();
-        let cache_key = self.get_cache_key(&request, &block_ptr);
-
-        if cache.contains_key(&cache_key) {
-            return Ok(cache.get(&cache_key).unwrap().clone());
-        }
-
-        let response = match self {
+        match self {
             RPCChain::Ethereum(client) => client.handle_request(request, block_ptr).await,
             RPCChain::None => Err(RPCClientError::RPCClient(
                 "RPCClient is not configured".to_string(),
             )),
-        }?;
-
-        self.set_cache(response.clone(), cache_key);
-
-        Ok(response)
-    }
-
-    fn get_cache_instance(&self) -> &RPCCache {
-        match self {
-            RPCChain::Ethereum(client) => client.get_cache_instance(),
-            RPCChain::None => {
-                panic!("RPCClient is not configured");
-            }
-        }
-    }
-
-    fn set_cache(&mut self, call_response: CallResponse, cache_key: String) {
-        match self {
-            RPCChain::Ethereum(client) => client.set_cache(call_response, cache_key),
-            RPCChain::None => {
-                panic!("RPCClient is not configured");
-            }
         }
     }
 }
@@ -80,8 +51,61 @@ pub trait RPCTrait {
         call: CallRequest,
         block_ptr: BlockPtr,
     ) -> Result<CallResponse, RPCClientError>;
+}
 
-    fn get_cache_instance(&self) -> &RPCCache;
+pub struct RpcClient {
+    rpc_client: RPCChain,
+    block_ptr: BlockPtr,
+    cache: RPCCache,
+}
+
+impl RpcClient {
+    async fn new(
+        config: &Config,
+        abis: HashMap<String, serde_json::Value>,
+    ) -> Result<Self, RPCClientError> {
+        let rpc_client = match config.chain {
+            Chain::Ethereum => {
+                let client = ethereum::EthereumRPC::new(&config.rpc_endpoint, abis).await?;
+                RPCChain::Ethereum(client)
+            }
+        };
+        Ok(Self {
+            rpc_client,
+            block_ptr: BlockPtr::default(),
+            cache: HashMap::new(),
+        })
+    }
+
+    pub async fn handle_request(
+        &mut self,
+        call: CallRequest,
+    ) -> Result<CallResponse, RPCClientError> {
+        let cache_key = self.get_cache_key(&call, &self.block_ptr);
+        if self.cache.contains_key(&cache_key) {
+            return Ok(self.cache.get(&cache_key).unwrap().clone());
+        }
+
+        let result = self
+            .rpc_client
+            .handle_request(call, self.block_ptr.clone())
+            .await?;
+
+        self.cache.insert(cache_key, result.clone());
+        Ok(result)
+    }
+
+    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
+        self.block_ptr = block_ptr;
+    }
+
+    pub fn new_mock() -> Self {
+        Self {
+            rpc_client: RPCChain::None,
+            block_ptr: BlockPtr::default(),
+            cache: HashMap::new(),
+        }
+    }
 
     fn get_cache_key(&self, request: &CallRequest, block_ptr: &BlockPtr) -> String {
         let mut keys = vec![block_ptr.number.to_string(), block_ptr.hash.clone()];
@@ -101,51 +125,6 @@ pub trait RPCTrait {
             }
         }
         hex::encode(keys.join(""))
-    }
-
-    fn set_cache(&mut self, call_response: CallResponse, cache_key: String);
-}
-
-pub struct RpcClient {
-    rpc_client: RPCChain,
-    block_ptr: BlockPtr,
-}
-
-impl RpcClient {
-    async fn new(
-        config: &Config,
-        abis: HashMap<String, serde_json::Value>,
-    ) -> Result<Self, RPCClientError> {
-        let rpc_client = match config.chain {
-            Chain::Ethereum => {
-                let client = ethereum::EthereumRPC::new(&config.rpc_endpoint, abis).await?;
-                RPCChain::Ethereum(client)
-            }
-        };
-        Ok(Self {
-            rpc_client,
-            block_ptr: BlockPtr::default(),
-        })
-    }
-
-    pub async fn handle_request(
-        &mut self,
-        call: CallRequest,
-    ) -> Result<CallResponse, RPCClientError> {
-        self.rpc_client
-            .handle_request(call, self.block_ptr.clone())
-            .await
-    }
-
-    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
-        self.block_ptr = block_ptr;
-    }
-
-    pub fn new_mock() -> Self {
-        Self {
-            rpc_client: RPCChain::None,
-            block_ptr: BlockPtr::default(),
-        }
     }
 }
 
@@ -211,6 +190,7 @@ pub mod tests {
         let client = RpcClient {
             rpc_client: chain,
             block_ptr,
+            cache: HashMap::new(),
         };
 
         RpcAgent {
