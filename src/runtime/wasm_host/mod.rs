@@ -134,6 +134,11 @@ pub fn create_wasm_host(
             "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_times),
             "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_divided_by),
             "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
+            //Ethereum fn
+            "ethereum.encode" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_encode),
+            "ethereum.decode" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_decode),
+            "ethereum.call" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_call),
+            "crypto.keccak256" => Function::new_typed_with_env(&mut store, &env, chain::ethereum::crypto_keccak_256),
         }
     };
 
