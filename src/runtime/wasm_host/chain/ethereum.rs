@@ -110,6 +110,7 @@ mod test {
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::chain::ethereum::transaction::EthereumTransactionData;
+    use crate::components::rpc_client::tests::create_rpc_client_test;
     use crate::host_fn_test;
     use crate::runtime::asc::base::asc_get;
     use crate::runtime::asc::base::asc_new;
@@ -154,5 +155,37 @@ mod test {
         assert_eq!(returned_str, expected_str);
     });
 
-    host_fn_test!("ethereum_call", test_ethereum_call, host {});
+    #[rstest::rstest]
+    #[case("0.0.4")]
+    #[case("0.0.5")]
+    fn test_ethereum_call(#[case] version: &str) {
+        use env_logger;
+        use std::env;
+
+        use prometheus::default_registry;
+        let registry = default_registry();
+
+        env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
+        env_logger::try_init().unwrap_or_default();
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async move {
+            let (version, wasm_path) = get_subgraph_testing_resource(version, "TestEthereumCall");
+            let rpc = create_rpc_client_test().await;
+
+            let mut host = mock_wasm_host(version, &wasm_path, registry, rpc);
+            let func = host
+                .instance
+                .exports
+                .get_function("testEthereumCall")
+                .unwrap();
+
+            func.call(&mut host.store, &[])
+                .expect("Calling function failed!");
+        });
+    }
 }
