@@ -56,10 +56,9 @@ impl EthereumRPC {
         })
     }
 
-    fn handle_call_request(
+    fn parse_contract_call_request(
         &self,
         call: UnresolvedContractCall,
-        block_ptr: BlockPtr,
     ) -> Result<EthereumContractCall, RPCClientError> {
         let contract_name = call.contract_name;
         let function_name = call.function_name;
@@ -126,31 +125,35 @@ impl EthereumRPC {
                 })?,
         };
 
-        Ok(EthereumContractCall {
+        let result = EthereumContractCall {
             address: contract_address,
             function: function_call.clone(),
             args: call.function_args,
-        })
-    }
+        };
 
-    async fn contract_call(
-        &mut self,
-        request_data: EthereumContractCall,
-        block_ptr: BlockPtr,
-    ) -> Result<CallResponse, RPCClientError> {
         // Emit custom error for type mismatches.
-        for (token, kind) in request_data
+        for (token, kind) in result
             .args
             .iter()
-            .zip(request_data.function.inputs.iter().map(|p| &p.kind))
+            .zip(result.function.inputs.iter().map(|p| &p.kind))
         {
             if !token.type_check(kind) {
                 return Err(RPCClientError::RPCClient(format!(
                     "Invalid argument {:?} for function {:?}",
-                    token, request_data.function
+                    token, result.function
                 )));
             }
         }
+
+        Ok(result)
+    }
+
+    async fn handle_contract_call(
+        &self,
+        data: UnresolvedContractCall,
+        block_ptr: BlockPtr,
+    ) -> Result<CallResponse, RPCClientError> {
+        let request_data = self.parse_contract_call_request(data)?;
         // Encode the call parameters according to the ABI
         let call_data = match request_data.function.encode_input(&request_data.args) {
             Ok(data) => web3::types::Bytes(data),
@@ -167,12 +170,13 @@ impl EthereumRPC {
                 return Err(RPCClientError::RPCClient(e.to_string()));
             }
         };
-        // let key =
+
         let block_id = if !self.supports_eip_1898 {
             BlockId::Number(block_ptr.number.into())
         } else {
             BlockId::Hash(H256::from_str(&block_ptr.hash).unwrap())
         };
+
         let req = web3::types::CallRequest {
             to: Some(request_data.address),
             gas: Some(web3::types::U256::from(ETH_CALL_GAS)),
@@ -240,8 +244,7 @@ impl RPCTrait for EthereumRPC {
     ) -> Result<CallResponse, RPCClientError> {
         match call {
             CallRequest::EthereumContractCall(data) => {
-                let request_data = self.handle_call_request(data, block_ptr.clone())?;
-                self.contract_call(request_data, block_ptr).await
+                self.handle_contract_call(data, block_ptr).await
             }
         }
     }
