@@ -25,7 +25,7 @@ impl RPCTrait for RPCChain {
         block_ptr: BlockPtr,
     ) -> Result<CallResponse, RPCClientError> {
         let cache = self.get_cache_instance();
-        let cache_key = self.get_cache_key(request.clone(), block_ptr.clone());
+        let cache_key = self.get_cache_key(&request, &block_ptr);
         if cache.contains_key(&cache_key) {
             return Ok(cache.get(&cache_key).unwrap().clone());
         }
@@ -79,16 +79,17 @@ pub trait RPCTrait {
     ) -> Result<CallResponse, RPCClientError>;
 
     fn get_cache_instance(&self) -> &RPCCache;
-    fn get_cache_key(&self, request: CallRequest, block_ptr: BlockPtr) -> String {
+
+    fn get_cache_key(&self, request: &CallRequest, block_ptr: &BlockPtr) -> String {
         let mut keys = vec![block_ptr.number.to_string(), block_ptr.hash.clone()];
         match request {
             CallRequest::EthereumContractCall(call) => {
+                //Key = block_number + block_hash + contract_name + contract_address + function_name + function_args
                 keys.push(call.contract_name.clone());
                 keys.push(format!("{:?}", call.contract_address));
                 keys.push(call.function_name.clone());
                 let args = call
                     .function_args
-                    .clone()
                     .iter()
                     .map(|token| token.to_string())
                     .collect::<Vec<String>>()
