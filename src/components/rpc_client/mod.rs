@@ -1,6 +1,7 @@
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::BlockPtr;
 use crate::common::Chain;
+use crate::components::rpc_client::metrics::RPCMetrics;
 use crate::config::Config;
 use crate::errors::RPCClientError;
 use async_trait::async_trait;
@@ -8,7 +9,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use web3::futures::executor;
+
 mod ethereum;
+mod metrics;
 
 type RPCCache = HashMap<String, CallResponse>;
 #[derive(Clone)]
@@ -24,21 +27,29 @@ impl RPCTrait for RPCChain {
         request: CallRequest,
         block_ptr: BlockPtr,
     ) -> Result<CallResponse, RPCClientError> {
+        self.get_metric().total_request.inc();
+
         let cache = self.get_cache_instance();
         let cache_key = self.get_cache_key(&request, &block_ptr);
+
         if cache.contains_key(&cache_key) {
+            self.get_metric().hit_cache.inc();
             return Ok(cache.get(&cache_key).unwrap().clone());
         }
-        match self {
-            RPCChain::Ethereum(client) => {
-                let response = client.handle_request(request, block_ptr).await?;
-                client.set_cache(response.clone(), cache_key);
-                Ok(response)
-            }
+
+        let timer = self.get_metric().call_duration.start_timer();
+        let response = match self {
+            RPCChain::Ethereum(client) => client.handle_request(request, block_ptr).await,
             RPCChain::None => Err(RPCClientError::RPCClient(
                 "RPCClient is not configured".to_string(),
             )),
-        }
+        }?;
+
+        timer.stop_and_record();
+
+        self.set_cache(response.clone(), cache_key);
+
+        Ok(response)
     }
 
     fn get_cache_instance(&self) -> &RPCCache {
@@ -53,6 +64,15 @@ impl RPCTrait for RPCChain {
     fn set_cache(&mut self, call_response: CallResponse, cache_key: String) {
         match self {
             RPCChain::Ethereum(client) => client.set_cache(call_response, cache_key),
+            RPCChain::None => {
+                panic!("RPCClient is not configured");
+            }
+        }
+    }
+
+    fn get_metric(&self) -> &RPCMetrics {
+        match self {
+            RPCChain::Ethereum(client) => client.get_metric(),
             RPCChain::None => {
                 panic!("RPCClient is not configured");
             }
@@ -101,6 +121,8 @@ pub trait RPCTrait {
     }
 
     fn set_cache(&mut self, call_response: CallResponse, cache_key: String);
+
+    fn get_metric(&self) -> &RPCMetrics;
 }
 
 pub struct RpcClient {
@@ -112,10 +134,12 @@ impl RpcClient {
     async fn new(
         config: &Config,
         abis: HashMap<String, serde_json::Value>,
+        registry: &prometheus::Registry,
     ) -> Result<Self, RPCClientError> {
         let rpc_client = match config.chain {
             Chain::Ethereum => {
-                let client = ethereum::EthereumRPC::new(&config.rpc_endpoint, abis).await?;
+                let client =
+                    ethereum::EthereumRPC::new(&config.rpc_endpoint, abis, registry).await?;
                 RPCChain::Ethereum(client)
             }
         };
@@ -155,8 +179,9 @@ impl RpcAgent {
     pub async fn new(
         config: &Config,
         abis: HashMap<String, serde_json::Value>,
+        registry: &prometheus::Registry,
     ) -> Result<Self, RPCClientError> {
-        let rpc_client = RpcClient::new(config, abis).await?;
+        let rpc_client = RpcClient::new(config, abis, registry).await?;
         Ok(Self {
             client: Arc::new(Mutex::new(rpc_client)),
         })
