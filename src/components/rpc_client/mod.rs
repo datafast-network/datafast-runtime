@@ -51,38 +51,31 @@ pub trait RPCTrait {
     ) -> Result<CallResponse, RPCClientError>;
 }
 
-#[derive(Clone)]
 pub struct RpcAgent {
-    rpc_client: Arc<Mutex<RPCChain>>,
+    rpc_client: RPCChain,
     block_ptr: BlockPtr,
 }
 
 impl RpcAgent {
-    pub async fn new(
+    async fn new(
         config: &Config,
         abis: HashMap<String, serde_json::Value>,
     ) -> Result<Self, RPCClientError> {
-        let client = match config.chain {
+        let rpc_client = match config.chain {
             Chain::Ethereum => {
                 let client = ethereum::EthereumRPC::new(&config.rpc_endpoint, abis).await?;
                 RPCChain::Ethereum(client)
             }
         };
-        let rpc_client = Arc::new(Mutex::new(client));
         Ok(Self {
             rpc_client,
             block_ptr: BlockPtr::default(),
         })
     }
 
-    pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
+    pub fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
         let handle = tokio::runtime::Handle::current();
-        handle.block_on(async move {
-            let mut rpc_client = self.rpc_client.lock().await;
-            rpc_client
-                .handle_request(call, self.block_ptr.clone())
-                .await
-        })
+        handle.block_on(self.rpc_client.handle_request(call, self.block_ptr.clone()))
     }
 
     pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
@@ -91,8 +84,40 @@ impl RpcAgent {
 
     pub fn new_mock() -> Self {
         Self {
-            rpc_client: Arc::new(Mutex::new(RPCChain::None)),
+            rpc_client: RPCChain::None,
             block_ptr: BlockPtr::default(),
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct RPCWrapper {
+    rpc_agent: Arc<Mutex<RpcAgent>>,
+}
+
+impl RPCWrapper {
+    pub async fn new(
+        config: &Config,
+        abis: HashMap<String, serde_json::Value>,
+    ) -> Result<Self, RPCClientError> {
+        let rpc_client = RpcAgent::new(config, abis).await?;
+        Ok(Self {
+            rpc_agent: Arc::new(Mutex::new(rpc_client)),
+        })
+    }
+
+    pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
+        let mut rpc_agent = self.rpc_agent.blocking_lock();
+        rpc_agent.handle_request(call)
+    }
+
+    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
+        let mut rpc_agent = self.rpc_agent.blocking_lock();
+        rpc_agent.set_block_ptr(block_ptr);
+    }
+
+    pub fn new_mock() -> Self {
+        let agent = Arc::new(Mutex::new(RpcAgent::new_mock()));
+        Self { rpc_agent: agent }
     }
 }

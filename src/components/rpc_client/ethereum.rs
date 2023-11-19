@@ -266,17 +266,16 @@ impl RPCTrait for EthereumRPC {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::components::rpc_client::RpcAgent;
     use std::fs::File;
 
     #[tokio::test]
     async fn test_contract_call_rpc_client() {
         let rpc = "https://eth.llamarpc.com";
         let abi_file = File::open("./src/tests/abis/aladin.json").unwrap();
-        let abi = ethabi::Contract::load(abi_file).unwrap();
-        let mut abis = HashMap::new();
+        let abi = serde_json::from_reader(abi_file).unwrap();
+        let mut abis: HashMap<String, serde_json::Value> = HashMap::new();
         abis.insert("ERC20".to_string(), abi);
-        let mut rpc_client = RpcAgent::new_mock();
+        let mut rpc_client = EthereumRPC::new(rpc, abis).await.unwrap();
         let block_ptr = BlockPtr {
             number: 18362011,
             hash: "0xd5f60b37e43ee04d875dc50a3587915863eba289f88a133cfbcbe79733e3bee8".to_string(),
@@ -297,7 +296,10 @@ mod tests {
 
         let start = tokio::time::Instant::now();
 
-        let result = rpc_client.handle_request(call_request).unwrap();
+        let result = rpc_client
+            .handle_request(call_request, block_ptr)
+            .await
+            .unwrap();
         match result {
             CallResponse::EthereumContractCall(Some(tokens)) => {
                 assert_eq!(tokens.len(), 1);

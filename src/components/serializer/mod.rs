@@ -1,7 +1,7 @@
 mod transform;
 
 use super::database::Agent;
-use crate::components::rpc_client::RPCChain;
+use crate::components::rpc_client::RPCWrapper;
 use crate::config::Config;
 use crate::debug;
 use crate::errors::SerializerError;
@@ -41,7 +41,7 @@ impl Serializer {
                     wasm_bytes,
                     empty_db,
                     "Serializer".to_string(),
-                    RPCChain::None,
+                    RPCWrapper::new_mock(),
                 )?;
                 let transform = Transform::new(host, config.chain, transform_cfg)?;
                 Ok(Self::Transform(transform))
