@@ -68,6 +68,13 @@ impl Config {
             .extract()
             .map_err(|e| SwrError::ConfigLoadFail(e.to_string()))
     }
+
+    pub fn get_subgraph_id(&self) -> String {
+        self.subgraph_id
+            .clone()
+            .unwrap_or(self.subgraph_name.to_owned())
+            .to_owned()
+    }
 }
 
 #[cfg(test)]

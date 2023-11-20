@@ -219,6 +219,15 @@ impl From<Database> for DatabaseAgent {
 }
 
 impl DatabaseAgent {
+    pub async fn new(
+        config: &Config,
+        schema: &SchemaLookup,
+        registry: &Registry,
+    ) -> Result<Self, DatabaseError> {
+        let db = Database::new(config, schema.to_owned(), registry).await?;
+        Ok(Self::from(db))
+    }
+
     pub fn wasm_send_store_request(
         &self,
         message: StoreOperationMessage,

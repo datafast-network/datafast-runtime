@@ -6,6 +6,7 @@ use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::components::database::DatabaseAgent;
+use crate::config::Config;
 use crate::error;
 use crate::errors::SubgraphError;
 use crate::info;
@@ -27,12 +28,12 @@ pub struct Subgraph {
 }
 
 impl Subgraph {
-    pub fn new_empty(name: &str, id: String, registry: &Registry) -> Self {
+    pub fn new_empty(config: &Config, registry: &Registry) -> Self {
         Self {
             sources: HashMap::new(),
-            name: name.to_owned(),
+            name: config.subgraph_name.clone(),
+            id: config.get_subgraph_id(),
             metrics: SubgraphMetrics::new(registry),
-            id,
         }
     }
 

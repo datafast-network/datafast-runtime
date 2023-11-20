@@ -8,7 +8,6 @@ mod messages;
 mod metrics;
 mod runtime;
 
-use components::database::Database;
 use components::database::DatabaseAgent;
 use components::manifest_loader::LoaderTrait;
 use components::manifest_loader::ManifestLoader;
@@ -31,39 +30,24 @@ use runtime::wasm_host::create_wasm_host;
 #[tokio::main]
 async fn main() -> Result<(), SwrError> {
     env_logger::try_init().unwrap_or_default();
+
     // TODO: impl CLI
     let config = Config::load()?;
-
     let registry = default_registry();
 
     let block_source = Source::new(&config).await?;
-
     // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
 
     // TODO: impl raw-data serializer
-    let serializer = Serializer::new(config.clone(), registry)?;
+    let serializer = Serializer::new(&config, registry)?;
+    let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
+    let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
+    let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
+    let progress_ctrl =
+        ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
 
-    let subgraph_filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
-
-    let database = Database::new(&config, manifest.get_schema().clone(), registry).await?;
-    let db_agent = DatabaseAgent::from(database);
-
-    let progress_ctrl = ProgressCtrl::new(
-        db_agent.clone(),
-        manifest.get_sources(),
-        config.reorg_threshold,
-    )
-    .await?;
-
-    let subgraph_id = config
-        .subgraph_id
-        .clone()
-        .unwrap_or(config.subgraph_name.clone());
-
-    let mut subgraph = Subgraph::new_empty(&config.subgraph_name, subgraph_id.to_owned(), registry);
-
-    let rpc_agent = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
+    let mut subgraph = Subgraph::new_empty(&config, registry);
 
     for datasource in manifest.datasources() {
         let api_version = datasource.mapping.apiVersion.to_owned();
@@ -71,9 +55,9 @@ async fn main() -> Result<(), SwrError> {
         let wasm_host = create_wasm_host(
             api_version,
             wasm_bytes,
-            db_agent.clone(),
+            db.clone(),
             datasource.name.clone(),
-            rpc_agent.clone(),
+            rpc.clone(),
         )?;
         subgraph.create_source(wasm_host, datasource)?;
     }
@@ -83,18 +67,12 @@ async fn main() -> Result<(), SwrError> {
     let (sender3, recv3) = kanal::bounded_async::<SerializedDataMessage>(1);
     let (sender4, recv4) = kanal::bounded_async::<FilteredDataMessage>(1);
 
-    let stream_run = block_source.run_async(sender1);
-    let serializer_run = serializer.run_async(recv1, sender2);
-    let progress_ctrl_run = progress_ctrl.run_async(recv2, sender3);
-    let subgraph_filter_run = subgraph_filter.run_async(recv3, sender4);
-    let subgraph_run = subgraph.run_async(recv4, db_agent, rpc_agent);
-
     let results = tokio::join!(
-        stream_run,
-        serializer_run,
-        progress_ctrl_run,
-        subgraph_filter_run,
-        subgraph_run,
+        block_source.run_async(sender1),
+        serializer.run_async(recv1, sender2),
+        progress_ctrl.run_async(recv2, sender3),
+        filter.run_async(recv3, sender4),
+        subgraph.run_async(recv4, db, rpc),
         run_metric_server(config.metric_port.unwrap_or(8081))
     );
 
