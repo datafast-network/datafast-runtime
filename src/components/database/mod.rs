@@ -172,10 +172,7 @@ impl Database {
                 }
             }
             if !missing_ids.is_empty() {
-                let entities = self
-                    .db
-                    .load_entities(relation_table.clone(), missing_ids)
-                    .await?;
+                let entities = self.db.load_entities(&relation_table, missing_ids).await?;
                 for entity in entities {
                     related_entities.push(entity.clone());
                     self.mem.create_entity(relation_table.clone(), entity)?;

@@ -73,7 +73,7 @@ pub trait ExternDBTrait: Sized {
 
     async fn load_entities(
         &self,
-        entity_name: String,
+        entity_type: &str,
         ids: Vec<String>,
     ) -> Result<Vec<RawEntity>, DatabaseError>;
 
@@ -184,11 +184,11 @@ impl ExternDBTrait for ExternDB {
 
     async fn load_entities(
         &self,
-        entity_name: String,
+        entity_type: &str,
         ids: Vec<String>,
     ) -> Result<Vec<RawEntity>, DatabaseError> {
         match self {
-            ExternDB::Scylla(db) => db.load_entities(entity_name, ids).await,
+            ExternDB::Scylla(db) => db.load_entities(entity_type, ids).await,
             ExternDB::None => Ok(vec![]),
         }
     }

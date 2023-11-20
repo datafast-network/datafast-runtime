@@ -9,11 +9,10 @@ use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use async_trait::async_trait;
-use scylla::transport::session::Session;
-use scylla::SessionBuilder;
-use scylla::_macro_internal::ValueList;
 use scylla::batch::Batch;
-use scylla::query::Query;
+use scylla::transport::session::Session;
+use scylla::QueryResult;
+use scylla::SessionBuilder;
 
 pub struct Scylladb {
     session: Session,
@@ -70,49 +69,47 @@ impl Scylladb {
         .to_string()
     }
 
-    async fn get_entity(
+    fn handle_entity_query_result(
         &self,
-        query: impl Into<Query>,
-        values: impl ValueList,
-        entity_name: &str,
-        include_deleted_entity: bool,
-    ) -> Result<Option<RawEntity>, DatabaseError> {
-        let result = self.session.query(query, values).await?;
+        entity_type: &str,
+        entity_query_result: QueryResult,
+        include_deleted: bool,
+    ) -> Vec<RawEntity> {
+        let rows = entity_query_result.rows().expect("Not a record-query");
+        let mut result = vec![];
 
-        if let Ok(row) = result.single_row() {
-            let json_row = row.columns.first().cloned().unwrap().unwrap();
-            let json_row_as_str = json_row.as_text().unwrap();
-            let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
+        for row in rows.into_iter() {
+            let json_as_first_column = row.columns.first().cloned().unwrap().unwrap();
+            let json_as_str = json_as_first_column.as_text().unwrap();
+            let actual_json: serde_json::Value = serde_json::from_str(json_as_str).unwrap();
 
-            if let serde_json::Value::Object(values) = json {
-                let result = self.schema_lookup.json_to_entity(entity_name, values);
-                let is_deleted = result
+            if let serde_json::Value::Object(values) = actual_json {
+                let object = self.schema_lookup.json_to_entity(entity_type, values);
+                let is_deleted = object
                     .get("is_deleted")
                     .cloned()
                     .expect("Missing `is_deleted` field");
 
-                if is_deleted == Value::Bool(true) && !include_deleted_entity {
-                    return Ok(None);
+                if is_deleted == Value::Bool(true) && !include_deleted {
+                    continue;
                 }
 
-                return Ok(Some(result));
-            } else {
-                unimplemented!("query must always return a JSON")
+                result.push(object)
             }
         }
 
-        Ok(None)
+        result
     }
 
     async fn insert_entity(
         &self,
         block_ptr: BlockPtr,
-        entity_name: &str,
+        entity_type: &str,
         data: RawEntity,
         is_deleted: bool,
     ) -> Result<(), DatabaseError> {
         assert!(data.contains_key("id"));
-        let mut json_data = self.schema_lookup.entity_to_json(entity_name, data);
+        let mut json_data = self.schema_lookup.entity_to_json(entity_type, data);
 
         json_data.insert(
             "block_ptr_number".to_string(),
@@ -129,7 +126,7 @@ impl Scylladb {
         let query = format!(
             "INSERT INTO {}.{} JSON ?",
             self.keyspace,
-            entity_name.to_lowercase()
+            entity_type.to_lowercase()
         );
 
         let st = self.session.prepare(query).await?;
@@ -142,7 +139,7 @@ impl Scylladb {
 
     async fn get_ids(
         &self,
-        entity_name: &str,
+        entity_type: &str,
         block_range: (i64, Option<i64>),
     ) -> Result<Vec<String>, DatabaseError> {
         let mut ids = vec![];
@@ -152,7 +149,7 @@ impl Scylladb {
                 SELECT id from {}.{}
                 WHERE block_ptr_number >= {} AND block_ptr_number <= {}"#,
                 self.keyspace,
-                entity_name.to_lowercase(),
+                entity_type.to_lowercase(),
                 block_range.0,
                 stop_block
             ),
@@ -161,7 +158,7 @@ impl Scylladb {
                 SELECT id from {}.{}
                 WHERE block_ptr_number >= {}"#,
                 self.keyspace,
-                entity_name.to_lowercase(),
+                entity_type.to_lowercase(),
                 block_range.0
             ),
         };
@@ -175,48 +172,6 @@ impl Scylladb {
             }
         }
         Ok(ids)
-    }
-
-    async fn get_entities(
-        &self,
-        entity_type: &str,
-        ids: Vec<String>,
-        include_deleted_entities: bool,
-    ) -> Result<Vec<RawEntity>, DatabaseError> {
-        let ids = format!(
-            "({})",
-            ids.into_iter()
-                .map(|e| format!("'{}'", e))
-                .collect::<Vec<_>>()
-                .join(",")
-        );
-        let query = format!(
-            r#"
-            SELECT JSON * from {}.{}
-            WHERE id IN {}"#,
-            self.keyspace, entity_type, ids
-        );
-        let result = self.session.query(query, ()).await?;
-        let mut entities = vec![];
-
-        if let Ok(rows) = result.rows() {
-            for row in rows {
-                let json_row = row.columns.first().cloned().unwrap().unwrap();
-                let json_row_as_str = json_row.as_text().unwrap();
-                let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
-                if let serde_json::Value::Object(values) = json {
-                    let result = self.schema_lookup.json_to_entity(entity_type, values);
-                    let is_deleted = result.get("is_deleted").cloned().unwrap();
-
-                    if include_deleted_entities || is_deleted == Value::Bool(false) {
-                        entities.push(result);
-                        continue;
-                    }
-                }
-            }
-        }
-
-        Ok(entities)
     }
 
     #[cfg(test)]
@@ -235,7 +190,7 @@ impl Scylladb {
 #[async_trait]
 impl ExternDBTrait for Scylladb {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError> {
-        for (entity_name, schema) in self.schema_lookup.get_schemas() {
+        for (entity_type, schema) in self.schema_lookup.get_schemas() {
             let mut column_definitions: Vec<String> = vec![];
             for (colum_name, store_kind) in schema.iter() {
                 let column_type = self.store_kind_to_db_type(store_kind.clone());
@@ -257,7 +212,7 @@ impl ExternDBTrait for Scylladb {
             {joint_column_definition}
             ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_ptr_number DESC)"#,
                 self.keyspace,
-                entity_name.to_lowercase()
+                entity_type.to_lowercase()
             );
             info!(Scylladb, "Creating entity table"; query => query);
             self.session.query(query, &[]).await?;
@@ -301,13 +256,15 @@ impl ExternDBTrait for Scylladb {
             "#,
             self.keyspace, entity_type
         );
-        self.get_entity(
-            query,
-            (block_ptr.number as i64, entity_id),
-            entity_type,
-            false,
-        )
-        .await
+        let entity_query_result = self
+            .session
+            .query(query, (block_ptr.number as i64, entity_id))
+            .await?;
+        let entity = self
+            .handle_entity_query_result(entity_type, entity_query_result, false)
+            .first()
+            .cloned();
+        Ok(entity)
     }
 
     async fn load_entity_latest(
@@ -325,17 +282,21 @@ impl ExternDBTrait for Scylladb {
             self.keyspace, entity_type
         );
 
-        self.get_entity(query, vec![entity_id], entity_type, false)
-            .await
+        let entity_query_result = self.session.query(query, (entity_id,)).await?;
+        let entity = self
+            .handle_entity_query_result(entity_type, entity_query_result, false)
+            .first()
+            .cloned();
+        Ok(entity)
     }
 
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
-        entity_name: &str,
+        entity_type: &str,
         data: RawEntity,
     ) -> Result<(), DatabaseError> {
-        self.insert_entity(block_ptr, entity_name, data, false)
+        self.insert_entity(block_ptr, entity_type, data, false)
             .await
     }
 
@@ -346,11 +307,11 @@ impl ExternDBTrait for Scylladb {
     ) -> Result<(), DatabaseError> {
         let mut batch_queries = Batch::default();
         let mut batch_values = vec![];
-        for (entity_name, data) in values {
+        for (entity_type, data) in values {
             if data.get("is_deleted").is_none() {
                 error!(Scylladb,
                     "Missing is_deleted field";
-                    entity_name => entity_name,
+                    entity_type => entity_type,
                     entity_data => format!("{:?}", data),
                     block_ptr_number => block_ptr.number,
                     block_ptr_hash => block_ptr.hash
@@ -358,14 +319,14 @@ impl ExternDBTrait for Scylladb {
                 return Err(DatabaseError::MissingField("is_deleted".to_string()));
             }
 
-            let mut json_data = self.schema_lookup.entity_to_json(&entity_name, data);
+            let mut json_data = self.schema_lookup.entity_to_json(&entity_type, data);
             json_data.insert(
                 "block_ptr_number".to_string(),
                 serde_json::Value::from(block_ptr.number),
             );
 
             let data_json: String = serde_json::Value::Object(json_data).to_string();
-            let query = format!("INSERT INTO {}.{} JSON ?", self.keyspace, entity_name);
+            let query = format!("INSERT INTO {}.{} JSON ?", self.keyspace, entity_type);
 
             batch_queries.append_statement(query.as_str());
             batch_values.push((data_json,))
@@ -378,10 +339,10 @@ impl ExternDBTrait for Scylladb {
     async fn soft_delete_entity(
         &self,
         block_ptr: BlockPtr,
-        entity_name: &str,
+        entity_type: &str,
         entity_id: &str,
     ) -> Result<(), DatabaseError> {
-        let entity = self.load_entity_latest(entity_name, entity_id).await?;
+        let entity = self.load_entity_latest(entity_type, entity_id).await?;
 
         if entity.is_none() {
             return Ok(());
@@ -391,7 +352,7 @@ impl ExternDBTrait for Scylladb {
         entity.remove("block_ptr_number");
         entity.remove("is_deleted");
 
-        self.insert_entity(block_ptr, entity_name, entity, true)
+        self.insert_entity(block_ptr, entity_type, entity, true)
             .await
     }
 
@@ -399,16 +360,16 @@ impl ExternDBTrait for Scylladb {
         let entity_names = self.schema_lookup.get_entity_names();
         let mut batch_queries: Batch = Batch::default();
         let mut batch_values = vec![];
-        for entity_name in entity_names {
+        for entity_type in entity_names {
             let ids = self
-                .get_ids(&entity_name, (from_block as i64, None))
+                .get_ids(&entity_type, (from_block as i64, None))
                 .await?;
             for id in ids {
                 let query = format!(
                     r#"
                     DELETE FROM {}."{}" WHERE id = ? AND block_ptr_number >= ?"#,
                     self.keyspace,
-                    entity_name.to_lowercase(),
+                    entity_type.to_lowercase(),
                 );
                 batch_queries.append_statement(query.as_str());
                 batch_values.push((id, from_block as i64));
@@ -445,10 +406,24 @@ impl ExternDBTrait for Scylladb {
 
     async fn load_entities(
         &self,
-        entity_name: String,
+        entity_type: &str,
         ids: Vec<String>,
     ) -> Result<Vec<RawEntity>, DatabaseError> {
-        self.get_entities(&entity_name, ids, true).await
+        let ids = format!(
+            "({})",
+            ids.into_iter()
+                .map(|e| format!("'{}'", e))
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        let query = format!(
+            r#"
+            SELECT JSON * from {}.{}
+            WHERE id IN {}"#,
+            self.keyspace, entity_type, ids
+        );
+        let entity_query_result = self.session.query(query, ()).await?;
+        Ok(self.handle_entity_query_result(&entity_type, entity_query_result, false))
     }
 
     async fn load_recent_block_ptrs(
@@ -499,7 +474,7 @@ mod tests {
     use std::collections::HashMap;
     use std::str::FromStr;
 
-    async fn setup_db(entity_name: &str) -> (Scylladb, String) {
+    async fn setup_db(entity_type: &str) -> (Scylladb, String) {
         env_logger::try_init().unwrap_or_default();
 
         let uri = "localhost:9042";
@@ -519,7 +494,7 @@ mod tests {
 
         test_schema.get_mut("users").unwrap().list_inner_kind = Some(StoreValueKind::String);
 
-        schema.add_schema(entity_name, test_schema);
+        schema.add_schema(entity_type, test_schema);
         let db = Scylladb::new(uri, keyspace, schema).await.unwrap();
         db.drop_tables().await.unwrap();
         db.create_entity_tables()
@@ -529,7 +504,7 @@ mod tests {
             .await
             .expect("Create block-ptr table failed");
         db.revert_from_block(0).await.expect("Revert table failed");
-        (db, entity_name.to_string())
+        (db, entity_type.to_string())
     }
 
     #[tokio::test]
@@ -539,7 +514,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_scylla_02_create_and_load_entity() {
-        let (db, entity_name) = setup_db("Tokens_01").await;
+        let (db, entity_type) = setup_db("Tokens_01").await;
 
         let entity_data: RawEntity = entity! {
             id => Value::String("token-id".to_string()),
@@ -554,14 +529,14 @@ mod tests {
 
         let block_ptr = BlockPtr::default();
 
-        db.create_entity(block_ptr.clone(), &entity_name, entity_data.clone())
+        db.create_entity(block_ptr.clone(), &entity_type, entity_data.clone())
             .await
             .unwrap();
 
         info!("Create test Token OK!");
 
         let loaded_entity = db
-            .load_entity(block_ptr.clone(), &entity_name, "token-id")
+            .load_entity(block_ptr.clone(), &entity_type, "token-id")
             .await
             .unwrap()
             .unwrap();
@@ -593,7 +568,7 @@ mod tests {
 
         // ------------------------------- Load latest
         let loaded_entity = db
-            .load_entity_latest(&entity_name, "token-id")
+            .load_entity_latest(&entity_type, "token-id")
             .await
             .unwrap()
             .unwrap();
@@ -609,12 +584,12 @@ mod tests {
             hash: "hash_1".to_string(),
             parent_hash: "".to_string(),
         };
-        db.create_entity(block_ptr.clone(), &entity_name, entity_data)
+        db.create_entity(block_ptr.clone(), &entity_type, entity_data)
             .await
             .unwrap();
 
         let loaded_entity = db
-            .load_entity_latest(&entity_name, "token-id")
+            .load_entity_latest(&entity_type, "token-id")
             .await
             .unwrap()
             .unwrap();
@@ -632,7 +607,7 @@ mod tests {
     //
     #[tokio::test]
     async fn test_scylla_03_revert_entity() {
-        let (db, entity_name) = setup_db("Tokens_03").await;
+        let (db, entity_type) = setup_db("Tokens_03").await;
 
         for id in 0..10 {
             let entity_data = entity! {
@@ -652,13 +627,13 @@ mod tests {
                 parent_hash: "".to_string(),
             };
 
-            db.create_entity(block_ptr.clone(), &entity_name, entity_data)
+            db.create_entity(block_ptr.clone(), &entity_type, entity_data)
                 .await
                 .unwrap();
         }
 
         let latest = db
-            .load_entity_latest(&entity_name, "token-id")
+            .load_entity_latest(&entity_type, "token-id")
             .await
             .unwrap()
             .unwrap();
@@ -667,7 +642,7 @@ mod tests {
         db.revert_from_block(5).await.unwrap();
 
         let latest = db
-            .load_entity_latest(&entity_name, "token-id")
+            .load_entity_latest(&entity_type, "token-id")
             .await
             .unwrap()
             .unwrap();
@@ -679,14 +654,14 @@ mod tests {
                 hash: "hash".to_string(),
                 parent_hash: "".to_string(),
             },
-            &entity_name,
+            &entity_type,
             "token-id",
         )
         .await
         .unwrap();
 
         let latest = db
-            .load_entity_latest(&entity_name, "token-id")
+            .load_entity_latest(&entity_type, "token-id")
             .await
             .unwrap();
         assert!(latest.is_none());
@@ -694,7 +669,7 @@ mod tests {
         db.revert_from_block(3).await.unwrap();
 
         let latest = db
-            .load_entity_latest(&entity_name, "token-id")
+            .load_entity_latest(&entity_type, "token-id")
             .await
             .unwrap()
             .unwrap();
@@ -703,7 +678,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_scylla_04_batch_insert() {
-        let (db, entity_name) = setup_db("Tokens_04").await;
+        let (db, entity_type) = setup_db("Tokens_04").await;
 
         let mut entities = Vec::new();
         let block_ptr = BlockPtr {
@@ -727,26 +702,26 @@ mod tests {
                 is_deleted => Value::Bool(id % 2 == 0)
             };
             ids.push(format!("token-id_{}", id));
-            entities.push((entity_name.clone(), entity_data));
+            entities.push((entity_type.clone(), entity_data));
         }
 
         db.batch_insert_entities(block_ptr.clone(), entities)
             .await
             .unwrap();
 
-        let entities_values = db.get_entities(&entity_name, ids, false).await.unwrap();
+        let entities_values = db.load_entities(&entity_type, ids).await.unwrap();
 
         assert_eq!(entities_values.len(), 5);
 
         let latest = db
-            .load_entity_latest(&entity_name, "token-id_0")
+            .load_entity_latest(&entity_type, "token-id_0")
             .await
             .unwrap();
 
         assert!(latest.is_none());
 
         let latest = db
-            .load_entity_latest(&entity_name, "token-id_1")
+            .load_entity_latest(&entity_type, "token-id_1")
             .await
             .unwrap();
 
@@ -766,7 +741,7 @@ mod tests {
         let uri = "localhost:9042";
         let keyspace = "ks";
         let mut schema = SchemaLookup::new();
-        let entity_name = "test_relation";
+        let entity_type = "test_relation";
         let tokens = "tokens_relation";
         let mut entity_1: HashMap<String, FieldKind> = HashMap::new();
         entity_1.insert(
@@ -793,7 +768,7 @@ mod tests {
                 list_inner_kind: Some(StoreValueKind::String),
             },
         );
-        schema.add_schema(entity_name, entity_1);
+        schema.add_schema(entity_type, entity_1);
 
         let mut entity_2: HashMap<String, FieldKind> = HashMap::new();
         entity_2.insert(
@@ -846,12 +821,12 @@ mod tests {
             ]),
         );
 
-        db.insert_entity(block_ptr.clone(), entity_name, entity_data, false)
+        db.insert_entity(block_ptr.clone(), entity_type, entity_data, false)
             .await
             .unwrap();
 
         let latest = db
-            .load_entity_latest(entity_name, "entity-id_1")
+            .load_entity_latest(entity_type, "entity-id_1")
             .await
             .unwrap()
             .unwrap();
@@ -869,10 +844,7 @@ mod tests {
             _ => panic!("Not a list"),
         };
         log::info!("relation: {:?}", relation_ids);
-        let tokens_relation = db
-            .load_entities(tokens.to_string(), relation_ids)
-            .await
-            .unwrap();
+        let tokens_relation = db.load_entities(&tokens, relation_ids).await.unwrap();
 
         assert_eq!(tokens_relation.len(), 3);
     }
