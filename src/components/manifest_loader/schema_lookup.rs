@@ -253,8 +253,8 @@ impl SchemaLookup {
             }
             StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
             StoreValueKind::Bytes => {
-                let hex_str = hex::decode(val.as_str().unwrap()).unwrap();
-                Value::Bytes(Bytes::from(val.to_string().as_bytes()))
+                let hex_bytes = hex::decode(val.as_str().unwrap()).unwrap();
+                Value::Bytes(Bytes::from(hex_bytes))
             }
             StoreValueKind::BigInt => Value::BigInt(BigInt::from_str(&val.to_string()).unwrap()),
             StoreValueKind::Array => {
@@ -301,6 +301,54 @@ impl SchemaLookup {
             }
             Value::Null => serde_json::Value::Null,
         }
+    }
+
+    fn get_field_kind_to_scyladb_type(field_kind: FieldKind) -> String {
+        match field_kind.kind {
+            StoreValueKind::String => "text".to_string(),
+            StoreValueKind::Int => "int".to_string(),
+            StoreValueKind::Int8 => "bigint".to_string(),
+            StoreValueKind::BigDecimal => "decimal".to_string(),
+            StoreValueKind::Bool => "boolean".to_string(),
+            StoreValueKind::Bytes => "blob".to_string(),
+            StoreValueKind::BigInt => "bigint".to_string(),
+            StoreValueKind::Array => {
+                let inner_kind = field_kind.list_inner_kind.unwrap();
+                let inner_kind = FieldKind {
+                    kind: inner_kind,
+                    relation: None,
+                    list_inner_kind: None,
+                };
+                let inner_kind_name = Self::get_field_kind_to_scyladb_type(inner_kind);
+                format!("list<{}>", inner_kind_name)
+            }
+            StoreValueKind::Null => unimplemented!(),
+        }
+    }
+
+    pub fn generate_insert_query(
+        &self,
+        keyspace: &str,
+        entity_name: &str,
+        values: serde_json::Map<String, serde_json::Value>,
+    ) -> String {
+        let mut query = String::new();
+        query.push_str(&format!("INSERT INTO {keyspace}.\"{entity_name}\""));
+        query.push('(');
+        let mut fields = Vec::new();
+        for (field_name, _) in self.schema.get(entity_name).unwrap().iter() {
+            let field_kind = self.get_field(entity_name, field_name);
+            let field_type = Self::get_field_kind_to_scyladb_type(field_kind);
+            fields.push(format!("{} {}", field_name, field_type));
+        }
+        query.push_str(fields.join(", ").as_str());
+        query.push_str(") VALUES (");
+        let mut values_inserts = Vec::new();
+        for (field_name, _) in self.schema.get(entity_name).unwrap().iter() {
+            let value = values.get(field_name).unwrap();
+            values_inserts.push(value.clone());
+        }
+        query
     }
 }
 
