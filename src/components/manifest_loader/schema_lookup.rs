@@ -268,6 +268,10 @@ impl SchemaLookup {
                 Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap())
             }
             StoreValueKind::Array => {
+                if val.is_null() {
+                    return Value::List(vec![]);
+                }
+
                 let mut result = Vec::new();
                 let inner_kind = field_kind.list_inner_kind.unwrap();
                 for item in val.as_array().expect("get array error").iter() {
