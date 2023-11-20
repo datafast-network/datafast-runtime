@@ -2,7 +2,9 @@ use super::utils::check_log_matches;
 use super::utils::get_address;
 use super::utils::get_handler_for_log;
 use super::SubgraphFilterTrait;
+use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
+use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
 use crate::common::Datasource;
 use crate::components::manifest_loader::LoaderTrait;
@@ -59,7 +61,12 @@ impl EthereumFilter {
             .map_err(|e| FilterError::ParseError(e.to_string()))
     }
 
-    fn filter_events(&self, logs: Vec<Log>) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
+    fn filter_events(
+        &self,
+        block: EthereumBlockData,
+        txs: Vec<EthereumTransactionData>,
+        logs: Vec<Log>,
+    ) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
         let mut events = Vec::new();
         for log in logs.iter() {
             let check_log_valid = self
@@ -84,7 +91,14 @@ impl EthereumFilter {
                 .ok_or_else(|| FilterError::ParseError("No contract found".to_string()))?;
 
             //Parse the event
-            let event = self.parse_event(contract, log)?;
+            let mut event = self.parse_event(contract, log)?;
+            event.block = block.clone();
+            let tx = txs
+                .iter()
+                .find(|tx| tx.hash == log.transaction_hash.unwrap())
+                .cloned()
+                .unwrap();
+            event.transaction = tx;
             events.push(EthereumFilteredEvent {
                 datasource: source.name.clone(),
                 handler: event_handler.handler.clone(),
@@ -124,8 +138,12 @@ impl SubgraphFilterTrait for EthereumFilter {
         data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match data {
-            SerializedDataMessage::Ethereum { block, logs, .. } => {
-                let events = self.filter_events(logs)?;
+            SerializedDataMessage::Ethereum {
+                block,
+                logs,
+                transactions,
+            } => {
+                let events = self.filter_events(block.clone(), transactions, logs)?;
                 info!(EthereumFilter, "Filtered events";
                     events => events.len(),
                     block_number => format!("{:?}", block.number)
