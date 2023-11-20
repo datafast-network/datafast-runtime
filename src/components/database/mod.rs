@@ -62,7 +62,7 @@ impl Database {
     ) -> Result<StoreRequestResult, DatabaseError> {
         let (entity_type, data) = data;
         let entity_id = data.get("id").cloned().expect("Missing ID in RawEntity");
-        self.mem.create_entity(entity_type, data)?;
+        self.mem.create_entity(&entity_type, data)?;
 
         if let Value::String(entity_id) = entity_id {
             Ok(StoreRequestResult::Create(entity_id))
@@ -77,9 +77,7 @@ impl Database {
     ) -> Result<StoreRequestResult, DatabaseError> {
         let (entity_type, entity_id) = data;
 
-        let entity = self
-            .mem
-            .load_entity_latest(entity_type.clone(), entity_id.clone())?;
+        let entity = self.mem.load_entity_latest(&entity_type, &entity_id)?;
 
         if entity.is_none() {
             self.metrics.cache_miss.inc();
@@ -91,7 +89,7 @@ impl Database {
             }
 
             let data = entity.unwrap();
-            self.mem.create_entity(entity_type, data.clone())?;
+            self.mem.create_entity(&entity_type, data.clone())?;
             return Ok(StoreRequestResult::Load(Some(data)));
         }
 
@@ -105,7 +103,7 @@ impl Database {
         data: (EntityType, EntityID),
     ) -> Result<StoreRequestResult, DatabaseError> {
         let (entity_type, entity_id) = data;
-        let entity = self.mem.load_entity_latest(entity_type, entity_id)?;
+        let entity = self.mem.load_entity_latest(&entity_type, &entity_id)?;
         Ok(StoreRequestResult::Load(entity))
     }
 
@@ -123,7 +121,7 @@ impl Database {
         data: (EntityType, EntityID),
     ) -> Result<StoreRequestResult, DatabaseError> {
         let (entity_type, entity_id) = data;
-        self.mem.soft_delete(entity_type, entity_id)?;
+        self.mem.soft_delete(&entity_type, &entity_id)?;
         Ok(StoreRequestResult::Delete)
     }
 
@@ -132,9 +130,7 @@ impl Database {
         data: (EntityType, EntityID, FieldName),
     ) -> Result<StoreRequestResult, DatabaseError> {
         let (entity_type, entity_id, field_name) = data;
-        let entity = self
-            .mem
-            .load_entity_latest(entity_type.clone(), entity_id)?;
+        let entity = self.mem.load_entity_latest(&entity_type, &entity_id)?;
 
         //In memory always have the latest version of the entity by action load before.
         //We don't need to check the db
@@ -162,9 +158,7 @@ impl Database {
             let mut related_entities = vec![];
             let mut missing_ids = vec![];
             for id in ids {
-                let entity = self
-                    .mem
-                    .load_entity_latest(relation_table.clone(), id.clone())?;
+                let entity = self.mem.load_entity_latest(&relation_table, &id)?;
                 if entity.is_some() {
                     related_entities.push(entity.unwrap());
                 } else {
@@ -175,7 +169,7 @@ impl Database {
                 let entities = self.db.load_entities(&relation_table, missing_ids).await?;
                 for entity in entities {
                     related_entities.push(entity.clone());
-                    self.mem.create_entity(relation_table.clone(), entity)?;
+                    self.mem.create_entity(&relation_table, entity)?;
                 }
             }
             Ok(StoreRequestResult::LoadRelated(related_entities))
