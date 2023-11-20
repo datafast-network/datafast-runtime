@@ -296,16 +296,14 @@ impl SchemaLookup {
             Value::String(string) => serde_json::Value::from(string),
             Value::BigDecimal(number) => serde_json::Value::from(number.to_string()),
             Value::BigInt(number) => serde_json::Value::from(number.to_string()),
+            // NOTE: i'm not sure about this Bytes field
             Value::Bytes(bytes) => serde_json::Value::from(format!("0x{}", bytes)),
             Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
-            Value::List(list) => {
-                let mut result = Vec::new();
-                for item in list {
-                    let item = self.store_value_to_json_value(item);
-                    result.push(item);
-                }
-                serde_json::Value::Array(result)
-            }
+            Value::List(list) => serde_json::Value::Array(
+                list.into_iter()
+                    .map(|v| self.store_value_to_json_value(v))
+                    .collect(),
+            ),
             Value::Null => serde_json::Value::Null,
         }
     }
