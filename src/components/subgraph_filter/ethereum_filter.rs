@@ -94,12 +94,13 @@ impl EthereumFilter {
         Ok(events)
     }
 
-    //TODO: implement filter_block
+    // TODO: implement filter_block
 
-    //TODO: implement filter_call_function
+    // TODO: implement filter_call_function
 }
 
 impl SubgraphFilterTrait for EthereumFilter {
+    // FIXME: passing ref to a Component is undesirable, only get what you actually need
     fn new(_chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
         let addresses = manifest
             .datasources()
