@@ -137,40 +137,31 @@ impl Scylladb {
         Ok(())
     }
 
-    async fn get_ids(
+    async fn get_ids_from_block(
         &self,
         entity_type: &str,
-        block_range: (i64, Option<i64>),
+        from_block: u64,
     ) -> Result<Vec<String>, DatabaseError> {
-        let mut ids = vec![];
-        let query = match block_range.1 {
-            Some(stop_block) => format!(
-                r#"
-                SELECT id from {}.{}
-                WHERE block_ptr_number >= {} AND block_ptr_number <= {}"#,
-                self.keyspace,
-                entity_type.to_lowercase(),
-                block_range.0,
-                stop_block
-            ),
-            None => format!(
-                r#"
-                SELECT id from {}.{}
-                WHERE block_ptr_number >= {}"#,
-                self.keyspace,
-                entity_type.to_lowercase(),
-                block_range.0
-            ),
-        };
-        let result = self.session.query(query, ()).await?;
+        let query = format!(
+            "SELECT id FROM {}.\"{}\" WHERE block_ptr_number >= {}",
+            self.keyspace,
+            entity_type.to_lowercase(),
+            from_block
+        );
+        let rows = self.session.query(query, ()).await?.rows().unwrap();
+        let ids = rows
+            .into_iter()
+            .map(|r| {
+                r.columns
+                    .first()
+                    .cloned()
+                    .unwrap()
+                    .unwrap()
+                    .into_string()
+                    .unwrap()
+            })
+            .collect();
 
-        if let Ok(rows) = result.rows() {
-            for row in rows {
-                let row_json = row.columns.first().cloned().unwrap().unwrap();
-                let json_row_as_str = row_json.as_text().unwrap();
-                ids.push(json_row_as_str.clone())
-            }
-        }
         Ok(ids)
     }
 
@@ -361,9 +352,7 @@ impl ExternDBTrait for Scylladb {
         let mut batch_queries: Batch = Batch::default();
         let mut batch_values = vec![];
         for entity_type in entity_names {
-            let ids = self
-                .get_ids(&entity_type, (from_block as i64, None))
-                .await?;
+            let ids = self.get_ids_from_block(&entity_type, from_block).await?;
             for id in ids {
                 let query = format!(
                     r#"
