@@ -141,7 +141,7 @@ impl SchemaLookup {
         self.schema
             .get(entity_type)
             .expect("get entity type error")
-            .get(field_name)
+            .get(field_name.replace('"', "").as_str())
             .expect("get field error")
             .clone()
     }
@@ -156,7 +156,7 @@ impl SchemaLookup {
         for (key, val) in json {
             let field_type = self.get_field(entity_name, &key);
             let value = self.field_to_store_value(field_type, val);
-            result.insert(key, value);
+            result.insert(key.replace('"', ""), value);
         }
 
         result
@@ -171,7 +171,7 @@ impl SchemaLookup {
 
         for (key, value) in data {
             let value = self.store_value_to_json_value(value);
-            result.insert(key, value);
+            result.insert(key.replace('"', ""), value);
         }
 
         result
@@ -245,20 +245,28 @@ impl SchemaLookup {
 
     fn field_to_store_value(&self, field_kind: FieldKind, val: serde_json::Value) -> Value {
         match field_kind.kind {
-            StoreValueKind::String => Value::String(val.as_str().unwrap().to_owned()),
+            StoreValueKind::String => Value::String(val.to_string()),
             StoreValueKind::Int => Value::Int(val.as_i64().unwrap() as i32),
             StoreValueKind::Int8 => Value::Int8(val.as_i64().unwrap()),
             StoreValueKind::BigDecimal => {
-                Value::BigDecimal(BigDecimal::from_str(val.as_str().unwrap()).unwrap())
+                Value::BigDecimal(BigDecimal::from_str(&val.to_string()).unwrap())
             }
             StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
-            StoreValueKind::Bytes => Value::Bytes(Bytes::from(val.as_str().unwrap().as_bytes())),
-            StoreValueKind::BigInt => {
-                Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap())
+            StoreValueKind::Bytes => {
+                let hex_str = hex::decode(val.as_str().unwrap()).unwrap();
+                Value::Bytes(Bytes::from(val.to_string().as_bytes()))
             }
+            StoreValueKind::BigInt => Value::BigInt(BigInt::from_str(&val.to_string()).unwrap()),
             StoreValueKind::Array => {
                 let mut result = Vec::new();
                 let inner_kind = field_kind.list_inner_kind.unwrap();
+                if val.is_null() {
+                    error!(field_to_store_value, "get array error";
+                        val => format!("{:?}", val),
+                        field_kind => format!("{:?}", field_kind)
+                    );
+                    return Value::List(result);
+                }
                 for item in val.as_array().expect("get array error").iter() {
                     let field_kind_array = FieldKind {
                         kind: inner_kind,
@@ -278,10 +286,10 @@ impl SchemaLookup {
         match value {
             Value::Int(number) => serde_json::Value::from(number),
             Value::Int8(number) => serde_json::Value::from(number),
-            Value::String(string) => serde_json::Value::from(string),
+            Value::String(string) => serde_json::Value::String(string),
             Value::BigDecimal(number) => serde_json::Value::from(number.to_string()),
             Value::BigInt(number) => serde_json::Value::from(number.to_string()),
-            Value::Bytes(bytes) => serde_json::Value::from(format!("0x{}", bytes)),
+            Value::Bytes(bytes) => serde_json::Value::from(hex::encode(bytes.as_slice())),
             Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
             Value::List(list) => {
                 let mut result = Vec::new();
