@@ -2,7 +2,9 @@ use super::utils::check_log_matches;
 use super::utils::get_address;
 use super::utils::get_handler_for_log;
 use super::SubgraphFilterTrait;
+use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
+use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
 use crate::common::Datasource;
 use crate::components::manifest_loader::LoaderTrait;
@@ -29,6 +31,8 @@ impl EthereumFilter {
         &self,
         contract: &Contract,
         log: &Log,
+        block_header: EthereumBlockData,
+        transaction: EthereumTransactionData,
     ) -> Result<EthereumEventData, FilterError> {
         let event = contract
             .events()
@@ -54,12 +58,18 @@ impl EthereumFilter {
                 log_index: log.log_index.unwrap_or_default(),
                 transaction_log_index: log.transaction_log_index.unwrap_or_default(),
                 log_type: log.log_type.clone(),
-                ..Default::default()
+                block: block_header.to_owned(),
+                transaction: transaction.to_owned(),
             })
             .map_err(|e| FilterError::ParseError(e.to_string()))
     }
 
-    fn filter_events(&self, logs: Vec<Log>) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
+    fn filter_events(
+        &self,
+        block_header: EthereumBlockData,
+        txs: Vec<EthereumTransactionData>,
+        logs: Vec<Log>,
+    ) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
         let mut events = Vec::new();
         for log in logs.iter() {
             let check_log_valid = self
@@ -73,24 +83,30 @@ impl EthereumFilter {
             let source = self.addresses.get(&log.address).unwrap();
 
             //Get the handler for the log
-            let event_handler = get_handler_for_log(source, &log.topics[0]).map_or(
-                Err(FilterError::ParseError("No handler found".to_string())),
-                Ok,
-            )?;
+            let event_handler = get_handler_for_log(source, &log.topics[0])
+                .ok_or(FilterError::ParseError("No handler found".to_string()))?;
 
             let contract = self
                 .contracts
                 .get(&source.name)
-                .ok_or_else(|| FilterError::ParseError("No contract found".to_string()))?;
+                .ok_or(FilterError::ParseError("No contract found".to_string()))?;
 
             //Parse the event
-            let event = self.parse_event(contract, log)?;
+            let tx = txs
+                .iter()
+                .nth(log.transaction_index.clone().unwrap().as_usize())
+                .cloned()
+                .ok_or(FilterError::TxNotFound)?;
+
+            let event = self.parse_event(contract, log, block_header.to_owned(), tx)?;
+
             events.push(EthereumFilteredEvent {
                 datasource: source.name.clone(),
                 handler: event_handler.handler.clone(),
                 event,
             })
         }
+
         Ok(events)
     }
 
@@ -125,12 +141,17 @@ impl SubgraphFilterTrait for EthereumFilter {
         data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match data {
-            SerializedDataMessage::Ethereum { block, logs, .. } => {
-                let events = self.filter_events(logs)?;
-                info!(EthereumFilter, "Filtered events";
+            SerializedDataMessage::Ethereum {
+                block,
+                logs,
+                transactions,
+            } => {
+                let events = self.filter_events(block.clone(), transactions, logs)?;
+                info!(EthereumFilter, "Filter events";
                     events => events.len(),
                     block_number => format!("{:?}", block.number)
                 );
+
                 Ok(FilteredDataMessage::Ethereum { events, block })
             }
         }

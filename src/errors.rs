@@ -146,6 +146,8 @@ pub enum FilterError {
     JsonParseError(#[from] serde_json::Error),
     #[error(transparent)]
     ManifestLoaderError(#[from] ManifestLoaderError),
+    #[error("Find log's transaction failed")]
+    TxNotFound,
 }
 
 #[derive(Debug, Error)]
