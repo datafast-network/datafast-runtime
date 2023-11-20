@@ -93,7 +93,12 @@ impl SchemaLookup {
     }
 
     pub fn add_schema(&mut self, entity_name: &str, schema: HashMap<String, FieldKind>) {
-        self.schema.insert(entity_name.to_owned(), schema);
+        let mut normalized_schema = HashMap::new();
+        schema.iter().for_each(|(k, v)| {
+            normalized_schema.insert(k.to_lowercase(), v.clone());
+        });
+        self.schema
+            .insert(entity_name.to_owned(), normalized_schema);
     }
 
     pub fn get_relation_field(
@@ -138,12 +143,18 @@ impl SchemaLookup {
             };
         }
 
-        self.schema
+        let entity_schema = self
+            .schema
             .get(entity_type)
-            .expect("get entity type error")
-            .get(field_name)
-            .expect("get field error")
-            .clone()
+            .cloned()
+            .expect(&format!("No entity named = {entity_type}"));
+
+        let field_kind = entity_schema
+            .get(field_name.to_lowercase().as_str())
+            .cloned()
+            .expect(&format!("No field name = {field_name}"));
+
+        field_kind
     }
 
     pub fn json_to_entity(

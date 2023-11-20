@@ -4,6 +4,7 @@ use crate::components::manifest_loader::schema_lookup::FieldKind;
 use crate::components::manifest_loader::schema_lookup::SchemaLookup;
 use crate::error;
 use crate::errors::DatabaseError;
+use crate::info;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
@@ -130,7 +131,11 @@ impl Scylladb {
 
         let json_data = serde_json::Value::Object(json_data);
 
-        let query = format!("INSERT INTO {}.{} JSON ?", self.keyspace, entity_name);
+        let query = format!(
+            "INSERT INTO {}.{} JSON ?",
+            self.keyspace,
+            entity_name.to_lowercase()
+        );
 
         let st = self.session.prepare(query).await?;
         self.session
@@ -151,13 +156,18 @@ impl Scylladb {
                 r#"
                 SELECT id from {}.{}
                 WHERE block_ptr_number >= {} AND block_ptr_number <= {}"#,
-                self.keyspace, entity_name, block_range.0, stop_block
+                self.keyspace,
+                entity_name.to_lowercase(),
+                block_range.0,
+                stop_block
             ),
             None => format!(
                 r#"
                 SELECT id from {}.{}
                 WHERE block_ptr_number >= {}"#,
-                self.keyspace, entity_name, block_range.0
+                self.keyspace,
+                entity_name.to_lowercase(),
+                block_range.0
             ),
         };
         let result = self.session.query(query, ()).await?;
@@ -238,7 +248,7 @@ impl Scylladb {
     async fn drop_tables(&self) -> Result<(), DatabaseError> {
         let schema = self.schema_lookup.get_schemas();
         for (table_name, _) in schema.iter() {
-            let query = format!("DROP TABLE IF EXISTS {}.{}", self.keyspace, table_name);
+            let query = format!("DROP TABLE IF EXISTS {}.\"{}\"", self.keyspace, table_name);
             self.session.query(query, ()).await?;
         }
         let query = format!("DROP TABLE IF EXISTS {}.block_ptr", self.keyspace);
@@ -254,7 +264,7 @@ impl ExternDBTrait for Scylladb {
             let mut column_definitions: Vec<String> = vec![];
             for (colum_name, store_kind) in schema.iter() {
                 let column_type = self.store_kind_to_db_type(store_kind.clone());
-                let definition = format!("{colum_name} {column_type}");
+                let definition = format!("\"{colum_name}\" {column_type}");
                 column_definitions.push(definition);
             }
             // Add block_ptr
@@ -268,11 +278,13 @@ impl ExternDBTrait for Scylladb {
 
             let joint_column_definition = column_definitions.join(",\n");
             let query = format!(
-                r#"CREATE TABLE IF NOT EXISTS {}.{entity_name} (
+                r#"CREATE TABLE IF NOT EXISTS {}."{}" (
             {joint_column_definition}
             ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_ptr_number DESC)"#,
-                self.keyspace
+                self.keyspace,
+                entity_name.to_lowercase()
             );
+            info!(Scylladb, "Creating entity table"; query => query);
             self.session.query(query, &[]).await?;
         }
 
@@ -422,8 +434,9 @@ impl ExternDBTrait for Scylladb {
             for id in ids {
                 let query = format!(
                     r#"
-                    DELETE FROM {}.{} WHERE id = ? AND block_ptr_number >= ?"#,
-                    self.keyspace, entity_name,
+                    DELETE FROM {}."{}" WHERE id = ? AND block_ptr_number >= ?"#,
+                    self.keyspace,
+                    entity_name.to_lowercase(),
                 );
                 batch_queries.append_statement(query.as_str());
                 batch_values.push((id, from_block as i64));
@@ -521,20 +534,30 @@ mod tests {
         let uri = "localhost:9042";
         let keyspace = "ks";
         let mut schema = SchemaLookup::new();
-        schema.add_schema(
-            entity_name,
-            schema!(
-                id => StoreValueKind::String,
-                name => StoreValueKind::String,
-                symbol => StoreValueKind::String,
-                total_supply => StoreValueKind::BigInt,
-            ),
+
+        let mut test_schema: HashMap<String, FieldKind> = schema!(
+            id => StoreValueKind::String,
+            name => StoreValueKind::String,
+            symbol => StoreValueKind::String,
+            total_supply => StoreValueKind::BigInt,
+            userBalance => StoreValueKind::BigInt,
+            tokenBlockNumber => StoreValueKind::BigInt,
+            users => StoreValueKind::Array,
+            table => StoreValueKind::String
         );
+
+        test_schema.get_mut("users").unwrap().list_inner_kind = Some(StoreValueKind::String);
+
+        schema.add_schema(entity_name, test_schema);
         let db = Scylladb::new(uri, keyspace, schema).await.unwrap();
         db.drop_tables().await.unwrap();
-        db.create_entity_tables().await.unwrap();
-        db.truncate_block_ptr().await.unwrap();
-        db.revert_from_block(0).await.unwrap();
+        db.create_entity_tables()
+            .await
+            .expect("Create entity tables failed");
+        db.truncate_block_ptr()
+            .await
+            .expect("Truncate block-ptr table failed");
+        db.revert_from_block(0).await.expect("Revert table failed");
         (db, entity_name.to_string())
     }
 
@@ -551,7 +574,11 @@ mod tests {
             id => Value::String("token-id".to_string()),
             name => Value::String("Tether USD".to_string()),
             symbol => Value::String("USDT".to_string()),
-            total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap())
+            total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap()),
+            userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
+            tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
+            users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
+            table => Value::String("dont-matter".to_string())
         };
 
         let block_ptr = BlockPtr::default();
@@ -634,14 +661,18 @@ mod tests {
     //
     #[tokio::test]
     async fn test_scylla_03_revert_entity() {
-        let (db, entity_name) = setup_db("Tokens_02").await;
-        //insert records
+        let (db, entity_name) = setup_db("Tokens_03").await;
+
         for id in 0..10 {
             let entity_data = entity! {
                 id => Value::String("token-id".to_string()),
                 name => Value::String("Tether USD".to_string()),
                 symbol => Value::String("USDT".to_string()),
                 total_supply => Value::BigInt(BigInt::from(id*1000)),
+                userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
+                tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
+                users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
+                table => Value::String("dont-matter".to_string()),
                 is_deleted => Value::Bool(false)
             };
             let block_ptr = BlockPtr {
@@ -701,7 +732,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_scylla_04_batch_insert() {
-        let (db, entity_name) = setup_db("Tokens").await;
+        let (db, entity_name) = setup_db("Tokens_04").await;
 
         let mut entities = Vec::new();
         let block_ptr = BlockPtr {
@@ -709,13 +740,19 @@ mod tests {
             hash: "hash".to_string(),
             parent_hash: "parent_hash1".to_string(),
         };
+
         let mut ids = Vec::new();
+
         for id in 0..10 {
             let entity_data: RawEntity = entity! {
                 id => Value::String(format!("token-id_{}", id)),
                 name => Value::String("Tether USD".to_string()),
                 symbol => Value::String("USDT".to_string()),
                 total_supply => Value::BigInt(BigInt::from(id*1000)),
+                userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
+                tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
+                users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
+                table => Value::String("dont-matter".to_string()),
                 is_deleted => Value::Bool(id % 2 == 0)
             };
             ids.push(format!("token-id_{}", id));
@@ -873,8 +910,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_scylla_05_save_load_block_ptr() {
-        let (db, _entity_name) = setup_db("Tokens_04").await;
+    async fn test_scylla_06_save_load_block_ptr() {
+        let (db, _entity_name) = setup_db("Tokens_06").await;
 
         for i in 7..12 {
             db.save_block_ptr(BlockPtr {
