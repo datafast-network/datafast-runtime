@@ -238,13 +238,6 @@ impl Scylladb {
     }
 
     #[cfg(test)]
-    async fn truncate_block_ptr(&self) -> Result<(), DatabaseError> {
-        let query = format!("DROP TABLE IF EXISTS {}.block_ptr", self.keyspace);
-        self.session.query(query, ()).await?;
-        self.create_block_ptr_table().await
-    }
-
-    #[cfg(test)]
     async fn drop_tables(&self) -> Result<(), DatabaseError> {
         let schema = self.schema_lookup.get_schemas();
         for (table_name, _) in schema.iter() {
@@ -554,9 +547,9 @@ mod tests {
         db.create_entity_tables()
             .await
             .expect("Create entity tables failed");
-        db.truncate_block_ptr()
+        db.create_block_ptr_table()
             .await
-            .expect("Truncate block-ptr table failed");
+            .expect("Create block-ptr table failed");
         db.revert_from_block(0).await.expect("Revert table failed");
         (db, entity_name.to_string())
     }
