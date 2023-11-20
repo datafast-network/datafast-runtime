@@ -45,9 +45,6 @@ impl Scylladb {
             self.keyspace
         );
         self.session.query(q, []).await?;
-        self.session
-            .query(format!("USE {}", self.keyspace), [])
-            .await?;
         Ok(())
     }
 
@@ -78,35 +75,33 @@ impl Scylladb {
         query: impl Into<Query>,
         values: impl ValueList,
         entity_name: &str,
-        is_deleted: Option<bool>,
+        include_deleted_entity: bool,
     ) -> Result<Option<RawEntity>, DatabaseError> {
         let result = self.session.query(query, values).await?;
 
-        match result.single_row() {
-            Ok(row) => {
-                let json_row = row.columns.first().cloned().unwrap().unwrap();
-                let json_row_as_str = json_row.as_text().unwrap();
-                let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
-                if let serde_json::Value::Object(values) = json {
-                    let result = self.schema_lookup.json_to_entity(entity_name, values);
-                    if is_deleted.is_some()
-                        && result.get("is_deleted").cloned().unwrap()
-                            == Value::Bool(is_deleted.unwrap())
-                    {
-                        return Ok(None);
-                    }
+        if let Ok(row) = result.single_row() {
+            let json_row = row.columns.first().cloned().unwrap().unwrap();
+            let json_row_as_str = json_row.as_text().unwrap();
+            let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
 
-                    Ok(Some(result))
-                } else {
-                    error!(Scylladb, "Not an json object"; data => json);
-                    Err(DatabaseError::Invalid)
+            if let serde_json::Value::Object(values) = json {
+                let result = self.schema_lookup.json_to_entity(entity_name, values);
+                let is_deleted = result
+                    .get("is_deleted")
+                    .cloned()
+                    .expect("Missing `is_deleted` field");
+
+                if is_deleted == Value::Bool(true) && !include_deleted_entity {
+                    return Ok(None);
                 }
-            }
-            Err(error) => {
-                error!(Scylladb, "Error when get entity"; error => error);
-                Err(DatabaseError::InvalidValue(error.to_string()))
+
+                return Ok(Some(result));
+            } else {
+                unimplemented!("query must always return a JSON")
             }
         }
+
+        Ok(None)
     }
 
     async fn insert_entity(
@@ -186,7 +181,7 @@ impl Scylladb {
         &self,
         entity_type: &str,
         ids: Vec<String>,
-        is_deleted: Option<bool>,
+        include_deleted_entities: bool,
     ) -> Result<Vec<RawEntity>, DatabaseError> {
         let ids = format!(
             "({})",
@@ -202,39 +197,26 @@ impl Scylladb {
             self.keyspace, entity_type, ids
         );
         let result = self.session.query(query, ()).await?;
-        match result.rows() {
-            Ok(rows) => {
-                let mut entities = vec![];
-                for row in rows {
-                    let json_row = row.columns.first().cloned().unwrap().unwrap();
-                    let json_row_as_str = json_row.as_text().unwrap();
-                    let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
-                    if let serde_json::Value::Object(values) = json {
-                        let result = self.schema_lookup.json_to_entity(entity_type, values);
+        let mut entities = vec![];
 
-                        if is_deleted.is_none() {
-                            entities.push(result);
-                            continue;
-                        }
+        if let Ok(rows) = result.rows() {
+            for row in rows {
+                let json_row = row.columns.first().cloned().unwrap().unwrap();
+                let json_row_as_str = json_row.as_text().unwrap();
+                let json: serde_json::Value = serde_json::from_str(json_row_as_str).unwrap();
+                if let serde_json::Value::Object(values) = json {
+                    let result = self.schema_lookup.json_to_entity(entity_type, values);
+                    let is_deleted = result.get("is_deleted").cloned().unwrap();
 
-                        if is_deleted.is_some()
-                            && result.get("is_deleted").cloned().unwrap()
-                                == Value::Bool(is_deleted.unwrap())
-                        {
-                            entities.push(result);
-                        }
-                    } else {
-                        error!(Scylladb, "Not an json object"; data => json);
+                    if include_deleted_entities || is_deleted == Value::Bool(false) {
+                        entities.push(result);
                         continue;
                     }
                 }
-                Ok(entities)
-            }
-            Err(e) => {
-                error!(Scylladb, "Error when get entities"; error => e);
-                Err(DatabaseError::InvalidValue(e.to_string()))
             }
         }
+
+        Ok(entities)
     }
 
     #[cfg(test)]
@@ -311,7 +293,7 @@ impl ExternDBTrait for Scylladb {
         entity_type: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError> {
-        let raw_query = format!(
+        let query = format!(
             r#"
                 SELECT JSON * from {}.{}
                 WHERE block_ptr_number = ? AND id = ?
@@ -319,15 +301,13 @@ impl ExternDBTrait for Scylladb {
             "#,
             self.keyspace, entity_type
         );
-        let result = self
-            .get_entity(
-                raw_query,
-                (block_ptr.number as i64, entity_id),
-                entity_type,
-                Some(true),
-            )
-            .await?;
-        Ok(result)
+        self.get_entity(
+            query,
+            (block_ptr.number as i64, entity_id),
+            entity_type,
+            false,
+        )
+        .await
     }
 
     async fn load_entity_latest(
@@ -335,7 +315,7 @@ impl ExternDBTrait for Scylladb {
         entity_type: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError> {
-        let raw_query = format!(
+        let query = format!(
             r#"
             SELECT JSON * from {}.{}
             WHERE id = ?
@@ -344,10 +324,9 @@ impl ExternDBTrait for Scylladb {
             "#,
             self.keyspace, entity_type
         );
-        let result = self
-            .get_entity(raw_query, vec![entity_id], entity_type, Some(true))
-            .await?;
-        Ok(result)
+
+        self.get_entity(query, vec![entity_id], entity_type, false)
+            .await
     }
 
     async fn create_entity(
@@ -411,9 +390,9 @@ impl ExternDBTrait for Scylladb {
         let mut entity = entity.unwrap();
         entity.remove("block_ptr_number");
         entity.remove("is_deleted");
+
         self.insert_entity(block_ptr, entity_name, entity, true)
-            .await?;
-        Ok(())
+            .await
     }
 
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
@@ -469,7 +448,7 @@ impl ExternDBTrait for Scylladb {
         entity_name: String,
         ids: Vec<String>,
     ) -> Result<Vec<RawEntity>, DatabaseError> {
-        self.get_entities(&entity_name, ids, Some(false)).await
+        self.get_entities(&entity_name, ids, true).await
     }
 
     async fn load_recent_block_ptrs(
@@ -482,29 +461,28 @@ impl ExternDBTrait for Scylladb {
         );
         let result = self.session.query(query, &[]).await?;
 
-        match result.rows() {
-            Ok(mut rows) => {
-                let block_ptrs = rows
-                    .iter_mut()
-                    .rev()
-                    .filter_map(|r| {
-                        let json = r
-                            .columns
-                            .first()
-                            .cloned()
-                            .unwrap()
-                            .unwrap()
-                            .as_text()
-                            .cloned()
-                            .unwrap();
-                        serde_json::from_str::<BlockPtr>(&json).ok()
-                    })
-                    .collect::<Vec<_>>();
+        if let Ok(mut rows) = result.rows() {
+            let block_ptrs = rows
+                .iter_mut()
+                .rev()
+                .filter_map(|r| {
+                    let json = r
+                        .columns
+                        .first()
+                        .cloned()
+                        .unwrap()
+                        .unwrap()
+                        .as_text()
+                        .cloned()
+                        .unwrap();
+                    serde_json::from_str::<BlockPtr>(&json).ok()
+                })
+                .collect::<Vec<_>>();
 
-                Ok(block_ptrs)
-            }
-            Err(_) => Ok(Vec::new()),
+            return Ok(block_ptrs);
         }
+
+        Ok(vec![])
     }
 }
 
@@ -756,10 +734,7 @@ mod tests {
             .await
             .unwrap();
 
-        let entities_values = db
-            .get_entities(&entity_name, ids, Some(false))
-            .await
-            .unwrap();
+        let entities_values = db.get_entities(&entity_name, ids, false).await.unwrap();
 
         assert_eq!(entities_values.len(), 5);
 
