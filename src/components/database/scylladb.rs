@@ -4,6 +4,7 @@ use crate::components::manifest_loader::schema_lookup::FieldKind;
 use crate::components::manifest_loader::schema_lookup::SchemaLookup;
 use crate::error;
 use crate::errors::DatabaseError;
+use crate::info;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
@@ -360,8 +361,8 @@ impl ExternDBTrait for Scylladb {
         block_ptr: BlockPtr,
         values: Vec<(String, RawEntity)>,
     ) -> Result<(), DatabaseError> {
-        let mut batch_queries = Batch::default();
-        let mut batch_values = vec![];
+        // let mut batch_queries = Batch::default();
+        // let mut batch_values = vec![];
         for (entity_name, data) in values {
             if data.get("is_deleted").is_none() {
                 error!(Scylladb,
@@ -380,14 +381,14 @@ impl ExternDBTrait for Scylladb {
                 serde_json::Value::from(block_ptr.number),
             );
 
-            let data_json: String = serde_json::Value::Object(json_data).to_string();
-            let query = format!("INSERT INTO {}.{} JSON ?", self.keyspace, entity_name);
-
-            batch_queries.append_statement(query.as_str());
-            batch_values.push((data_json,))
+            let query =
+                self.schema_lookup
+                    .generate_insert_query(&self.keyspace, &entity_name, json_data);
+            info!(Scylladb, "Inserting entity"; query => query);
+            self.session.query(query, &[]).await?;
         }
-        let st = self.session.prepare_batch(&batch_queries).await?;
-        self.session.batch(&st, batch_values).await?;
+        // let st = self.session.prepare_batch(&batch_queries).await?;
+        // self.session.batch(&st, batch_values).await?;
         Ok(())
     }
 
