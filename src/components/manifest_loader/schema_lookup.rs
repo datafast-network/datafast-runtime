@@ -147,12 +147,12 @@ impl SchemaLookup {
             .schema
             .get(entity_type)
             .cloned()
-            .expect(&format!("No entity named = {entity_type}"));
+            .unwrap_or_else(|| panic!("No entity named = {entity_type}"));
 
         let field_kind = entity_schema
             .get(field_name.to_lowercase().as_str())
             .cloned()
-            .expect(&format!("No field name = {field_name}"));
+            .unwrap_or_else(|| panic!("No field name = {field_name}"));
 
         field_kind
     }
