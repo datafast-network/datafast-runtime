@@ -264,7 +264,12 @@ impl SchemaLookup {
                 Value::BigDecimal(BigDecimal::from_str(val.as_str().unwrap()).unwrap())
             }
             StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
-            StoreValueKind::Bytes => Value::Bytes(Bytes::from(val.as_str().unwrap().as_bytes())),
+            StoreValueKind::Bytes => {
+                let hex_bytes =
+                    hex::decode(val.to_string().replace("0x", "")).expect("hex decode error");
+                let bytes = Bytes::from(hex_bytes);
+                Value::Bytes(bytes)
+            }
             StoreValueKind::BigInt => {
                 Value::BigInt(BigInt::from_str(val.as_str().unwrap()).unwrap())
             }
@@ -298,10 +303,7 @@ impl SchemaLookup {
             Value::BigDecimal(number) => serde_json::Value::from(number.to_string()),
             Value::BigInt(number) => serde_json::Value::from(number.to_string()),
             // NOTE: i'm not sure about this Bytes field
-            Value::Bytes(bytes) => {
-                let hex_str = hex::encode(bytes.as_slice());
-                serde_json::Value::from(format!("0x{}", hex_str))
-            }
+            Value::Bytes(bytes) => serde_json::Value::String(format!("{}", bytes)),
             Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
             Value::List(list) => serde_json::Value::Array(
                 list.into_iter()
