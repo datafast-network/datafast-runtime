@@ -2,8 +2,10 @@ use std::str::FromStr;
 
 use super::extern_db::ExternDBTrait;
 use crate::common::BlockPtr;
+use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
+use crate::info;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;
@@ -92,24 +94,28 @@ impl Scylladb {
         .to_string()
     }
 
-    fn cql_value_to_store_value(field_kind: FieldKind, value: CqlValue) -> Value {
+    fn cql_value_to_store_value(field_kind: FieldKind, value: Option<CqlValue>) -> Value {
         match field_kind.kind {
-            StoreValueKind::Int => Value::Int(value.as_int().unwrap()),
-            StoreValueKind::Int8 => Value::Int8(value.as_bigint().unwrap()),
-            StoreValueKind::String => Value::String(value.as_text().unwrap().to_owned()),
-            StoreValueKind::Bool => Value::Bool(value.as_boolean().unwrap()),
+            StoreValueKind::Int => Value::Int(value.unwrap().as_int().unwrap()),
+            StoreValueKind::Int8 => Value::Int8(value.unwrap().as_bigint().unwrap()),
+            StoreValueKind::String => Value::String(value.unwrap().as_text().unwrap().to_owned()),
+            StoreValueKind::Bool => Value::Bool(value.unwrap().as_boolean().unwrap()),
             StoreValueKind::BigDecimal => {
-                Value::BigDecimal(BigDecimal::from_str(value.as_text().unwrap()).unwrap())
+                Value::BigDecimal(BigDecimal::from_str(value.unwrap().as_text().unwrap()).unwrap())
             }
             StoreValueKind::BigInt => {
-                Value::BigInt(BigInt::from_str(value.as_text().unwrap()).unwrap())
+                Value::BigInt(BigInt::from_str(value.unwrap().as_text().unwrap()).unwrap())
             }
             StoreValueKind::Bytes => {
-                let bytes = value.as_blob().unwrap();
+                let bytes_value = value.unwrap();
+                let bytes = bytes_value.as_blob().unwrap();
                 Value::Bytes(Bytes::from(bytes.as_slice()))
             }
             StoreValueKind::Array => {
-                let inner_values = value.as_list().cloned().unwrap_or_default();
+                if value.is_none() {
+                    return Value::List(vec![]);
+                }
+                let inner_values = value.unwrap().as_list().cloned().unwrap_or_default();
                 let inner_values = inner_values
                     .into_iter()
                     .map(|inner_val| {
@@ -119,7 +125,7 @@ impl Scylladb {
                                 relation: None,
                                 list_inner_kind: None,
                             },
-                            inner_val,
+                            Some(inner_val),
                         )
                     })
                     .collect::<Vec<_>>();
@@ -141,14 +147,14 @@ impl Scylladb {
 
         for row in rows {
             let mut entity = RawEntity::new();
-            for (idx, column) in row.columns.into_iter().flatten().enumerate() {
-                let col_spec = col_specs[idx].to_owned();
-                let field_name = col_spec.name;
+            for (idx, column) in row.columns.iter().enumerate() {
+                let col_spec = col_specs[idx].clone();
+                let field_name = col_spec.name.clone();
 
                 if field_name == "is_deleted" {
                     entity.insert(
                         "is_deleted".to_string(),
-                        Value::Bool(column.as_boolean().unwrap()),
+                        Value::Bool(column.clone().unwrap().as_boolean().unwrap()),
                     );
                     continue;
                 }
@@ -156,13 +162,13 @@ impl Scylladb {
                 if field_name == "block_ptr_number" {
                     entity.insert(
                         "block_ptr_number".to_string(),
-                        Value::Int8(column.as_bigint().unwrap()),
+                        Value::Int8(column.clone().unwrap().as_bigint().unwrap()),
                     );
                     continue;
                 }
 
                 let field_kind = self.schema_lookup.get_field(entity_type, &field_name);
-                let value = Scylladb::cql_value_to_store_value(field_kind, column);
+                let value = Scylladb::cql_value_to_store_value(field_kind, column.clone());
                 entity.insert(field_name, value);
             }
 
@@ -249,10 +255,25 @@ impl Scylladb {
             CqlValue::BigInt(block_ptr.number as i64),
             data.get("is_deleted").unwrap().clone().into(),
         ];
-        for (field_name, _field_kind) in schema.iter() {
-            let value = data.get(field_name).cloned().unwrap();
+        for (field_name, field_kind) in schema.iter() {
+            let value = match data.get(field_name) {
+                None => {
+                    //handle case when field is missing but has in schema
+                    debug!(
+                        Scylladb,
+                        "Missing field";
+                        entity_type => entity_type,
+                        field_name => field_name,
+                        data => format!("{:?}", data)
+                    );
+                    let default_value =
+                        Scylladb::cql_value_to_store_value(field_kind.clone(), None);
+                    CqlValue::from(default_value)
+                }
+                Some(val) => CqlValue::from(val.clone()),
+            };
+            values_params.push(value);
             fields.push(format!("\"{}\"", field_name));
-            values_params.push(CqlValue::from(value));
             column_values.push("?".to_string());
         }
 
