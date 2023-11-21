@@ -186,7 +186,7 @@ impl SchemaLookup {
             Type::ListType(list) => {
                 let inner_type = list.ty().expect("list type must not be None");
                 let value = self.parse_entity_field(inner_type);
-                
+
                 FieldKind {
                     kind: StoreValueKind::Array,
                     relation: value.relation,

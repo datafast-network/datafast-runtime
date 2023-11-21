@@ -14,7 +14,6 @@ mod schema_lookup;
 use components::*;
 use config::Config;
 use database::DatabaseAgent;
-use errors::SwrError;
 use messages::FilteredDataMessage;
 use messages::SerializedDataMessage;
 use messages::SourceDataMessage;
@@ -22,13 +21,18 @@ use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use runtime::wasm_host::create_wasm_host;
+use std::fmt::Debug;
+
+fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
+    info!(main, format!("{task_name} has finished"); result => format!("{:?}", r));
+}
 
 #[tokio::main]
-async fn main() -> Result<(), SwrError> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::try_init().unwrap_or_default();
 
     // TODO: impl CLI
-    let config = Config::load()?;
+    let config = Config::load();
     let registry = default_registry();
 
     let block_source = Source::new(&config).await?;
@@ -63,16 +67,14 @@ async fn main() -> Result<(), SwrError> {
     let (sender3, recv3) = kanal::bounded_async::<SerializedDataMessage>(1);
     let (sender4, recv4) = kanal::bounded_async::<FilteredDataMessage>(1);
 
-    let results = tokio::join!(
-        block_source.run_async(sender1),
-        serializer.run_async(recv1, sender2),
-        progress_ctrl.run_async(recv2, sender3),
-        filter.run_async(recv3, sender4),
-        subgraph.run_async(recv4, db, rpc),
-        run_metric_server(config.metric_port.unwrap_or(8081))
+    tokio::select!(
+        r = block_source.run_async(sender1) => handle_task_result(r, "block-source"),
+        r = serializer.run_async(recv1, sender2) => handle_task_result(r, "Serializer"),
+        r = progress_ctrl.run_async(recv2, sender3) => handle_task_result(r, "ProgressCtrl"),
+        r = filter.run_async(recv3, sender4) => handle_task_result(r, "SubgraphFilter"),
+        r = subgraph.run_async(recv4, db, rpc) => handle_task_result(r, "Subgraph"),
+        _ = run_metric_server(config.metric_port.unwrap_or(8081)) => ()
     );
-
-    log::info!("Results: {:?}", results);
 
     Ok(())
 }

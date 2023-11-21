@@ -207,27 +207,3 @@ pub enum RPCClientError {
     #[error("RPCClient error: {0}")]
     RPCClient(String),
 }
-
-#[derive(Debug, Error)]
-pub enum SwrError {
-    #[error(transparent)]
-    ManifestLoader(#[from] ManifestLoaderError),
-    #[error("Config load failed: {0}")]
-    ConfigLoadFail(String),
-    #[error(transparent)]
-    WasmHostError(#[from] WasmHostError),
-    #[error(transparent)]
-    SubgraphError(#[from] SubgraphError),
-    #[error(transparent)]
-    DatabaseError(#[from] DatabaseError),
-    #[error(transparent)]
-    FilterError(#[from] FilterError),
-    #[error(transparent)]
-    SerializerError(#[from] SerializerError),
-    #[error(transparent)]
-    SourceErr(#[from] SourceError),
-    #[error(transparent)]
-    ProgressCtrlError(#[from] ProgressCtrlError),
-    #[error(transparent)]
-    RPCClientError(#[from] RPCClientError),
-}

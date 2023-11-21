@@ -72,7 +72,7 @@ mod test {
     #[tokio::test]
     async fn test_readdir() {
         env_logger::try_init().unwrap_or_default();
-        let config = Config::load().unwrap();
+        let config = Config::load();
         let rd = match config.source {
             SourceTypes::ReadDir { source_dir } => ReadDir::new(&source_dir),
             _ => panic!("Wrong source type!"),

@@ -551,7 +551,7 @@ mod tests {
     use crate::runtime::bignumber::bigint::BigInt;
     use crate::schema;
     use crate::schema_lookup::Schema;
-    
+
     use log::info;
     use std::str::FromStr;
 
