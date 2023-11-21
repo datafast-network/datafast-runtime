@@ -232,7 +232,7 @@ impl ExternDBTrait for Scylladb {
                 parent_hash text,
                 PRIMARY KEY (sgd, block_number)
             ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_number DESC)
-"#,
+            "#,
             self.keyspace
         );
         self.session.query(query, ()).await?;
