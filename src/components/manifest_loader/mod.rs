@@ -25,7 +25,7 @@ pub trait LoaderTrait: Sized {
 
     fn get_abis(&self) -> &HashMap<String, serde_json::Value>;
 
-    fn get_schema(&self) -> &SchemaLookup;
+    fn get_schema(&self) -> SchemaLookup;
 
     fn get_sources(&self) -> Vec<Source>;
 
@@ -121,7 +121,7 @@ impl LoaderTrait for ManifestLoader {
         }
     }
 
-    fn get_schema(&self) -> &SchemaLookup {
+    fn get_schema(&self) -> SchemaLookup {
         match self {
             ManifestLoader::Local(loader) => loader.get_schema(),
         }

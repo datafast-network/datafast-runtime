@@ -4,6 +4,7 @@ use crate::components::manifest_loader::schema_lookup::SchemaLookup;
 use crate::config::Config;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
+use crate::messages::EntityType;
 use crate::messages::RawEntity;
 use async_trait::async_trait;
 
@@ -55,7 +56,7 @@ pub trait ExternDBTrait: Sized {
     async fn batch_insert_entities(
         &self,
         block_ptr: BlockPtr,
-        values: Vec<(String, RawEntity)>, //(entity_type, value)
+        values: Vec<(EntityType, RawEntity)>,
     ) -> Result<(), DatabaseError>;
 
     async fn soft_delete_entity(
@@ -68,8 +69,6 @@ pub trait ExternDBTrait: Sized {
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError>;
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError>;
-
-    fn get_schema(&self) -> SchemaLookup;
 
     async fn load_entities(
         &self,
@@ -172,13 +171,6 @@ impl ExternDBTrait for ExternDB {
         match self {
             ExternDB::Scylla(db) => db.save_block_ptr(block_ptr).await,
             ExternDB::None => Ok(()),
-        }
-    }
-
-    fn get_schema(&self) -> SchemaLookup {
-        match self {
-            ExternDB::Scylla(db) => db.get_schema().clone(),
-            ExternDB::None => SchemaLookup::new(),
         }
     }
 

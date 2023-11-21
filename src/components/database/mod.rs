@@ -28,18 +28,24 @@ pub struct Database {
     pub mem: MemoryDb,
     pub db: ExternDB,
     metrics: DatabaseMetrics,
+    schema: SchemaLookup,
 }
 
 impl Database {
     pub async fn new(
         config: &Config,
-        schema_lookup: SchemaLookup,
+        schema: SchemaLookup,
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {
         let mem = MemoryDb::default();
-        let db = ExternDB::new(config, schema_lookup).await?;
+        let db = ExternDB::new(config, schema.clone()).await?;
         let metrics = DatabaseMetrics::new(registry);
-        Ok(Database { mem, db, metrics })
+        Ok(Database {
+            mem,
+            db,
+            metrics,
+            schema,
+        })
     }
 
     async fn handle_store_request(
@@ -137,7 +143,6 @@ impl Database {
 
         let entity = entity.unwrap();
         let field_related_ids = entity.get(&field_name).cloned().unwrap();
-        let schema = self.db.get_schema();
         let ids = match field_related_ids {
             Value::String(id) => vec![id],
             Value::List(list) => {
@@ -153,7 +158,7 @@ impl Database {
         };
 
         if let Some((relation_table, _field_name)) =
-            schema.get_relation_field(&entity_type, &field_name)
+            self.schema.get_relation_field(&entity_type, &field_name)
         {
             let mut related_entities = vec![];
             let mut missing_ids = vec![];
@@ -212,7 +217,7 @@ impl From<Database> for DatabaseAgent {
 impl DatabaseAgent {
     pub async fn new(
         config: &Config,
-        schema: &SchemaLookup,
+        schema: SchemaLookup,
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {
         let db = Database::new(config, schema.to_owned(), registry).await?;
@@ -259,7 +264,12 @@ impl DatabaseAgent {
         let mem = MemoryDb::default();
         let db = ExternDB::None;
         let metrics = DatabaseMetrics::new(registry);
-        let database = Database { mem, db, metrics };
+        let database = Database {
+            mem,
+            db,
+            metrics,
+            schema: SchemaLookup::default(),
+        };
         DatabaseAgent::from(database)
     }
 }
