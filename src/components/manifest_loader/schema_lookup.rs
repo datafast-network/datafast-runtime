@@ -1,5 +1,6 @@
 use crate::error;
 use crate::errors::ManifestLoaderError;
+use crate::info;
 use crate::messages::EntityType;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
@@ -297,7 +298,10 @@ impl SchemaLookup {
             Value::BigDecimal(number) => serde_json::Value::from(number.to_string()),
             Value::BigInt(number) => serde_json::Value::from(number.to_string()),
             // NOTE: i'm not sure about this Bytes field
-            Value::Bytes(bytes) => serde_json::Value::from(format!("0x{}", bytes)),
+            Value::Bytes(bytes) => {
+                let hex_str = hex::encode(bytes.as_slice());
+                serde_json::Value::from(format!("0x{}", hex_str))
+            }
             Value::Bool(bool_val) => serde_json::Value::Bool(bool_val),
             Value::List(list) => serde_json::Value::Array(
                 list.into_iter()

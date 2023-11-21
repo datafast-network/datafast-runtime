@@ -33,6 +33,8 @@ impl Scylladb {
             schema_lookup,
         };
         this.create_keyspace().await?;
+        this.create_entity_tables().await?;
+        this.create_block_ptr_table().await?;
         Ok(this)
     }
 
@@ -124,7 +126,7 @@ impl Scylladb {
         let json_data = serde_json::Value::Object(json_data);
 
         let query = format!(
-            "INSERT INTO {}.{} JSON ?",
+            r#"INSERT INTO {}."{}" JSON ?"#,
             self.keyspace,
             entity_type.to_lowercase()
         );
@@ -143,7 +145,7 @@ impl Scylladb {
         from_block: u64,
     ) -> Result<Vec<String>, DatabaseError> {
         let query = format!(
-            "SELECT id FROM {}.\"{}\" WHERE block_ptr_number >= {}",
+            r#"SELECT id FROM {}."{}" WHERE block_ptr_number >= {}"#,
             self.keyspace,
             entity_type.to_lowercase(),
             from_block
@@ -169,7 +171,11 @@ impl Scylladb {
     async fn drop_tables(&self) -> Result<(), DatabaseError> {
         let schema = self.schema_lookup.get_schemas();
         for (table_name, _) in schema.iter() {
-            let query = format!("DROP TABLE IF EXISTS {}.\"{}\"", self.keyspace, table_name);
+            let query = format!(
+                r#"DROP TABLE IF EXISTS {}."{}"#,
+                self.keyspace,
+                table_name.to_lowercase()
+            );
             self.session.query(query, ()).await?;
         }
         let query = format!("DROP TABLE IF EXISTS {}.block_ptr", self.keyspace);
@@ -241,11 +247,12 @@ impl ExternDBTrait for Scylladb {
     ) -> Result<Option<RawEntity>, DatabaseError> {
         let query = format!(
             r#"
-                SELECT JSON * from {}.{}
+                SELECT JSON * from {}."{}"
                 WHERE block_ptr_number = ? AND id = ?
                 LIMIT 1
             "#,
-            self.keyspace, entity_type
+            self.keyspace,
+            entity_type.to_lowercase()
         );
         let entity_query_result = self
             .session
@@ -265,20 +272,34 @@ impl ExternDBTrait for Scylladb {
     ) -> Result<Option<RawEntity>, DatabaseError> {
         let query = format!(
             r#"
-            SELECT JSON * from {}.{}
+            SELECT JSON * from {}."{}"
             WHERE id = ?
             ORDER BY block_ptr_number DESC
             LIMIT 1
             "#,
-            self.keyspace, entity_type
+            self.keyspace,
+            entity_type.to_lowercase()
         );
-
-        let entity_query_result = self.session.query(query, (entity_id,)).await?;
-        let entity = self
-            .handle_entity_query_result(entity_type, entity_query_result, false)
-            .first()
-            .cloned();
-        Ok(entity)
+        info!(Scylladb, "Load entity latest"; query => query);
+        let entity_query_result = self.session.query(query, (entity_id,)).await;
+        match entity_query_result {
+            Ok(result) => {
+                let entity = self
+                    .handle_entity_query_result(entity_type, result, false)
+                    .first()
+                    .cloned();
+                Ok(entity)
+            }
+            Err(err) => {
+                error!(Scylladb,
+                    "Load entity latest error";
+                    entity_type => entity_type,
+                    entity_id => entity_id,
+                    error => format!("{:?}", err)
+                );
+                Err(err.into())
+            }
+        }
     }
 
     async fn create_entity(
@@ -298,6 +319,7 @@ impl ExternDBTrait for Scylladb {
     ) -> Result<(), DatabaseError> {
         let mut batch_queries = Batch::default();
         let mut batch_values = vec![];
+        info!(Scylladb, "Batch insert entities"; block_ptr => format!("{:?}", block_ptr));
         for (entity_type, data) in values {
             if data.get("is_deleted").is_none() {
                 error!(Scylladb,
@@ -317,7 +339,11 @@ impl ExternDBTrait for Scylladb {
             );
 
             let data_json: String = serde_json::Value::Object(json_data).to_string();
-            let query = format!("INSERT INTO {}.{} JSON ?", self.keyspace, entity_type);
+            let query = format!(
+                r#"INSERT INTO {}."{}" JSON ?"#,
+                self.keyspace,
+                entity_type.to_lowercase()
+            );
 
             batch_queries.append_statement(query.as_str());
             batch_values.push((data_json,))
@@ -407,12 +433,14 @@ impl ExternDBTrait for Scylladb {
         );
         let query = format!(
             r#"
-            SELECT JSON * from {}.{}
+            SELECT JSON * from {}."{}"
             WHERE id IN {}"#,
-            self.keyspace, entity_type, ids
+            self.keyspace,
+            entity_type.to_lowercase(),
+            ids
         );
         let entity_query_result = self.session.query(query, ()).await?;
-        Ok(self.handle_entity_query_result(&entity_type, entity_query_result, false))
+        Ok(self.handle_entity_query_result(entity_type, entity_query_result, false))
     }
 
     async fn load_recent_block_ptrs(
