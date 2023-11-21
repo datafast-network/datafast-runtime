@@ -251,7 +251,7 @@ impl<C: AscType> AscPtr<C> {
     }
 
     /// Conversion to `u64` for use with `AscEnum`.
-    pub fn to_payload(&self) -> u64 {
+    pub fn as_payload(&self) -> u64 {
         self.0 as u64
     }
 

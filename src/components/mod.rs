@@ -1,8 +1,13 @@
-pub mod database;
-pub mod manifest_loader;
-pub mod progress_ctrl;
-pub mod rpc_client;
-pub mod serializer;
-pub mod source;
-pub mod subgraph;
-pub mod subgraph_filter;
+mod manifest_loader;
+mod progress_ctrl;
+mod serializer;
+mod source;
+mod subgraph;
+mod subgraph_filter;
+
+pub use manifest_loader::ManifestLoader;
+pub use progress_ctrl::ProgressCtrl;
+pub use serializer::Serializer;
+pub use source::Source;
+pub use subgraph::Subgraph;
+pub use subgraph_filter::SubgraphFilter;

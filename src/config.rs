@@ -1,5 +1,4 @@
 use crate::common::Chain;
-use crate::errors::SwrError;
 use figment::providers::Env;
 use figment::providers::Format;
 use figment::providers::Toml;
@@ -60,13 +59,13 @@ pub enum TransformConfig {
 }
 
 impl Config {
-    pub fn load() -> Result<Self, SwrError> {
+    pub fn load() -> Self {
         let config_file_path = std::env::var("CONFIG").unwrap_or("config.toml".to_string());
         Figment::new()
             .merge(Toml::file(config_file_path))
             .merge(Env::prefixed("SWR_"))
             .extract()
-            .map_err(|e| SwrError::ConfigLoadFail(e.to_string()))
+            .expect("Load config failed")
     }
 
     pub fn get_subgraph_id(&self) -> String {
@@ -85,7 +84,7 @@ mod test {
     fn test_config() {
         env_logger::try_init().unwrap_or_default();
 
-        let config = Config::load().unwrap();
+        let config = Config::load();
         log::info!("Config = {:?}", config);
     }
 }

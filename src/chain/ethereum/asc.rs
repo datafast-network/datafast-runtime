@@ -254,22 +254,22 @@ impl ToAscObj<AscEnum<EthereumValueKind>> for ethabi::Token {
 
         let kind = EthereumValueKind::get_kind(self);
         let payload = match self {
-            Address(address) => asc_new::<AscAddress, _, _>(heap, address)?.to_payload(),
+            Address(address) => asc_new::<AscAddress, _, _>(heap, address)?.as_payload(),
             FixedBytes(bytes) | Bytes(bytes) => {
-                asc_new::<Uint8Array, _, _>(heap, &**bytes)?.to_payload()
+                asc_new::<Uint8Array, _, _>(heap, &**bytes)?.as_payload()
             }
             Int(uint) => {
                 let n = BigInt::from_signed_u256(uint);
-                asc_new(heap, &n)?.to_payload()
+                asc_new(heap, &n)?.as_payload()
             }
             Uint(uint) => {
                 let n = BigInt::from_unsigned_u256(uint);
-                asc_new(heap, &n)?.to_payload()
+                asc_new(heap, &n)?.as_payload()
             }
             Bool(b) => *b as u64,
-            String(string) => asc_new(heap, &**string)?.to_payload(),
-            FixedArray(tokens) | Array(tokens) => asc_new(heap, &**tokens)?.to_payload(),
-            Tuple(tokens) => asc_new(heap, &**tokens)?.to_payload(),
+            String(string) => asc_new(heap, &**string)?.as_payload(),
+            FixedArray(tokens) | Array(tokens) => asc_new(heap, &**tokens)?.as_payload(),
+            Tuple(tokens) => asc_new(heap, &**tokens)?.as_payload(),
         };
 
         Ok(AscEnum {

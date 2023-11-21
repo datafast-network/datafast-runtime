@@ -7,7 +7,6 @@ use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
 use crate::common::Datasource;
-use crate::components::manifest_loader::LoaderTrait;
 use crate::components::manifest_loader::ManifestLoader;
 use crate::debug;
 use crate::errors::FilterError;
@@ -27,6 +26,26 @@ pub struct EthereumFilter {
 }
 
 impl EthereumFilter {
+    // FIXME: passing ref to a Component is undesirable, only get what you actually need
+    pub fn new(_chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
+        let addresses = manifest
+            .datasources()
+            .iter()
+            .map(|source| (get_address(source), source))
+            .flat_map(|(address, source)| address.map(|address| (address, source.clone())))
+            .collect();
+        let contracts = manifest.load_ethereum_contracts()?;
+        let filter = EthereumFilter {
+            contracts,
+            addresses,
+        };
+        info!(EthereumFilter, "Init success";
+            Addresses => filter.addresses.len(),
+            Contracts => filter.contracts.len()
+        );
+        Ok(filter)
+    }
+
     fn parse_event(
         &self,
         contract: &Contract,
@@ -93,8 +112,7 @@ impl EthereumFilter {
 
             //Parse the event
             let tx = txs
-                .iter()
-                .nth(log.transaction_index.unwrap().as_usize())
+                .get(log.transaction_index.unwrap().as_usize())
                 .cloned()
                 .ok_or(FilterError::TxNotFound)?;
 
@@ -116,26 +134,6 @@ impl EthereumFilter {
 }
 
 impl SubgraphFilterTrait for EthereumFilter {
-    // FIXME: passing ref to a Component is undesirable, only get what you actually need
-    fn new(_chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
-        let addresses = manifest
-            .datasources()
-            .iter()
-            .map(|source| (get_address(source), source))
-            .flat_map(|(address, source)| address.map(|address| (address, source.clone())))
-            .collect();
-        let contracts = manifest.load_ethereum_contracts()?;
-        let filter = EthereumFilter {
-            contracts,
-            addresses,
-        };
-        info!(EthereumFilter, "Init success";
-            Addresses => filter.addresses.len(),
-            Contracts => filter.contracts.len()
-        );
-        Ok(filter)
-    }
-
     fn handle_serialize_message(
         &self,
         data: SerializedDataMessage,
