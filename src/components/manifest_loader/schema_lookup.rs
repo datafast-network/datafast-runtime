@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 type FieldName = String;
+pub type Schema = HashMap<FieldName, FieldKind>;
 
 #[derive(Clone, Default, Debug)]
 pub struct FieldKind {
@@ -25,7 +26,7 @@ pub struct FieldKind {
 
 #[derive(Clone, Default)]
 pub struct SchemaLookup {
-    schema: HashMap<EntityType, HashMap<FieldName, FieldKind>>,
+    schema: HashMap<EntityType, Schema>,
 }
 
 impl SchemaLookup {
@@ -48,7 +49,7 @@ impl SchemaLookup {
                     .expect("Name of Object Definition invalid")
                     .text()
                     .to_string();
-                schema_lookup.schema.insert(entity_type, HashMap::new());
+                schema_lookup.schema.insert(entity_type, Schema::new());
             }
         });
         for def in doc.definitions() {
@@ -58,7 +59,7 @@ impl SchemaLookup {
                     .unwrap_or_else(|| panic!("Name of Object Definition invalid"))
                     .text()
                     .to_string();
-                let mut schema = HashMap::new();
+                let mut schema = Schema::new();
                 for field in object.fields_definition().unwrap().field_definitions() {
                     let ty = field
                         .ty()
@@ -92,13 +93,8 @@ impl SchemaLookup {
         Ok(schema_lookup)
     }
 
-    pub fn add_schema(&mut self, entity_name: &str, schema: HashMap<String, FieldKind>) {
-        let mut normalized_schema = HashMap::new();
-        schema.iter().for_each(|(k, v)| {
-            normalized_schema.insert(k.clone(), v.clone());
-        });
-        self.schema
-            .insert(entity_name.to_owned(), normalized_schema);
+    pub fn add_schema(&mut self, entity_name: &str, schema: Schema) {
+        self.schema.insert(entity_name.to_owned(), schema);
     }
 
     pub fn get_relation_field(
@@ -119,12 +115,12 @@ impl SchemaLookup {
         Some(relation)
     }
 
-    pub fn get_schemas(&self) -> &HashMap<String, HashMap<String, FieldKind>> {
-        &self.schema
-    }
-
     pub fn get_entity_names(&self) -> Vec<String> {
         self.schema.keys().cloned().collect()
+    }
+
+    pub fn get_schema(&self, entity_type: &str) -> Schema {
+        self.schema.get(entity_type).unwrap().clone()
     }
 
     fn get_field(&self, entity_type: &str, field_name: &str) -> FieldKind {

@@ -4,6 +4,7 @@ use crate::components::manifest_loader::schema_lookup::SchemaLookup;
 use crate::config::Config;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
+use crate::messages::EntityType;
 use crate::messages::RawEntity;
 use async_trait::async_trait;
 
@@ -18,9 +19,7 @@ impl ExternDB {
         let config = config.database.as_ref().unwrap();
         let db = match config {
             DatabaseConfig::Scylla { uri, keyspace } => {
-                let db = Scylladb::new(uri, keyspace, schema_lookup).await?;
-                db.init_tables().await?;
-                ExternDB::Scylla(db)
+                ExternDB::Scylla(Scylladb::new(uri, keyspace, schema_lookup).await?)
             }
         };
 
@@ -57,7 +56,7 @@ pub trait ExternDBTrait: Sized {
     async fn batch_insert_entities(
         &self,
         block_ptr: BlockPtr,
-        values: Vec<(String, RawEntity)>, //(entity_type, value)
+        values: Vec<(EntityType, RawEntity)>,
     ) -> Result<(), DatabaseError>;
 
     async fn soft_delete_entity(

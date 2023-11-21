@@ -110,8 +110,8 @@ impl LoaderTrait for LocalFileLoader {
         &self.abis
     }
 
-    fn get_schema(&self) -> &SchemaLookup {
-        &self.schema
+    fn get_schema(&self) -> SchemaLookup {
+        self.schema.to_owned()
     }
 
     fn get_sources(&self) -> Vec<Source> {
