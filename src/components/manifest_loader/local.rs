@@ -46,7 +46,7 @@ impl LoaderTrait for LocalFileLoader {
         let schema_path = format!("{}/build/schema.graphql", self.subgraph_dir);
         let schema =
             read_to_string(schema_path).map_err(|_| ManifestLoaderError::SchemaParsingError)?;
-        self.schema = SchemaLookup::new_from_graphql_schema(&schema)?;
+        self.schema = SchemaLookup::new_from_graphql_schema(&schema);
         Ok(())
     }
 

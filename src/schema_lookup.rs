@@ -1,5 +1,4 @@
 use crate::error;
-use crate::errors::ManifestLoaderError;
 use crate::messages::EntityType;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use apollo_parser::cst::CstNode;
@@ -31,7 +30,7 @@ impl SchemaLookup {
         }
     }
 
-    pub fn new_from_graphql_schema(schema: &str) -> Result<Self, ManifestLoaderError> {
+    pub fn new_from_graphql_schema(schema: &str) -> Self {
         let parser = Parser::new(schema);
         let ast = parser.parse();
         let doc = ast.document();
@@ -63,7 +62,7 @@ impl SchemaLookup {
                         .name()
                         .unwrap_or_else(|| panic!("Name of field {:?} error", field))
                         .text();
-                    let mut field_kind = schema_lookup.parse_entity_field(ty)?;
+                    let mut field_kind = schema_lookup.parse_entity_field(ty);
                     if let Some(dir) = field.directives() {
                         let first = dir.directives().next();
                         if first.is_some() {
@@ -85,7 +84,7 @@ impl SchemaLookup {
             }
         }
 
-        Ok(schema_lookup)
+        schema_lookup
     }
 
     pub fn add_schema(&mut self, entity_name: &str, schema: Schema) {
@@ -144,7 +143,7 @@ impl SchemaLookup {
             .get(&field_name.replace('\"', ""))
             .cloned()
             .unwrap_or_else(|| {
-                error!(get_field, "No field named = {field_name}";
+                error!(SchemaLookup, "get field name failed";
                     field_name => field_name,
                     entity_type => entity_type,
                     schema => format!("{:?}",entity_schema)
@@ -155,7 +154,7 @@ impl SchemaLookup {
         field_kind
     }
 
-    fn parse_entity_field(&mut self, field_type: Type) -> Result<FieldKind, ManifestLoaderError> {
+    fn parse_entity_field(&mut self, field_type: Type) -> FieldKind {
         match field_type {
             Type::NamedType(name_type) => {
                 let type_name = name_type
@@ -174,39 +173,25 @@ impl SchemaLookup {
                     "Int" => StoreValueKind::Int,
                     "Int8" => StoreValueKind::Int8,
                     unknown_type => {
-                        if self.schema.get(&type_name).is_some() {
-                            relation = Some((unknown_type.to_string(), "id".to_string()));
-                            StoreValueKind::String
-                        } else {
-                            error!(parse_entity_field, "Unknown schema type";
-                                field_type => unknown_type,
-                                type_name => type_name
-                            );
-                            return Err(ManifestLoaderError::SchemaParsingError);
-                        }
+                        relation = Some((unknown_type.to_string(), "id".to_string()));
+                        StoreValueKind::String
                     }
                 };
-                Ok(FieldKind {
+                FieldKind {
                     kind,
                     relation,
                     list_inner_kind: None,
-                })
+                }
             }
             Type::ListType(list) => {
-                let inner_type = list.ty();
-                if inner_type.is_none() {
-                    error!(parse_entity_field, "List type is None";
-                        field_type => format!("{:?}", list)
-                    );
-                    return Err(ManifestLoaderError::SchemaParsingError);
-                }
-                let value = self.parse_entity_field(inner_type.unwrap())?;
+                let inner_type = list.ty().expect("list type must not be None");
+                let value = self.parse_entity_field(inner_type);
                 let array_kind = FieldKind {
                     kind: StoreValueKind::Array,
                     relation: value.relation,
                     list_inner_kind: Some(value.kind),
                 };
-                Ok(array_kind)
+                array_kind
             }
             Type::NonNullType(value) => {
                 if let Some(list) = value.list_type() {
@@ -235,7 +220,7 @@ mod test {
         let gql =
             read_to_string("../subgraph-testing/packages/v0_0_5/build/schema.graphql").unwrap();
 
-        let schema_lookup = SchemaLookup::new_from_graphql_schema(&gql).unwrap();
+        let schema_lookup = SchemaLookup::new_from_graphql_schema(&gql);
         let entity_type = "Pool";
         let token = schema_lookup.schema.get(entity_type).unwrap();
         info!("Token: {:?}", token);
