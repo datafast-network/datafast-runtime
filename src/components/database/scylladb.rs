@@ -4,7 +4,6 @@ use super::extern_db::ExternDBTrait;
 use crate::common::BlockPtr;
 use crate::components::manifest_loader::schema_lookup::FieldKind;
 use crate::components::manifest_loader::schema_lookup::SchemaLookup;
-use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
 use crate::messages::RawEntity;
@@ -19,6 +18,22 @@ use scylla::batch::Batch;
 use scylla::transport::session::Session;
 use scylla::QueryResult;
 use scylla::SessionBuilder;
+
+impl From<Value> for CqlValue {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::String(str) => CqlValue::Text(str),
+            Value::Int(int) => CqlValue::Int(int),
+            Value::Int8(int8) => CqlValue::BigInt(int8),
+            Value::BigDecimal(decimal) => CqlValue::Text(decimal.to_string()),
+            Value::Bool(bool) => CqlValue::Boolean(bool),
+            Value::List(list) => CqlValue::List(list.into_iter().map(CqlValue::from).collect()),
+            Value::Bytes(bytes) => CqlValue::Blob(bytes.as_slice().to_vec()),
+            Value::BigInt(n) => CqlValue::Text(n.to_string()),
+            Value::Null => CqlValue::Empty,
+        }
+    }
+}
 
 pub struct Scylladb {
     session: Session,
@@ -122,7 +137,6 @@ impl Scylladb {
     ) -> Vec<RawEntity> {
         let col_specs = entity_query_result.col_specs.clone();
         let rows = entity_query_result.rows().expect("Not a record-query");
-        let schema = self.schema_lookup.get_schema(entity_type);
         let mut result = vec![];
 
         for row in rows {
@@ -147,7 +161,7 @@ impl Scylladb {
                     continue;
                 }
 
-                let field_kind = schema.get(&field_name).cloned().unwrap();
+                let field_kind = self.schema_lookup.get_field(entity_type, &field_name);
                 let value = self.cql_value_to_store_value(field_kind, column);
                 entity.insert(field_name, value);
             }
@@ -235,27 +249,13 @@ impl Scylladb {
             CqlValue::BigInt(block_ptr.number as i64),
             data.get("is_deleted").unwrap().clone().into(),
         ];
-        for (field_name, field_kind) in schema.iter() {
+        for (field_name, _field_kind) in schema.iter() {
+            let value = data.get(field_name).cloned().unwrap();
             fields.push(format!("\"{}\"", field_name));
-            if let Some(val) = data.get(field_name) {
-                values_params.push(CqlValue::from(val.clone()));
-                column_values.push("?".to_string());
-            } else {
-                let value_kind = self
-                    .schema_lookup
-                    .field_to_store_value(field_kind.clone(), serde_json::Value::Null);
-                values_params.push(CqlValue::from(value_kind));
-                column_values.push("?".to_string());
-                debug!(
-                    Scylladb,
-                    "Missing field";
-                    entity_type => entity_type,
-                    field_name => field_name,
-                    data => format!("{:?}", data),
-                    schema => format!("{:?}", schema)
-                );
-            }
+            values_params.push(CqlValue::from(value));
+            column_values.push("?".to_string());
         }
+
         assert_eq!(fields.len(), column_values.len());
         let joint_column_names = fields.join(",");
         let joint_column_values = column_values.join(",");
