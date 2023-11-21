@@ -71,8 +71,6 @@ pub trait ExternDBTrait: Sized {
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError>;
 
-    fn get_schema(&self) -> SchemaLookup;
-
     async fn load_entities(
         &self,
         entity_type: &str,
@@ -174,13 +172,6 @@ impl ExternDBTrait for ExternDB {
         match self {
             ExternDB::Scylla(db) => db.save_block_ptr(block_ptr).await,
             ExternDB::None => Ok(()),
-        }
-    }
-
-    fn get_schema(&self) -> SchemaLookup {
-        match self {
-            ExternDB::Scylla(db) => db.get_schema().clone(),
-            ExternDB::None => SchemaLookup::new(),
         }
     }
 

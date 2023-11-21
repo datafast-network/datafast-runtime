@@ -433,10 +433,6 @@ impl ExternDBTrait for Scylladb {
         Ok(())
     }
 
-    fn get_schema(&self) -> SchemaLookup {
-        self.schema_lookup.clone()
-    }
-
     async fn load_entities(
         &self,
         entity_type: &str,
