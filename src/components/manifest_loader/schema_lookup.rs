@@ -271,7 +271,7 @@ impl SchemaLookup {
             }
             StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
             StoreValueKind::Bytes => {
-                let hex_bytes = hex::decode(val.to_string().replace("0x", "").replace("\"", ""))
+                let hex_bytes = hex::decode(val.to_string().replace("0x", "").replace('\"', ""))
                     .expect(format!("hex decode error: {}", val).as_str());
                 let bytes = Bytes::from(hex_bytes);
                 Value::Bytes(bytes)

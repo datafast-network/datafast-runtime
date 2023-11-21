@@ -26,16 +26,16 @@ impl From<Value> for CqlValue {
         match value {
             Value::String(str) => CqlValue::Text(str),
             Value::Int(int) => CqlValue::Int(int),
-            Value::Int8(n) => CqlValue::BigInt(n),
+            Value::Int8(int8) => CqlValue::BigInt(int8),
             Value::BigDecimal(decimal) => CqlValue::Text(decimal.to_string()),
-            Value::Bool(v) => CqlValue::Boolean(v),
+            Value::Bool(bool) => CqlValue::Boolean(bool),
             Value::List(list) => {
                 let vec_inner = list.into_iter().map(CqlValue::from).collect::<Vec<_>>();
                 CqlValue::List(vec_inner)
             }
-            Value::Null => unimplemented!(),
             Value::Bytes(bytes) => CqlValue::Blob(bytes.as_slice().to_vec()),
             Value::BigInt(n) => CqlValue::Text(n.to_string()),
+            Value::Null => CqlValue::Empty,
         }
     }
 }
