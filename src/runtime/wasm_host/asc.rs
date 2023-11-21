@@ -1,6 +1,6 @@
-use crate::components::database::DatabaseAgent;
-use crate::components::rpc_client::RpcAgent;
+use crate::database::DatabaseAgent;
 use crate::errors::AscError;
+use crate::rpc_client::RpcAgent;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::base::IndexForAscTypeId;

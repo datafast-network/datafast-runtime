@@ -7,12 +7,13 @@ mod logger_macros;
 mod messages;
 mod metrics;
 mod runtime;
+mod database;
+mod rpc_client;
 
-use components::database::DatabaseAgent;
+use database::DatabaseAgent;
 use components::manifest_loader::LoaderTrait;
 use components::manifest_loader::ManifestLoader;
 use components::progress_ctrl::ProgressCtrl;
-use components::rpc_client::RpcAgent;
 use components::serializer::Serializer;
 use components::source::Source;
 use components::subgraph::Subgraph;
@@ -25,6 +26,7 @@ use messages::SerializedDataMessage;
 use messages::SourceDataMessage;
 use metrics::default_registry;
 use metrics::run_metric_server;
+use rpc_client::RpcAgent;
 use runtime::wasm_host::create_wasm_host;
 
 #[tokio::main]

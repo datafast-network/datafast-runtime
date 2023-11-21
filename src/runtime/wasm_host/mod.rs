@@ -20,8 +20,8 @@ use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
 
-use crate::components::database::DatabaseAgent;
-use crate::components::rpc_client::RpcAgent;
+use crate::database::DatabaseAgent;
+use crate::rpc_client::RpcAgent;
 use crate::warn;
 pub use asc::AscHost;
 

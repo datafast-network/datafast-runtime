@@ -1,17 +1,17 @@
 mod datasource_wasm_instance;
 mod metrics;
 
-use super::rpc_client::RpcAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
-use crate::components::database::DatabaseAgent;
 use crate::config::Config;
+use crate::database::DatabaseAgent;
 use crate::error;
 use crate::errors::SubgraphError;
 use crate::info;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
+use crate::rpc_client::RpcAgent;
 use crate::runtime::wasm_host::AscHost;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use kanal::AsyncReceiver;
@@ -149,10 +149,10 @@ mod test {
     use super::Subgraph;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
-    use crate::components::database::DatabaseAgent;
-    use crate::components::rpc_client::RpcAgent;
+    use crate::database::DatabaseAgent;
     use crate::messages::EthereumFilteredEvent;
     use crate::messages::FilteredDataMessage;
+    use crate::rpc_client::RpcAgent;
     use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
     use crate::runtime::wasm_host::test::mock_wasm_host;
     use async_std::task;

@@ -10,7 +10,7 @@ macro_rules! host_fn_test {
             use convert_case::Casing;
             use env_logger;
             use std::env;
-            use $crate::components::rpc_client::RpcAgent;
+            use $crate::rpc_client::RpcAgent;
 
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
 
@@ -49,7 +49,7 @@ macro_rules! host_fn_test {
             use convert_case::Casing;
             use env_logger;
             use std::env;
-            use $crate::components::rpc_client::RpcAgent;
+            use $crate::rpc_client::RpcAgent;
 
             use prometheus::default_registry;
             let registry = default_registry();
@@ -85,7 +85,7 @@ macro_rules! host_fn_test {
             use convert_case::Casing;
             use env_logger;
             use std::env;
-            use $crate::components::rpc_client::RpcAgent;
+            use $crate::rpc_client::RpcAgent;
 
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
             env_logger::try_init().unwrap_or_default();

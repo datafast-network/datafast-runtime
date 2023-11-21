@@ -1,9 +1,9 @@
 use kanal::AsyncReceiver;
 use kanal::AsyncSender;
 
-use super::database::DatabaseAgent;
 use crate::common::BlockPtr;
 use crate::common::Source;
+use crate::database::DatabaseAgent;
 use crate::errors::ProgressCtrlError;
 use crate::messages::SerializedDataMessage;
 
