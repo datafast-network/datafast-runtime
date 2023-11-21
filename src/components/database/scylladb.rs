@@ -643,7 +643,6 @@ mod tests {
             Some(Value::Bool(false))
         );
 
-        // ------------------------------- Load latest
         let loaded_entity = db
             .load_entity_latest(&entity_type, "token-id")
             .await
@@ -681,7 +680,7 @@ mod tests {
             Some(Value::Int8(1))
         );
     }
-    //
+
     #[tokio::test]
     async fn test_scylla_03_revert_entity() {
         let (db, entity_type) = setup_db("Tokens_03").await;
