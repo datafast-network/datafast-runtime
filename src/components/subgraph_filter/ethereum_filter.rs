@@ -112,8 +112,7 @@ impl EthereumFilter {
 
             //Parse the event
             let tx = txs
-                .iter()
-                .nth(log.transaction_index.unwrap().as_usize())
+                .get(log.transaction_index.unwrap().as_usize())
                 .cloned()
                 .ok_or(FilterError::TxNotFound)?;
 

@@ -70,7 +70,7 @@ impl Scylladb {
         Ok(())
     }
 
-    fn store_kind_to_db_type(&self, field_kind: FieldKind) -> String {
+    fn store_kind_to_db_type(field_kind: FieldKind) -> String {
         match field_kind.kind {
             StoreValueKind::Int => "int",
             StoreValueKind::Int8 => "bigint",
@@ -80,7 +80,7 @@ impl Scylladb {
             StoreValueKind::BigInt => "text",
             StoreValueKind::Bytes => "blob",
             StoreValueKind::Array => {
-                let inner_type = self.store_kind_to_db_type(FieldKind {
+                let inner_type = Scylladb::store_kind_to_db_type(FieldKind {
                     kind: field_kind.list_inner_kind.unwrap(),
                     relation: None,
                     list_inner_kind: None,
@@ -92,7 +92,7 @@ impl Scylladb {
         .to_string()
     }
 
-    fn cql_value_to_store_value(&self, field_kind: FieldKind, value: CqlValue) -> Value {
+    fn cql_value_to_store_value(field_kind: FieldKind, value: CqlValue) -> Value {
         match field_kind.kind {
             StoreValueKind::Int => Value::Int(value.as_int().unwrap()),
             StoreValueKind::Int8 => Value::Int8(value.as_bigint().unwrap()),
@@ -113,7 +113,7 @@ impl Scylladb {
                 let inner_values = inner_values
                     .into_iter()
                     .map(|inner_val| {
-                        self.cql_value_to_store_value(
+                        Scylladb::cql_value_to_store_value(
                             FieldKind {
                                 kind: field_kind.list_inner_kind.unwrap(),
                                 relation: None,
@@ -162,7 +162,7 @@ impl Scylladb {
                 }
 
                 let field_kind = self.schema_lookup.get_field(entity_type, &field_name);
-                let value = self.cql_value_to_store_value(field_kind, column);
+                let value = Scylladb::cql_value_to_store_value(field_kind, column);
                 entity.insert(field_name, value);
             }
 
@@ -277,7 +277,7 @@ impl ExternDBTrait for Scylladb {
             let schema = self.schema_lookup.get_schema(&entity_type);
             let mut column_definitions: Vec<String> = vec![];
             for (colum_name, store_kind) in schema.iter() {
-                let column_type = self.store_kind_to_db_type(store_kind.clone());
+                let column_type = Scylladb::store_kind_to_db_type(store_kind.clone());
                 let definition = format!("\"{colum_name}\" {column_type}");
                 column_definitions.push(definition);
             }
