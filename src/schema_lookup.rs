@@ -176,7 +176,7 @@ impl SchemaLookup {
                     unknown_type => {
                         if self.schema.get(&type_name).is_some() {
                             relation = Some((unknown_type.to_string(), "id".to_string()));
-                            StoreValueKind::Bytes
+                            StoreValueKind::String
                         } else {
                             error!(parse_entity_field, "Unknown schema type";
                                 field_type => unknown_type,
