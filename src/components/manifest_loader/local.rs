@@ -15,9 +15,8 @@ pub struct LocalFileLoader {
     pub schema: SchemaLookup,
 }
 
-#[async_trait]
-impl LoaderTrait for LocalFileLoader {
-    async fn new(subgraph_dir: &str) -> Result<Self, ManifestLoaderError> {
+impl LocalFileLoader {
+    pub async fn new(subgraph_dir: &str) -> Result<Self, ManifestLoaderError> {
         let md = fs::metadata(subgraph_dir)
             .map_err(|_| ManifestLoaderError::InvalidSubgraphDir(subgraph_dir.to_string()))?;
 
@@ -39,7 +38,10 @@ impl LoaderTrait for LocalFileLoader {
         this.load_schema().await?;
         Ok(this)
     }
+}
 
+#[async_trait]
+impl LoaderTrait for LocalFileLoader {
     async fn load_schema(&mut self) -> Result<(), ManifestLoaderError> {
         let schema_path = format!("{}/build/schema.graphql", self.subgraph_dir);
         let schema =
@@ -106,8 +108,8 @@ impl LoaderTrait for LocalFileLoader {
         Ok(wasm_bytes)
     }
 
-    fn get_abis(&self) -> &HashMap<String, serde_json::Value> {
-        &self.abis
+    fn get_abis(&self) -> HashMap<String, serde_json::Value> {
+        self.abis.clone()
     }
 
     fn get_schema(&self) -> SchemaLookup {

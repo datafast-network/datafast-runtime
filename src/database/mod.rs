@@ -5,7 +5,6 @@ mod scylladb;
 mod utils;
 
 use crate::common::BlockPtr;
-use crate::components::manifest_loader::SchemaLookup;
 use crate::config::Config;
 use crate::errors::DatabaseError;
 use crate::messages::EntityID;
@@ -15,6 +14,7 @@ use crate::messages::RawEntity;
 use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::native_types::store::Value;
+use crate::schema_lookup::SchemaLookup;
 use extern_db::ExternDB;
 use extern_db::ExternDBTrait;
 use memory_db::MemoryDb;

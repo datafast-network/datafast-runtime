@@ -2,8 +2,6 @@ use std::str::FromStr;
 
 use super::extern_db::ExternDBTrait;
 use crate::common::BlockPtr;
-use crate::components::manifest_loader::schema_lookup::FieldKind;
-use crate::components::manifest_loader::schema_lookup::SchemaLookup;
 use crate::error;
 use crate::errors::DatabaseError;
 use crate::messages::RawEntity;
@@ -12,6 +10,8 @@ use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
 use crate::runtime::bignumber::bigint::BigInt;
+use crate::schema_lookup::FieldKind;
+use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
 use scylla::_macro_internal::CqlValue;
 use scylla::batch::Batch;
@@ -546,11 +546,11 @@ impl ExternDBTrait for Scylladb {
 mod tests {
     use super::ExternDBTrait;
     use super::*;
-    use crate::components::manifest_loader::schema_lookup::Schema;
     use crate::entity;
     use crate::runtime::asc::native_types::store::Value;
     use crate::runtime::bignumber::bigint::BigInt;
     use crate::schema;
+    use crate::schema_lookup::Schema;
     use env_logger;
     use log::info;
     use std::str::FromStr;

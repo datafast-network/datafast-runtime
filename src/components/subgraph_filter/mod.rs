@@ -27,10 +27,16 @@ impl SubgraphFilter {
         }
         Ok(())
     }
+
+    pub fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
+        let filter = match chain {
+            Chain::Ethereum => SubgraphFilter::Ethereum(EthereumFilter::new(chain, manifest)?),
+        };
+        Ok(filter)
+    }
 }
 
 pub trait SubgraphFilterTrait: Sized {
-    fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError>;
     fn handle_serialize_message(
         &self,
         data: SerializedDataMessage,
@@ -38,13 +44,6 @@ pub trait SubgraphFilterTrait: Sized {
 }
 
 impl SubgraphFilterTrait for SubgraphFilter {
-    fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
-        let filter = match chain {
-            Chain::Ethereum => SubgraphFilter::Ethereum(EthereumFilter::new(chain, manifest)?),
-        };
-        Ok(filter)
-    }
-
     fn handle_serialize_message(
         &self,
         data: SerializedDataMessage,
