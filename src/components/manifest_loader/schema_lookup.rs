@@ -1,6 +1,5 @@
 use crate::error;
 use crate::errors::ManifestLoaderError;
-use crate::info;
 use crate::messages::EntityType;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
