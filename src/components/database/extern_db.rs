@@ -18,7 +18,9 @@ impl ExternDB {
         let config = config.database.as_ref().unwrap();
         let db = match config {
             DatabaseConfig::Scylla { uri, keyspace } => {
-                ExternDB::Scylla(Scylladb::new(uri, keyspace, schema_lookup).await?)
+                let db = Scylladb::new(uri, keyspace, schema_lookup).await?;
+                db.init_tables().await?;
+                ExternDB::Scylla(db)
             }
         };
 

@@ -2,13 +2,14 @@ use super::extern_db::ExternDBTrait;
 use crate::common::BlockPtr;
 use crate::components::manifest_loader::schema_lookup::FieldKind;
 use crate::components::manifest_loader::schema_lookup::SchemaLookup;
+use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
-use crate::info;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use async_trait::async_trait;
+use scylla::_macro_internal::CqlValue;
 use scylla::batch::Batch;
 use scylla::transport::session::Session;
 use scylla::QueryResult;
@@ -33,9 +34,13 @@ impl Scylladb {
             schema_lookup,
         };
         this.create_keyspace().await?;
-        this.create_entity_tables().await?;
-        this.create_block_ptr_table().await?;
         Ok(this)
+    }
+
+    pub async fn init_tables(&self) -> Result<(), DatabaseError> {
+        self.create_entity_tables().await?;
+        self.create_block_ptr_table().await?;
+        Ok(())
     }
 
     async fn create_keyspace(&self) -> Result<(), DatabaseError> {
@@ -111,30 +116,10 @@ impl Scylladb {
         is_deleted: bool,
     ) -> Result<(), DatabaseError> {
         assert!(data.contains_key("id"));
-        let mut json_data = self.schema_lookup.entity_to_json(entity_type, data);
-
-        json_data.insert(
-            "block_ptr_number".to_string(),
-            serde_json::Value::from(block_ptr.number),
-        );
-
-        json_data.insert(
-            "is_deleted".to_string(),
-            serde_json::Value::Bool(is_deleted),
-        );
-
-        let json_data = serde_json::Value::Object(json_data);
-
-        let query = format!(
-            r#"INSERT INTO {}."{}" JSON ?"#,
-            self.keyspace,
-            entity_type.to_lowercase()
-        );
-
-        let st = self.session.prepare(query).await?;
-        self.session
-            .execute(&st, vec![json_data.to_string()])
-            .await?;
+        let mut data_raw = data.clone();
+        data_raw.insert("is_deleted".to_string(), Value::Bool(is_deleted));
+        let (query, values) = self.generate_insert_query(entity_type, data_raw, block_ptr);
+        self.session.query(query, values).await?;
 
         Ok(())
     }
@@ -146,9 +131,7 @@ impl Scylladb {
     ) -> Result<Vec<String>, DatabaseError> {
         let query = format!(
             r#"SELECT id FROM {}."{}" WHERE block_ptr_number >= {}"#,
-            self.keyspace,
-            entity_type.to_lowercase(),
-            from_block
+            self.keyspace, entity_type, from_block
         );
         let rows = self.session.query(query, ()).await?.rows().unwrap();
         let ids = rows
@@ -171,16 +154,60 @@ impl Scylladb {
     async fn drop_tables(&self) -> Result<(), DatabaseError> {
         let schema = self.schema_lookup.get_schemas();
         for (table_name, _) in schema.iter() {
-            let query = format!(
-                r#"DROP TABLE IF EXISTS {}."{}"#,
-                self.keyspace,
-                table_name.to_lowercase()
-            );
+            let query = format!(r#"DROP TABLE IF EXISTS {}."{}""#, self.keyspace, table_name);
             self.session.query(query, ()).await?;
         }
         let query = format!("DROP TABLE IF EXISTS {}.block_ptr", self.keyspace);
         self.session.query(query, ()).await?;
         Ok(())
+    }
+
+    fn generate_insert_query(
+        &self,
+        entity_name: &str,
+        data: RawEntity,
+        block_ptr: BlockPtr,
+    ) -> (String, Vec<CqlValue>) {
+        let schema = self.schema_lookup.get_schemas().get(entity_name).unwrap();
+        let mut fields: Vec<String> = vec![
+            "\"block_ptr_number\"".to_string(),
+            "\"is_deleted\"".to_string(),
+        ];
+        let mut column_values = vec!["?".to_string(), "?".to_string()];
+        let mut values_params = vec![
+            CqlValue::BigInt(block_ptr.number as i64),
+            data.get("is_deleted").unwrap().clone().into(),
+        ];
+        for (field_name, field_kind) in schema.iter() {
+            fields.push(format!("\"{}\"", field_name));
+            if let Some(val) = data.get(field_name) {
+                values_params.push(CqlValue::from(val.clone()));
+                column_values.push("?".to_string());
+            } else {
+                let value_kind = self
+                    .schema_lookup
+                    .field_to_store_value(field_kind.clone(), serde_json::Value::Null);
+                values_params.push(CqlValue::from(value_kind));
+                column_values.push("?".to_string());
+                debug!(
+                    Scylladb,
+                    "Missing field";
+                    entity_name => entity_name,
+                    field_name => field_name,
+                    data => format!("{:?}", data),
+                    schema => format!("{:?}", schema)
+                );
+            }
+        }
+        assert_eq!(fields.len(), column_values.len());
+        let joint_column_names = fields.join(",");
+        let joint_column_values = column_values.join(",");
+
+        let query = format!(
+            r#"INSERT INTO {}."{}" ({}) VALUES ({})"#,
+            self.keyspace, entity_name, joint_column_names, joint_column_values
+        );
+        (query, values_params)
     }
 }
 
@@ -208,10 +235,8 @@ impl ExternDBTrait for Scylladb {
                 r#"CREATE TABLE IF NOT EXISTS {}."{}" (
             {joint_column_definition}
             ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_ptr_number DESC)"#,
-                self.keyspace,
-                entity_type.to_lowercase()
+                self.keyspace, entity_type
             );
-            info!(Scylladb, "Creating entity table"; query => query);
             self.session.query(query, &[]).await?;
         }
 
@@ -251,8 +276,7 @@ impl ExternDBTrait for Scylladb {
                 WHERE block_ptr_number = ? AND id = ?
                 LIMIT 1
             "#,
-            self.keyspace,
-            entity_type.to_lowercase()
+            self.keyspace, entity_type
         );
         let entity_query_result = self
             .session
@@ -277,8 +301,7 @@ impl ExternDBTrait for Scylladb {
             ORDER BY block_ptr_number DESC
             LIMIT 1
             "#,
-            self.keyspace,
-            entity_type.to_lowercase()
+            self.keyspace, entity_type
         );
 
         let entity_query_result = self.session.query(query, (entity_id,)).await;
@@ -317,8 +340,8 @@ impl ExternDBTrait for Scylladb {
         block_ptr: BlockPtr,
         values: Vec<(String, RawEntity)>,
     ) -> Result<(), DatabaseError> {
-        let mut batch_queries = Batch::default();
-        let mut batch_values = vec![];
+        // let mut batch_queries = Batch::default();
+        // let mut batch_values = vec![];
 
         for (entity_type, data) in values {
             if data.get("is_deleted").is_none() {
@@ -332,24 +355,20 @@ impl ExternDBTrait for Scylladb {
                 return Err(DatabaseError::MissingField("is_deleted".to_string()));
             }
 
-            let mut json_data = self.schema_lookup.entity_to_json(&entity_type, data);
-            json_data.insert(
-                "block_ptr_number".to_string(),
-                serde_json::Value::from(block_ptr.number),
-            );
+            let (query, values) = self.generate_insert_query(&entity_type, data, block_ptr.clone());
 
-            let data_json: String = serde_json::Value::Object(json_data).to_string();
-            let query = format!(
-                r#"INSERT INTO {}."{}" JSON ?"#,
-                self.keyspace,
-                entity_type.to_lowercase()
+            debug!(
+                Scylladb,
+                "Inserting entity";
+                query => query,
+                values => format!("{:?}", values.clone())
             );
-
-            batch_queries.append_statement(query.as_str());
-            batch_values.push((data_json,))
+            self.session.query(query, values).await?;
+            // batch_queries.append_statement(query.as_str());
+            // batch_values.push((values,))
         }
-        let st = self.session.prepare_batch(&batch_queries).await?;
-        self.session.batch(&st, batch_values).await?;
+        // let st = self.session.prepare_batch(&batch_queries).await?;
+        // self.session.batch(&st, batch_values).await?;
         Ok(())
     }
 
@@ -383,8 +402,7 @@ impl ExternDBTrait for Scylladb {
                 let query = format!(
                     r#"
                     DELETE FROM {}."{}" WHERE id = ? AND block_ptr_number >= ?"#,
-                    self.keyspace,
-                    entity_type.to_lowercase(),
+                    self.keyspace, entity_type,
                 );
                 batch_queries.append_statement(query.as_str());
                 batch_values.push((id, from_block as i64));
@@ -435,9 +453,7 @@ impl ExternDBTrait for Scylladb {
             r#"
             SELECT JSON * from {}."{}"
             WHERE id IN {}"#,
-            self.keyspace,
-            entity_type.to_lowercase(),
-            ids
+            self.keyspace, entity_type, ids
         );
         let entity_query_result = self.session.query(query, ()).await?;
         Ok(self.handle_entity_query_result(entity_type, entity_query_result, false))
@@ -514,12 +530,7 @@ mod tests {
         schema.add_schema(entity_type, test_schema);
         let db = Scylladb::new(uri, keyspace, schema).await.unwrap();
         db.drop_tables().await.unwrap();
-        db.create_entity_tables()
-            .await
-            .expect("Create entity tables failed");
-        db.create_block_ptr_table()
-            .await
-            .expect("Create block-ptr table failed");
+        db.init_tables().await.unwrap();
         db.revert_from_block(0).await.expect("Revert table failed");
         (db, entity_type.to_string())
     }

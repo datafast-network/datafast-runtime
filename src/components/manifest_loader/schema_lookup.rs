@@ -95,7 +95,7 @@ impl SchemaLookup {
     pub fn add_schema(&mut self, entity_name: &str, schema: HashMap<String, FieldKind>) {
         let mut normalized_schema = HashMap::new();
         schema.iter().for_each(|(k, v)| {
-            normalized_schema.insert(k.to_lowercase(), v.clone());
+            normalized_schema.insert(k.clone(), v.clone());
         });
         self.schema
             .insert(entity_name.to_owned(), normalized_schema);
@@ -150,9 +150,16 @@ impl SchemaLookup {
             .unwrap_or_else(|| panic!("No entity named = {entity_type}"));
 
         let field_kind = entity_schema
-            .get(field_name.to_lowercase().as_str())
+            .get(&field_name.replace('\"', ""))
             .cloned()
-            .unwrap_or_else(|| panic!("No field name = {field_name}"));
+            .unwrap_or_else(|| {
+                error!(get_field, "No field named = {field_name}";
+                    field_name => field_name,
+                    entity_type => entity_type,
+                    schema => format!("{:?}",entity_schema)
+                );
+                panic!("No field name = {field_name}")
+            });
 
         field_kind
     }
@@ -167,7 +174,7 @@ impl SchemaLookup {
         for (key, val) in json {
             let field_type = self.get_field(entity_name, &key);
             let value = self.field_to_store_value(field_type, val);
-            result.insert(key, value);
+            result.insert(key.replace('\"', ""), value);
         }
 
         result
@@ -254,7 +261,7 @@ impl SchemaLookup {
         }
     }
 
-    fn field_to_store_value(&self, field_kind: FieldKind, val: serde_json::Value) -> Value {
+    pub fn field_to_store_value(&self, field_kind: FieldKind, val: serde_json::Value) -> Value {
         match field_kind.kind {
             StoreValueKind::String => Value::String(val.as_str().unwrap().to_owned()),
             StoreValueKind::Int => Value::Int(val.as_i64().unwrap() as i32),
@@ -264,8 +271,8 @@ impl SchemaLookup {
             }
             StoreValueKind::Bool => Value::Bool(val.as_bool().unwrap()),
             StoreValueKind::Bytes => {
-                let hex_bytes =
-                    hex::decode(val.to_string().replace("0x", "")).expect("hex decode error");
+                let hex_bytes = hex::decode(val.to_string().replace("0x", "").replace("\"", ""))
+                    .expect(format!("hex decode error: {}", val).as_str());
                 let bytes = Bytes::from(hex_bytes);
                 Value::Bytes(bytes)
             }
