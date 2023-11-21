@@ -546,13 +546,13 @@ impl ExternDBTrait for Scylladb {
 mod tests {
     use super::ExternDBTrait;
     use super::*;
+    use crate::components::manifest_loader::schema_lookup::Schema;
     use crate::entity;
     use crate::runtime::asc::native_types::store::Value;
     use crate::runtime::bignumber::bigint::BigInt;
     use crate::schema;
     use env_logger;
     use log::info;
-    use std::collections::HashMap;
     use std::str::FromStr;
 
     async fn setup_db(entity_type: &str) -> (Scylladb, String) {
@@ -562,7 +562,7 @@ mod tests {
         let keyspace = "ks";
         let mut schema = SchemaLookup::new();
 
-        let mut test_schema: HashMap<String, FieldKind> = schema!(
+        let mut test_schema: Schema = schema!(
             id => StoreValueKind::String,
             name => StoreValueKind::String,
             symbol => StoreValueKind::String,
@@ -819,7 +819,7 @@ mod tests {
         let mut schema = SchemaLookup::new();
         let entity_type = "test_relation";
         let tokens = "tokens_relation";
-        let mut entity_1: HashMap<String, FieldKind> = HashMap::new();
+        let mut entity_1 = Schema::new();
         entity_1.insert(
             "id".to_string(),
             FieldKind {
@@ -846,7 +846,7 @@ mod tests {
         );
         schema.add_schema(entity_type, entity_1);
 
-        let mut entity_2: HashMap<String, FieldKind> = HashMap::new();
+        let mut entity_2 = Schema::new();
         entity_2.insert(
             "id".to_string(),
             FieldKind {

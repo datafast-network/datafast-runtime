@@ -6,10 +6,11 @@ use apollo_parser::cst::CstNode;
 use apollo_parser::cst::Definition;
 use apollo_parser::cst::Type;
 use apollo_parser::Parser;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 type FieldName = String;
-pub type Schema = HashMap<FieldName, FieldKind>;
+pub type Schema = BTreeMap<FieldName, FieldKind>;
 
 #[derive(Clone, Default, Debug)]
 pub struct FieldKind {
