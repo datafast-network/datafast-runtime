@@ -280,7 +280,7 @@ impl ExternDBTrait for Scylladb {
             self.keyspace,
             entity_type.to_lowercase()
         );
-        info!(Scylladb, "Load entity latest"; query => query);
+
         let entity_query_result = self.session.query(query, (entity_id,)).await;
         match entity_query_result {
             Ok(result) => {
@@ -319,7 +319,7 @@ impl ExternDBTrait for Scylladb {
     ) -> Result<(), DatabaseError> {
         let mut batch_queries = Batch::default();
         let mut batch_values = vec![];
-        info!(Scylladb, "Batch insert entities"; block_ptr => format!("{:?}", block_ptr));
+
         for (entity_type, data) in values {
             if data.get("is_deleted").is_none() {
                 error!(Scylladb,
