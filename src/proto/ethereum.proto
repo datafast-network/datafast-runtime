@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+package ethereum;
+
+message Blocks {
+  repeated Block ethereum_blocks = 1;
+}
+
+message Block {
+  uint64 chain_id = 1;
+  string block_hash = 2;
+  string parent_hash = 3;
+  uint64 block_number = 4;
+  Header header = 5;
+  repeated Transaction transactions = 6;
+  repeated Log logs = 7;
+}
+
+message Header {
+  // Miner/author’s address. None if pending.
+  string author = 1;
+  // State root hash
+  string state_root = 2;
+  // Transactions root hash
+  string transactions_root = 3;
+  // Transactions receipts root hash
+  string receipts_root = 4;
+  // Gas Used (bigint) as numeric string
+  string gas_used = 5;
+  // Gas limit (bigint) as numeric string
+  string gas_limit = 6;
+  string extra_data = 7;
+  // Logs bloom
+  optional string logs_bloom = 8;
+  string timestamp = 9;
+  // difficulty in numeric string
+  string difficulty = 10;
+// total-difficulty - bigint in numeric string
+  string total_difficulty = 11;
+  repeated string seal_fields = 12;
+  // Block size in number
+  optional uint64 size = 13;
+  // Base fee per unit of gas (if past London)
+  optional string base_fee_per_gas = 14;
+  string nonce = 15;
+}
+
+message Transaction {
+  string hash = 1;
+  uint64 nonce = 2;
+  // Block hash. None when pending.
+  optional string block_hash = 3;
+  // Block number. None when pending.
+  optional uint64 block_number = 4;
+  // Transaction Index. None when pending.
+  optional uint64 transaction_index = 5;
+  // Sender
+  string from_address = 6;
+  // Recipient (None when contract creation)
+  optional string to_address = 7;
+  // Transferred value
+  string value = 8;
+  // Gas Price, null for Type 2 transactions
+  optional string gas_price = 9;
+  // Gas amount
+  string gas = 10;
+  // Input data
+  string input = 11;
+
+  // Signature
+  uint64 v = 12;
+  string r = 13;
+  string s = 14;
+
+  // Transaction type, Some(2) for EIP-1559 transaction, Some(1) for AccessList transaction, None for Legacy
+  optional TransactionType transaction_type = 15;
+  optional AccessList access_list = 16;
+
+  // https://docs.rs/ethers/latest/ethers/types/struct.Transaction.html#structfield.max_priority_fee_per_gas
+  optional string max_priority_fee_per_gas = 17;
+  optional string max_fee_per_gas = 18;
+}
+
+enum TransactionType {
+  // All transactions that ever existed prior Berlin fork before EIP-2718 was implemented.
+  LEGACY = 0;
+  // Transaction that specicy an access list of contract/storage_keys that is going to be used
+  // in this transaction.
+
+  // Added in Berlin fork (EIP-2930).
+  ACCESS_LIST = 1;
+
+  // Transaction that specifis an access list just like TRX_TYPE_ACCESS_LIST but in addition defines the
+  // max base gas gee and max priority gas fee to pay for this transaction. Transaction's of those type are
+  // executed against EIP-1559 rules which dictates a dynamic gas cost based on the congestion of the network.
+  DYNAMIC_FEE = 2;
+}
+
+message AccessList {
+  repeated AccessListItem item = 1;
+}
+
+message AccessListItem {
+  string address = 1;
+  repeated string storage_keys = 2;
+}
+
+message Log {
+  // https://docs.rs/ethers/latest/ethers/types/struct.Log.html
+  string address = 1;
+  repeated string topics = 2;
+  string data = 3;
+  optional string block_hash = 4;
+  optional uint64 block_number = 5;
+  optional string transaction_hash = 6;
+  optional uint64 transaction_index = 7;
+  optional uint64 log_index = 8;
+  optional uint64 transaction_log_index = 9;
+  optional string log_type = 10;
+  optional bool removed = 11;
+}

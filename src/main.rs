@@ -7,6 +7,7 @@ mod errors;
 mod logger_macros;
 mod messages;
 mod metrics;
+mod proto;
 mod rpc_client;
 mod runtime;
 mod schema_lookup;
