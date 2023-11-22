@@ -1,6 +1,5 @@
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::messages::FullBlock;
 use crate::proto::ethereum::Block;
 use crate::proto::ethereum::Log;
 use crate::proto::ethereum::Transaction;
@@ -100,30 +99,5 @@ impl TryFrom<Log> for web3::types::Log {
         };
 
         Ok(log)
-    }
-}
-
-impl TryFrom<Block> for FullBlock {
-    type Error = anyhow::Error;
-    fn try_from(value: Block) -> Result<Self, Self::Error> {
-        let block = value.clone();
-        let transactions = value.transactions;
-        let logs = value.logs;
-
-        let block = EthereumBlockData::try_from(block).expect("Failed to convert block");
-        let transactions = transactions
-            .into_iter()
-            .map(EthereumTransactionData::try_from)
-            .collect::<Result<Vec<EthereumTransactionData>, _>>()?;
-        let logs = logs
-            .into_iter()
-            .map(web3::types::Log::try_from)
-            .collect::<Result<Vec<web3::types::Log>, _>>()?;
-
-        Ok(FullBlock {
-            block,
-            transactions,
-            logs,
-        })
     }
 }
