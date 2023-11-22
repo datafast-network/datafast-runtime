@@ -1,8 +1,8 @@
+use super::ethereum::Block;
+use super::ethereum::Log;
+use super::ethereum::Transaction;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::proto::ethereum::Block;
-use crate::proto::ethereum::Log;
-use crate::proto::ethereum::Transaction;
 use anyhow::anyhow;
 use std::str::FromStr;
 use web3::types::H160;
