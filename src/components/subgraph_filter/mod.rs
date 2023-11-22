@@ -4,6 +4,7 @@ mod utils;
 use super::manifest_loader::ManifestLoader;
 use crate::common::Chain;
 use crate::errors::FilterError;
+use crate::info;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
 use ethereum_filter::EthereumFilter;
@@ -22,8 +23,20 @@ impl SubgraphFilter {
         result_sender: AsyncSender<FilteredDataMessage>,
     ) -> Result<(), FilterError> {
         while let Ok(filter_data) = data_receiver.recv().await {
+            let start = tokio::time::Instant::now();
+
             let result = self.handle_serialize_message(filter_data)?;
-            result_sender.send(result).await?;
+            if let FilteredDataMessage::Ethereum { events, .. } = &result {
+                if events.is_empty() {
+                    continue;
+                }
+                result_sender.send(result).await?;
+                info!(
+                    SubgraphFilter,
+                    "Filtered data";
+                    time => format!("{:?}", start.elapsed())
+                );
+            }
         }
         Ok(())
     }

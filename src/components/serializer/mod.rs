@@ -5,6 +5,7 @@ use crate::database::DatabaseAgent;
 use crate::debug;
 use crate::errors::SerializerError;
 use crate::errors::TransformError;
+use crate::info;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use crate::rpc_client::RpcAgent;
@@ -72,8 +73,14 @@ impl Serializer {
                                 .send(transform.handle_source_input(source)?)
                                 .await?
                         }
-                        SourceDataMessage::Protobuf(blocks) => {
+                        SourceDataMessage::Protobuf(mut blocks) => {
+                            blocks.sort_by_key(|b| b.block.number);
                             for block in blocks {
+                                info!(
+                                    Transform,
+                                    "process block";
+                                    block_number => block.block.number
+                                );
                                 let msg = SerializedDataMessage::Ethereum(block);
                                 result_sender.send(msg).await?;
                             }

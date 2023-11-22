@@ -71,7 +71,7 @@ impl Subgraph {
                 source_instance.invoke(HandlerTypes::EthereumBlock, &handler, block.clone())?;
             }
         }
-
+        let start = tokio::time::Instant::now();
         for event in events {
             let source_instance = self
                 .sources
@@ -79,7 +79,11 @@ impl Subgraph {
                 .ok_or(SubgraphError::InvalidSourceID(event.datasource.to_owned()))?;
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
         }
-
+        info!(
+            Subgraph,
+            "Handled ethereum filtered data";
+            time => format!("{:?}", start.elapsed())
+        );
         Ok(())
     }
 
@@ -89,14 +93,18 @@ impl Subgraph {
     ) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
+                let start = tokio::time::Instant::now();
+                let event_len = events.len();
+                let block_number = block.number;
+                self.handle_ethereum_filtered_data(events, block).await?;
                 info!(
                     Subgraph,
-                    "Received ethereum filtered data";
-                    events => events.len(),
-                    block => format!("{:?}", block.number)
+                    ">>>>>> Processed events in block";
+                    events => event_len,
+                    block => format!("{:?}", block_number),
+                    time => format!("{:?}", start.elapsed())
                 );
-
-                self.handle_ethereum_filtered_data(events, block).await
+                Ok(())
             }
         }
     }
@@ -120,7 +128,7 @@ impl Subgraph {
             self.handle_filtered_data(msg).await?;
             timer.stop_and_record();
             self.metrics.block_process_counter.inc();
-
+            let start = tokio::time::Instant::now();
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
                 error!(Subgraph, "Failed to migrate db";
                     error => e.to_string(),
@@ -134,6 +142,13 @@ impl Subgraph {
                 .clear_in_memory()
                 .await
                 .map_err(|_| SubgraphError::MigrateDbError)?;
+            info!(
+                Subgraph,
+                ">>>>>> Migrated db";
+                block_number => block_ptr.number,
+                block_hash => block_ptr.hash,
+                time => format!("{:?}", start.elapsed())
+            );
         }
 
         Ok(())

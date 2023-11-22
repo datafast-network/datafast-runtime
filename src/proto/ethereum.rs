@@ -2,8 +2,8 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Blocks {
-    #[prost(message, repeated, tag="1")]
-    pub ethereum_blocks: ::prost::alloc::vec::Vec<Block>,
+    #[prost(bytes="vec", repeated, tag="1")]
+    pub ethereum_blocks: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

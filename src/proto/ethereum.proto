@@ -3,7 +3,7 @@ syntax = "proto3";
 package ethereum;
 
 message Blocks {
-  repeated Block ethereum_blocks = 1;
+  repeated bytes ethereum_blocks = 1;
 }
 
 message Block {

@@ -2,8 +2,10 @@ use crate::config::ContentType;
 use crate::debug;
 use crate::errors::SourceError;
 use crate::info;
+use crate::messages::EthereumFullBlock;
 use crate::messages::SourceDataMessage;
 use crate::proto::ethereum::Block;
+use crate::proto::ethereum::Blocks;
 use async_stream::stream;
 use prost::Message;
 use std::fs::File;
@@ -63,14 +65,26 @@ impl NatsConsumer {
             }
             ContentType::Protobuf => {
                 let start = tokio::time::Instant::now();
-                let block = Block::decode(msg.data.as_slice()).unwrap();
-                let full_block = block.try_into().unwrap();
+                // let block = Block::decode(msg.data.as_slice()).unwrap();
+                // let full_block = EthereumFullBlock::try_from(block).unwrap();
+
+                let blocks = Blocks::decode(msg.data.as_slice()).unwrap();
+                let decoded_blocks = blocks
+                    .ethereum_blocks
+                    .into_iter()
+                    .map(|b| Block::decode(b.as_slice()).unwrap())
+                    .collect::<Vec<Block>>()
+                    .into_iter()
+                    .map(EthereumFullBlock::try_from)
+                    .collect::<Result<Vec<EthereumFullBlock>, _>>()
+                    .unwrap();
                 info!(
                     NatsConsumer,
                     "Decoded block";
+                    block_count => decoded_blocks.len(),
                     time => format!("{:?}", start.elapsed())
                 );
-                Ok(SourceDataMessage::Protobuf(vec![full_block]))
+                Ok(SourceDataMessage::Protobuf(decoded_blocks))
             }
         }
     }
