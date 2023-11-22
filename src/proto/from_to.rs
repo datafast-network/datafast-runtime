@@ -101,6 +101,7 @@ impl TryFrom<Log> for web3::types::Log {
         Ok(log)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
