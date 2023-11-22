@@ -12,6 +12,7 @@ use crate::debug;
 use crate::errors::FilterError;
 use crate::info;
 use crate::messages::EthereumFilteredEvent;
+use crate::messages::EthereumFullBlock;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
 use ethabi::Contract;
@@ -85,12 +86,10 @@ impl EthereumFilter {
 
     fn filter_events(
         &self,
-        block_header: EthereumBlockData,
-        txs: Vec<EthereumTransactionData>,
-        logs: Vec<Log>,
+        block: EthereumFullBlock,
     ) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
         let mut events = Vec::new();
-        for log in logs.iter() {
+        for log in block.logs.iter() {
             let check_log_valid = self
                 .addresses
                 .iter()
@@ -111,12 +110,13 @@ impl EthereumFilter {
                 .ok_or(FilterError::ParseError("No contract found".to_string()))?;
 
             //Parse the event
-            let tx = txs
+            let tx = block
+                .transactions
                 .get(log.transaction_index.unwrap().as_usize())
                 .cloned()
                 .ok_or(FilterError::TxNotFound)?;
 
-            let event = self.parse_event(contract, log, block_header.to_owned(), tx)?;
+            let event = self.parse_event(contract, log, block.block.clone(), tx)?;
 
             events.push(EthereumFilteredEvent {
                 datasource: source.name.clone(),
@@ -139,12 +139,9 @@ impl SubgraphFilterTrait for EthereumFilter {
         data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match data {
-            SerializedDataMessage::Ethereum {
-                block,
-                logs,
-                transactions,
-            } => {
-                let events = self.filter_events(block.clone(), transactions, logs)?;
+            SerializedDataMessage::Ethereum(full_block) => {
+                let block = full_block.block.clone();
+                let events = self.filter_events(full_block)?;
                 info!(EthereumFilter, "Filter events";
                     events => events.len(),
                     block_number => format!("{:?}", block.number)

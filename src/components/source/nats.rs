@@ -38,20 +38,28 @@ impl NatsConsumer {
                 let serialized_msg = self.serialize_message(&msg).unwrap();
                 debug!(NatsConsumer, "Received data");
                 yield serialized_msg;
-                msg.ack().expect("Ack Nats message failed");
-                debug!(NatsConsumer, "Acked message");
+                if let Err(e) = msg.ack(){
+                    debug!(
+                        NatsConsumer,
+                        "Failed to ack message";
+                        error => e.to_string()
+                    );
+                }else{
+                    debug!(NatsConsumer, "Acked message");
+                }
             }
         }
     }
 
     fn serialize_message(&self, msg: &nats::Message) -> Result<SourceDataMessage, SourceError> {
-        info!(NatsConsumer, "Serialize message"; subject => &msg.subject);
         match self.content_type {
             ContentType::Json => {
                 let data = serde_json::from_slice(&msg.data)?;
                 Ok(SourceDataMessage::Json(data))
             }
-            ContentType::Protobuf => unimplemented!("Protobuf not implemented yet"),
+            ContentType::Protobuf => {
+                unimplemented!()
+            }
         }
     }
 }
@@ -94,9 +102,8 @@ mod tests {
         };
 
         let t3 = async {
-            while let Ok(msg) = receive.recv().await {
+            if let Ok(msg) = receive.recv().await {
                 log::info!("Received message: {:?}", msg);
-                return;
             }
         };
 

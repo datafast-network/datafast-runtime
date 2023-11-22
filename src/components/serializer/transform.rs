@@ -7,6 +7,7 @@ use crate::common::Chain;
 use crate::config::TransformConfig;
 use crate::errors::TransformError;
 use crate::info;
+use crate::messages::EthereumFullBlock;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use crate::runtime::asc::base::asc_get;
@@ -96,7 +97,7 @@ impl Transform {
                 let asc_json = asc_new(&mut self.host, &json_data)?;
                 asc_json.wasm_ptr() as i32
             }
-            SourceDataMessage::Protobuf => {
+            SourceDataMessage::Protobuf(_block) => {
                 unimplemented!()
             }
         };
@@ -133,11 +134,11 @@ impl Transform {
                         &transactions,
                     )?;
                 let logs = self.generic_transform_data::<AscLogArray, Vec<Log>>(source, &logs)?;
-                Ok(SerializedDataMessage::Ethereum {
+                Ok(SerializedDataMessage::Ethereum(EthereumFullBlock {
                     block,
                     transactions,
                     logs,
-                })
+                }))
             }
             _ => Err(TransformError::ChainMismatched),
         }
