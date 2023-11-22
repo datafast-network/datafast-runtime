@@ -101,3 +101,41 @@ impl TryFrom<Log> for web3::types::Log {
         Ok(log)
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    #[test]
+    fn test_from_to_eth_block() {
+        let block_file = File::open("./src/tests/blocks/block.json").unwrap();
+        let block: Block = serde_json::from_reader(block_file).unwrap();
+        let block_data = EthereumBlockData::try_from(block.clone()).unwrap();
+        assert_eq!(block_data.number, 10000000.into());
+        assert_eq!(
+            block_data.hash,
+            H256::from_str(block.clone().block_hash.as_str()).unwrap()
+        );
+        assert_eq!(
+            block_data.parent_hash,
+            H256::from_str(block.clone().parent_hash.as_str()).unwrap()
+        );
+        let txs = block
+            .clone()
+            .transactions
+            .into_iter()
+            .map(EthereumTransactionData::try_from)
+            .collect::<Result<Vec<EthereumTransactionData>, _>>()
+            .unwrap();
+
+        assert_eq!(txs.len(), 2);
+        let logs = block
+            .clone()
+            .logs
+            .into_iter()
+            .map(web3::types::Log::try_from)
+            .collect::<Result<Vec<web3::types::Log>, _>>()
+            .unwrap();
+
+        assert_eq!(logs.len(), 2);
+    }
+}
