@@ -34,7 +34,12 @@ impl NatsConsumer {
 
         stream! {
             for msg in sub.messages() {
-                yield msg.data.clone();
+                match self.content_type {
+                    ContentType::Protobuf => {
+                        yield msg.data.clone();
+                    }
+                    //TODO: handle other content types
+                }
                 if let Err(e) = msg.ack(){
                     debug!(
                         NatsConsumer,
