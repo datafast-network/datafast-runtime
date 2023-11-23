@@ -5,9 +5,9 @@ use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use async_stream::stream;
 use ethereum::*;
-use prusto_rs::Client;
-use prusto_rs::ClientBuilder;
-use prusto_rs::Row;
+use prusto::Client;
+use prusto::ClientBuilder;
+use prusto::Row;
 use tokio_stream::Stream;
 
 pub struct TrinoClient {
@@ -84,16 +84,18 @@ mod test {
     async fn test_trino() {
         env_logger::try_init().unwrap_or_default();
 
-        let trino = TrinoClient::new("localhost", &8080, "trino", "delta", "mockchain").unwrap();
+        let trino = TrinoClient::new("localhost", &8080, "trino", "delta", "ethereum").unwrap();
         let rows = trino
             .query(
-                "select * from blocks where block_number > 5000 and block_number < 10000 limit 1",
+                "select * from ethereum where block_number > 10000000 and block_number < 10000100 limit 1",
             )
             .await
             .unwrap();
 
         for row in rows {
-            info!("rows {:?}", row.into_json());
+            let block = TrinoEthereumBlock::try_from(row).unwrap();
+            let msg = Into::<SerializedDataMessage>::into(block);
+            info!("{:?}", msg);
         }
     }
 }

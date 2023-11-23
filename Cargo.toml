@@ -38,8 +38,8 @@ apollo-parser = "0.7.3"
 prometheus = "0.13.3"
 warp = "0.3.6"
 deltalake = "0.16.5"
-prusto-rs = "0.5.1"
 rawsql = "0.1.1"
+prusto = "0.5.1"
 
 [dev-dependencies]
 async-std = { version = "1.12.0", features = ["attributes"] }

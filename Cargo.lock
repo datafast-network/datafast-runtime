@@ -3027,21 +3027,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
 
 [[package]]
-name = "prusto-macros"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "729a73ec40e80da961c846455ec579c521346392d6f9f5a8c8aadfb5c99f9cf8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "prusto-rs"
+name = "prusto"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e74e257231dbe027606f3c1aaffd5dde426e2f080dbf7773aec21390f8984b46"
+checksum = "9b4b88a35eb608a69482012e38b818a77c23bd1f3fe952143217609ad6c43f94"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
@@ -3061,6 +3050,17 @@ dependencies = [
  "tokio",
  "urlencoding",
  "uuid",
+]
+
+[[package]]
+name = "prusto-macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "729a73ec40e80da961c846455ec579c521346392d6f9f5a8c8aadfb5c99f9cf8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -4047,7 +4047,7 @@ dependencies = [
  "num-bigint 0.4.4",
  "num-traits",
  "prometheus",
- "prusto-rs",
+ "prusto",
  "rawsql",
  "rstest",
  "scylla",

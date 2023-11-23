@@ -151,29 +151,7 @@ pub enum FilterError {
 }
 
 #[derive(Debug, Error)]
-pub enum TransformError {
-    #[error("No transformer function with name={0}")]
-    InvalidFunctionName(String),
-    #[error("Transform function returns no value")]
-    TransformReturnNoValue,
-    #[error("Transform RuntimeError: {0}")]
-    RuntimeError(#[from] RuntimeError),
-    #[error("Transform AscError: {0}")]
-    AscError(#[from] AscError),
-    #[error("Chain mismatched")]
-    ChainMismatched,
-    #[error("Missing Transform Wasm module")]
-    MissingTransformWASM,
-    #[error("Bad Transform Wasm module: {0}")]
-    BadTransformWasm(String),
-}
-
-#[derive(Debug, Error)]
 pub enum SerializerError {
-    #[error(transparent)]
-    TransformError(#[from] TransformError),
-    #[error("WasmHost error = {0}")]
-    WasmHost(#[from] WasmHostError),
     #[error("Send result failed: {0}")]
     ChannelSendFail(#[from] SendError),
 }

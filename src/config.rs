@@ -46,8 +46,6 @@ pub struct Config {
     pub subgraph_name: String,
     pub subgraph_id: Option<String>,
     pub subgraph_dir: String,
-    pub transform: Option<TransformConfig>,
-    pub transform_wasm: Option<String>,
     pub database: Option<DatabaseConfig>,
     pub reorg_threshold: u16,
     pub metric_port: Option<u16>,
