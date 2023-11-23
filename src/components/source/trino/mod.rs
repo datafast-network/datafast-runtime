@@ -98,7 +98,7 @@ WHERE block_number >= {} AND block_number < {}
         self,
     ) -> impl Stream<Item = SerializedDataMessage> {
         let mut start_block = self.start_block;
-        let step = 1000;
+        let step = 100;
         let mut blocks = self
             .get_blocks::<R>(start_block, start_block + step)
             .await

@@ -28,10 +28,10 @@ impl SubgraphFilter {
                 FilteredDataMessage::Ethereum { events, .. } => {
                     if !events.is_empty() {
                         info!(SubgraphFilter, "Events found"; events => events.len());
-                        result_sender.send(result).await?;
                     }
                 }
             }
+            result_sender.send(result).await?;
         }
         Ok(())
     }
