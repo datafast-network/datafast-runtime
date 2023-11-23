@@ -6,13 +6,6 @@ use crate::runtime::asc::native_types::store::Value;
 use std::collections::HashMap;
 use web3::types::Log;
 
-#[derive(Debug, Clone)]
-pub enum SourceDataMessage {
-    Json(serde_json::Value),
-    #[allow(dead_code)]
-    Protobuf,
-}
-
 #[derive(Debug)]
 pub enum SerializedDataMessage {
     Ethereum {
@@ -20,6 +13,14 @@ pub enum SerializedDataMessage {
         transactions: Vec<EthereumTransactionData>,
         logs: Vec<Log>,
     },
+}
+
+#[derive(Debug)]
+pub enum SourceDataMessage {
+    Json(serde_json::Value),
+    #[allow(dead_code)]
+    Protobuf,
+    AlreadySerialized(Vec<SerializedDataMessage>),
 }
 
 impl SerializedDataMessage {
@@ -63,9 +64,8 @@ impl FilteredDataMessage {
 
 pub type EntityType = String;
 pub type EntityID = String;
-pub type RawEntity = HashMap<String, Value>;
-
 pub type FieldName = String;
+pub type RawEntity = HashMap<FieldName, Value>;
 
 #[derive(Debug)]
 pub enum StoreOperationMessage {

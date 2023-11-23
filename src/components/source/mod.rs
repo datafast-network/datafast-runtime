@@ -1,6 +1,7 @@
 mod nats;
 mod readdir;
 mod readline;
+mod trino;
 
 use crate::components::source::nats::NatsConsumer;
 use crate::config::Config;
