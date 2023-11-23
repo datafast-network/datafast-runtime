@@ -22,7 +22,6 @@ pub enum SourceTypes {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ContentType {
-    Json,
     Protobuf,
 }
 

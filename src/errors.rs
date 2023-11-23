@@ -186,6 +186,10 @@ pub enum SourceError {
     Nats(#[from] io::Error),
     #[error("Nats parse message data failed: {0}")]
     ParseMessageFail(#[from] serde_json::Error),
+    #[error("Parse data error: {0}")]
+    ParseDataError(#[from] anyhow::Error),
+    #[error("Decode error: {0}")]
+    DecodeError(#[from] prost::DecodeError),
 }
 
 #[derive(Debug, Error)]

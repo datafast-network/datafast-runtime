@@ -1,9 +1,9 @@
-/// This Source Mode is only used for testing / debugging
-use crate::messages::SourceDataMessage;
 use async_stream::stream;
 use std::fs::File;
+use std::io::Read;
 use tokio_stream::Stream;
 
+/// This Source Mode is only used for testing / debugging
 pub struct ReadDir {
     dir: String,
 }
@@ -15,7 +15,7 @@ impl ReadDir {
         }
     }
 
-    pub fn get_json_in_dir_as_stream(self) -> impl Stream<Item = SourceDataMessage> {
+    pub fn get_json_in_dir_as_stream(self) -> impl Stream<Item = Vec<u8>> {
         let paths = std::fs::read_dir(self.dir.clone())
             .unwrap()
             .flatten()
@@ -45,10 +45,10 @@ impl ReadDir {
 
         stream! {
             for file in json_files {
-                let file = File::open(file).unwrap();
-
-                match serde_json::from_reader(&file) {
-                    Ok(value) => yield SourceDataMessage::Json(value),
+                let mut file = File::open(file).unwrap();
+                let mut buffer = vec![];
+                match file.read_to_end(&mut buffer) {
+                    Ok(_) => yield buffer,
                     Err(_) => {
                         ::log::error!("Not json!");
                         continue;

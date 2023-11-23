@@ -8,7 +8,7 @@ use tokio_stream::Stream;
 pub struct Readline();
 
 impl Readline {
-    pub fn get_user_input_as_stream(self) -> impl Stream<Item = SourceDataMessage> {
+    pub fn get_user_input_as_stream(self) -> impl Stream<Item = Vec<u8>> {
         stream! {
             loop {
                 let mut input = String::new();
@@ -29,13 +29,7 @@ impl Readline {
                     input.push_str(&last_input);
                 }
 
-                match serde_json::from_str(&input) {
-                    Ok(value) => yield SourceDataMessage::Json(value),
-                    Err(_) => {
-                        ::log::error!("Not json!");
-                        continue;
-                    }
-                }
+                yield input.into_bytes(),
             }
         }
     }

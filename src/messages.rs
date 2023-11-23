@@ -8,27 +8,28 @@ use web3::types::Log;
 
 #[derive(Debug, Clone)]
 pub enum SourceDataMessage {
-    Json(serde_json::Value),
-    #[allow(dead_code)]
-    Protobuf,
+    Protobuf(Vec<EthereumFullBlock>),
 }
 
 #[derive(Debug)]
 pub enum SerializedDataMessage {
-    Ethereum {
-        block: EthereumBlockData,
-        transactions: Vec<EthereumTransactionData>,
-        logs: Vec<Log>,
-    },
+    Ethereum(EthereumFullBlock),
+}
+
+#[derive(Debug, Clone)]
+pub struct EthereumFullBlock {
+    pub block: EthereumBlockData,
+    pub transactions: Vec<EthereumTransactionData>,
+    pub logs: Vec<Log>,
 }
 
 impl SerializedDataMessage {
     pub fn get_block_ptr(&self) -> BlockPtr {
         match self {
-            Self::Ethereum { block, .. } => BlockPtr {
-                number: block.number.as_u64(),
-                hash: block.hash.to_string(),
-                parent_hash: block.parent_hash.to_string(),
+            Self::Ethereum(block) => BlockPtr {
+                number: block.block.number.as_u64(),
+                hash: block.block.hash.to_string(),
+                parent_hash: block.block.parent_hash.to_string(),
             },
         }
     }
