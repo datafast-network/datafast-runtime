@@ -1,4 +1,5 @@
 mod ethereum;
+mod utils;
 
 use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
