@@ -226,7 +226,7 @@ impl From<&TrinoEthereumBlock> for Vec<EthereumTransactionData> {
                 gas_limit: U256::from_dec_str(&tx.gas).unwrap(),
                 gas_price: U256::from_dec_str(&tx.gas_price.clone().unwrap_or_default())
                     .unwrap_or_default(),
-                input: Bytes::from_hex(&tx.input).unwrap_or_default(),
+                input: Bytes::from_hex(&tx.input.replace("0x", "")).unwrap_or_default(),
                 nonce: U256::from(tx.nonce),
             };
             result.push(tx_data);
@@ -248,7 +248,9 @@ impl From<&TrinoEthereumBlock> for Vec<Web3Log> {
                     .iter()
                     .map(|t| H256::from_str(t).unwrap())
                     .collect(),
-                data: Web3Bytes::from(Bytes::from_hex(log.data.clone()).unwrap_or_default()),
+                data: Web3Bytes::from(
+                    Bytes::from_hex(log.data.replace("0x", "")).unwrap_or_default(),
+                ),
                 block_hash: Some(H256::from_str(&b.block_hash).unwrap()),
                 block_number: Some(U64::from(b.block_number)),
                 transaction_hash: Some(

@@ -4,6 +4,7 @@ mod utils;
 use super::manifest_loader::ManifestLoader;
 use crate::common::Chain;
 use crate::errors::FilterError;
+use crate::info;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
 use ethereum_filter::EthereumFilter;

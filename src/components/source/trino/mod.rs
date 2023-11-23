@@ -132,14 +132,14 @@ mod test {
         let trino =
             TrinoClient::new("194.233.82.254", &8080, "trino", "delta", "ethereum", 0).unwrap();
         let blocks = trino
-            .get_blocks::<TrinoEthereumBlock>(10_000_000, 10_000_200)
+            .get_blocks::<TrinoEthereumBlock>(10_000_000, 10_000_001)
             .await
             .unwrap();
 
         assert_eq!(blocks.len(), 200);
 
         for (idx, block) in blocks.into_iter().enumerate() {
-            if block.transactions.len() > 0 {
+            if !block.transactions.is_empty() {
                 info!(
                     "block={}, tx length = {:?}",
                     block.get_block_number(),
