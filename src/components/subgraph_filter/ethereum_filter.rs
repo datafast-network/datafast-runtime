@@ -153,17 +153,7 @@ impl SubgraphFilterTrait for EthereumFilter {
                 logs,
                 transactions,
             } => {
-                info!(EthereumFilter,
-                    "Filtering block";
-                    block_number => format!("{:?}", block.number)
-                );
-
                 let events = self.filter_events(block.clone(), transactions, logs)?;
-                info!(EthereumFilter, "Filter events";
-                    events => events.len(),
-                    block_number => format!("{:?}", block.number)
-                );
-
                 Ok(FilteredDataMessage::Ethereum { events, block })
             }
         }

@@ -89,13 +89,6 @@ impl Subgraph {
     ) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
-                info!(
-                    Subgraph,
-                    "Received ethereum filtered data";
-                    events => events.len(),
-                    block => format!("{:?}", block.number)
-                );
-
                 self.handle_ethereum_filtered_data(events, block).await
             }
         }
@@ -120,7 +113,12 @@ impl Subgraph {
             self.handle_filtered_data(msg).await?;
             timer.stop_and_record();
             self.metrics.block_process_counter.inc();
-
+            info!(
+                Subgraph,
+                "Finished processing block";
+                block_number => block_ptr.number,
+                block_hash => block_ptr.hash
+            );
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
                 error!(Subgraph, "Failed to migrate db";
                     error => e.to_string(),

@@ -98,8 +98,9 @@ WHERE block_number >= {} AND block_number < {}
         self,
     ) -> impl Stream<Item = SerializedDataMessage> {
         let mut start_block = self.start_block;
+        let step = 1000;
         let mut blocks = self
-            .get_blocks::<R>(start_block, start_block + 100)
+            .get_blocks::<R>(start_block, start_block + step)
             .await
             .unwrap();
 
@@ -108,8 +109,8 @@ WHERE block_number >= {} AND block_number < {}
                 for block in blocks {
                     yield Into::<SerializedDataMessage>::into(block)
                 }
-                start_block += 100;
-                blocks = self.get_blocks::<R>(start_block, start_block + 100).await.unwrap();
+                start_block += step;
+                blocks = self.get_blocks::<R>(start_block, start_block + step).await.unwrap();
             }
         }
     }
