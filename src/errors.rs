@@ -188,6 +188,8 @@ pub enum SourceError {
     ParseMessageFail(#[from] serde_json::Error),
     #[error("Serialize from Trino row failed")]
     TrinoSerializeFail,
+    #[error("Trino Query Failed")]
+    TrinoQueryFail,
 }
 
 #[derive(Debug, Error)]

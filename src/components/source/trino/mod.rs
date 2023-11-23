@@ -29,7 +29,12 @@ impl TrinoClient {
     }
 
     async fn query(&self, query: String) -> Result<Vec<Row>, SourceError> {
-        Ok(self.client.get_all::<Row>(query).await.unwrap().into_vec())
+        Ok(self
+            .client
+            .get_all::<Row>(query)
+            .await
+            .map_err(|_| SourceError::TrinoQueryFail)?
+            .into_vec())
     }
 
     async fn get_blocks<R: TryFrom<Row> + Into<SerializedDataMessage>>(
@@ -45,7 +50,7 @@ impl TrinoClient {
         Ok(blocks)
     }
 
-    pub async fn get_subscription_stream<R: TryFrom<Row> + Into<SerializedDataMessage>>(
+    pub async fn get_block_stream<R: TryFrom<Row> + Into<SerializedDataMessage>>(
         self,
     ) -> impl Stream<Item = SourceDataMessage> {
         let mut messages: Vec<SerializedDataMessage> = vec![];
@@ -61,3 +66,6 @@ impl TrinoClient {
         }
     }
 }
+
+#[cfg(test)]
+mod test {}
