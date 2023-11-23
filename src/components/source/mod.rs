@@ -70,7 +70,7 @@ impl Source {
                 }
             }
             Source::Trino(source) => {
-                let s = source.get_block_stream().await;
+                let s = source.get_eth_block_stream().await;
                 pin_mut!(s);
                 while let Some(data) = s.next().await {
                     sender.send(data).await?;

@@ -15,6 +15,8 @@ use crate::runtime::asc::native_types::Uint8Array;
 use crate::runtime::bignumber::bigint::BigInt;
 use ethabi::Bytes;
 use semver::Version;
+use serde::Deserialize;
+use serde::Serialize;
 use web3::types::Transaction;
 use web3::types::H160;
 use web3::types::H256;
@@ -51,7 +53,7 @@ impl_asc_type_struct!(
     nonce => AscPtr<AscBigInt>
 );
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EthereumTransactionData {
     pub hash: H256,
     pub index: U128,
