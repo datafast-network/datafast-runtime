@@ -1,4 +1,5 @@
 use super::utils::from_vec_json_value;
+use super::TrinoBlockTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::errors::SourceError;
@@ -273,5 +274,23 @@ impl From<TrinoEthereumBlock> for SerializedDataMessage {
             transactions: Vec::<EthereumTransactionData>::from(&value),
             logs: Vec::<Web3Log>::from(&value),
         }
+    }
+}
+
+impl TrinoBlockTrait for TrinoEthereumBlock {
+    fn get_block_hash(&self) -> String {
+        self.block_hash.clone()
+    }
+
+    fn get_parent_hash(&self) -> String {
+        self.parent_hash.clone()
+    }
+
+    fn get_block_number(&self) -> u64 {
+        self.block_number
+    }
+
+    fn get_insert_timestamp(&self) -> u64 {
+        self.created_at
     }
 }
