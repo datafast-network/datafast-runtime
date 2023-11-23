@@ -20,7 +20,7 @@ pub enum SourceDataMessage {
     Json(serde_json::Value),
     #[allow(dead_code)]
     Protobuf,
-    AlreadySerialized(Vec<SerializedDataMessage>),
+    AlreadySerialized(SerializedDataMessage),
 }
 
 impl SerializedDataMessage {

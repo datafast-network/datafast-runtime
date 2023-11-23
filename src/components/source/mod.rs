@@ -13,11 +13,13 @@ use kanal::AsyncSender;
 use readdir::ReadDir;
 use readline::Readline;
 use tokio_stream::StreamExt;
+use trino::TrinoClient;
 
 pub enum Source {
     Readline(Readline),
     ReadDir(ReadDir),
     Nats(NatsConsumer),
+    Trino(TrinoClient),
 }
 
 impl Source {
@@ -30,6 +32,13 @@ impl Source {
                 subject,
                 content_type,
             } => Source::Nats(NatsConsumer::new(uri, subject, content_type.clone())?),
+            SourceTypes::Trino {
+                host,
+                port,
+                user,
+                catalog,
+                schema,
+            } => Source::Trino(TrinoClient::new(host, port, user, catalog, schema)?),
         };
         Ok(source)
     }
@@ -54,6 +63,13 @@ impl Source {
                 }
             }
             Source::Nats(source) => {
+                let s = source.get_subscription_stream();
+                pin_mut!(s);
+                while let Some(data) = s.next().await {
+                    sender.send(data).await?;
+                }
+            }
+            Source::Trino(source) => {
                 let s = source.get_subscription_stream();
                 pin_mut!(s);
                 while let Some(data) = s.next().await {
