@@ -4,6 +4,7 @@ mod readline;
 mod trino;
 
 use crate::components::source::nats::NatsConsumer;
+use crate::components::ProgressCtrl;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
@@ -24,7 +25,8 @@ pub enum Source {
 }
 
 impl Source {
-    pub async fn new(config: &Config) -> Result<Self, SourceError> {
+    pub async fn new(config: &Config, pctrl: ProgressCtrl) -> Result<Self, SourceError> {
+        let start_block = pctrl.get_min_start_block();
         let source = match &config.source {
             SourceTypes::ReadLine => Source::Readline(Readline()),
             SourceTypes::ReadDir { source_dir } => Source::ReadDir(ReadDir::new(source_dir)),
@@ -39,7 +41,14 @@ impl Source {
                 user,
                 catalog,
                 schema,
-            } => Source::Trino(TrinoClient::new(host, port, user, catalog, schema)?),
+            } => Source::Trino(TrinoClient::new(
+                host,
+                port,
+                user,
+                catalog,
+                schema,
+                start_block,
+            )?),
         };
         Ok(source)
     }

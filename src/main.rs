@@ -35,17 +35,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::load();
     let registry = default_registry();
 
-    let block_source = Source::new(&config).await?;
-    // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
+    let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
+    let progress_ctrl =
+        ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
+
+    let block_source = Source::new(&config, progress_ctrl.clone()).await?;
+    // TODO: impl IPFS Loader
 
     // TODO: impl raw-data serializer
     let serializer = Serializer::new(&config, registry)?;
     let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
-    let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
-    let progress_ctrl =
-        ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
 
     let mut subgraph = Subgraph::new_empty(&config, registry);
 
