@@ -66,10 +66,13 @@ impl Serializer {
             Self::Transform(mut transform) => {
                 while let Ok(source) = source_recv.recv().await {
                     debug!(Transform, "Received source data");
-                    match &source {
-                        SourceDataMessage::Protobuf(blocks) => {
+                    match source {
+                        SourceDataMessage::Protobuf(mut blocks) => {
+                            //ensure blocks are sorted by block number
+                            blocks.sort_by_key(|block| block.block.number);
+
                             for block in blocks {
-                                let msg = SerializedDataMessage::Ethereum(block.clone());
+                                let msg = SerializedDataMessage::Ethereum(block);
                                 result_sender.send(msg).await?;
                             }
                         }
