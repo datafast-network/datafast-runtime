@@ -5,7 +5,6 @@ use crate::common::BlockPtr;
 use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
-use crate::info;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;

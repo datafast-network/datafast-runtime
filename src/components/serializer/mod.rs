@@ -65,7 +65,6 @@ impl Serializer {
         match self {
             Self::Transform(mut transform) => {
                 while let Ok(source) = source_recv.recv().await {
-                    debug!(Transform, "Received source data");
                     match source {
                         SourceDataMessage::Protobuf(mut blocks) => {
                             //ensure blocks are sorted by block number
