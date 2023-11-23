@@ -17,6 +17,13 @@ pub enum SourceTypes {
         subject: String,
         content_type: ContentType,
     },
+    Trino {
+        host: String,
+        port: u16,
+        user: String,
+        catalog: String,
+        schema: String,
+    },
 }
 
 #[derive(Deserialize, Clone, Debug)]
