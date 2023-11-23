@@ -291,12 +291,12 @@ impl From<&TrinoEthereumBlock> for Vec<Web3Log> {
     }
 }
 
-impl Into<SerializedDataMessage> for TrinoEthereumBlock {
-    fn into(self) -> SerializedDataMessage {
+impl From<TrinoEthereumBlock> for SerializedDataMessage {
+    fn from(value: TrinoEthereumBlock) -> Self {
         SerializedDataMessage::Ethereum {
-            block: EthereumBlockData::from(&self),
-            transactions: Vec::<EthereumTransactionData>::from(&self),
-            logs: Vec::<Web3Log>::from(&self),
+            block: EthereumBlockData::from(&value),
+            transactions: Vec::<EthereumTransactionData>::from(&value),
+            logs: Vec::<Web3Log>::from(&value),
         }
     }
 }

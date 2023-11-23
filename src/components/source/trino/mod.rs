@@ -2,7 +2,6 @@ mod ethereum;
 
 use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
-use crate::messages::SourceDataMessage;
 use async_stream::stream;
 use ethereum::*;
 use prusto::Client;
@@ -55,13 +54,13 @@ impl TrinoClient {
 
     pub async fn get_block_stream<R: TryFrom<Row> + Into<SerializedDataMessage>>(
         self,
-    ) -> impl Stream<Item = SourceDataMessage> {
+    ) -> impl Stream<Item = SerializedDataMessage> {
         let mut messages: Vec<SerializedDataMessage> = vec![];
 
         stream! {
             loop {
                 for msg in messages {
-                    yield SourceDataMessage::AlreadySerialized(msg);
+                    yield msg
                 }
                 let blocks = self.get_blocks::<R>("some-query").await.unwrap();
                 messages = blocks.into_iter().map(|b| Into::<SerializedDataMessage>::into(b)).collect();
@@ -69,15 +68,13 @@ impl TrinoClient {
         }
     }
 
-    pub async fn get_eth_block_stream(self) -> impl Stream<Item = SourceDataMessage> {
+    pub async fn get_eth_block_stream(self) -> impl Stream<Item = SerializedDataMessage> {
         self.get_block_stream::<TrinoEthereumBlock>().await
     }
 }
 
 #[cfg(test)]
 mod test {
-    use log::info;
-
     use super::*;
 
     #[tokio::test]
@@ -94,8 +91,7 @@ mod test {
 
         for row in rows {
             let block = TrinoEthereumBlock::try_from(row).unwrap();
-            let msg = Into::<SerializedDataMessage>::into(block);
-            info!("{:?}", msg);
+            let _msg = SerializedDataMessage::from(block);
         }
     }
 }

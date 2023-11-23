@@ -7,32 +7,29 @@ use kanal::AsyncSender;
 use prometheus::Registry;
 
 pub enum Serializer {
-    DirectSerializer,
+    Protobuf,
 }
 
 impl Serializer {
     pub fn new(_config: &Config, _registry: &Registry) -> Result<Self, SerializerError> {
-        Ok(Self::DirectSerializer)
+        Ok(Self::Protobuf)
     }
 
     pub async fn run_async(
         self,
         source_recv: AsyncReceiver<SourceDataMessage>,
-        result_sender: AsyncSender<SerializedDataMessage>,
+        _result_sender: AsyncSender<SerializedDataMessage>,
     ) -> Result<(), SerializerError> {
-        match self {
-            Self::DirectSerializer => {
-                while let Ok(source) = source_recv.recv().await {
-                    match source {
-                        SourceDataMessage::AlreadySerialized(msg) => {
-                            result_sender.send(msg).await?
-                        }
-                        _ => unimplemented!(),
-                    }
+        while let Ok(source) = source_recv.recv().await {
+            match source {
+                SourceDataMessage::Protobuf(_data) => {
+                    todo!()
+                }
+                SourceDataMessage::Json(_data) => {
+                    todo!()
                 }
             }
-        };
-
+        }
         Ok(())
     }
 }

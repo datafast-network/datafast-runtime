@@ -7,6 +7,7 @@ use crate::components::source::nats::NatsConsumer;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
+use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use futures_util::pin_mut;
 use kanal::AsyncSender;
@@ -46,6 +47,7 @@ impl Source {
     pub async fn run_async(
         self,
         sender: AsyncSender<SourceDataMessage>,
+        sender2: AsyncSender<SerializedDataMessage>,
     ) -> Result<(), SourceError> {
         match self {
             Source::Readline(source) => {
@@ -73,7 +75,7 @@ impl Source {
                 let s = source.get_eth_block_stream().await;
                 pin_mut!(s);
                 while let Some(data) = s.next().await {
-                    sender.send(data).await?;
+                    sender2.send(data).await?;
                 }
             }
         };
