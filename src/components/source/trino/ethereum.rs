@@ -21,7 +21,7 @@ use web3::types::U256;
 use web3::types::U64;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-struct Header {
+pub struct Header {
     pub author: String,
     pub state_root: String,
     pub transactions_root: String,
@@ -59,7 +59,7 @@ from_vec_json_value!(
 );
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-struct Transaction {
+pub struct Transaction {
     pub hash: String,
     pub nonce: u64,
     pub block_hash: Option<String>,
@@ -103,7 +103,7 @@ from_vec_json_value!(
 );
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-struct Log {
+pub struct Log {
     pub address: String,
     pub topics: Vec<String>,
     pub data: String,
@@ -134,14 +134,14 @@ from_vec_json_value!(
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct TrinoEthereumBlock {
-    chain_id: u64,
-    block_hash: String,
-    parent_hash: String,
-    block_number: u64,
-    header: Header,
-    transactions: Vec<Transaction>,
-    logs: Vec<Log>,
-    created_at: u64,
+    pub chain_id: u64,
+    pub block_hash: String,
+    pub parent_hash: String,
+    pub block_number: u64,
+    pub header: Header,
+    pub transactions: Vec<Transaction>,
+    pub logs: Vec<Log>,
+    pub created_at: u64,
 }
 
 impl TryFrom<Vec<Value>> for TrinoEthereumBlock {
@@ -248,7 +248,7 @@ impl From<&TrinoEthereumBlock> for Vec<Web3Log> {
                     .iter()
                     .map(|t| H256::from_str(t).unwrap())
                     .collect(),
-                data: Web3Bytes::from(Bytes::from_hex(log.data.clone()).unwrap()),
+                data: Web3Bytes::from(Bytes::from_hex(log.data.clone()).unwrap_or_default()),
                 block_hash: Some(H256::from_str(&b.block_hash).unwrap()),
                 block_number: Some(U64::from(b.block_number)),
                 transaction_hash: Some(
@@ -256,7 +256,7 @@ impl From<&TrinoEthereumBlock> for Vec<Web3Log> {
                 ),
                 transaction_index: Some(Index::from(log.transaction_index.unwrap())),
                 log_index: Some(U256::from(log.log_index.unwrap())),
-                transaction_log_index: Some(U256::from(log.transaction_log_index.unwrap())),
+                transaction_log_index: log.transaction_log_index.map(U256::from),
                 log_type: log.log_type.clone(),
                 removed: log.removed,
             };

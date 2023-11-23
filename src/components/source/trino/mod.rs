@@ -69,7 +69,7 @@ impl TrinoClient {
     ) -> Result<Vec<R>, SourceError> {
         let query = format!(
             r#"
-SELECT * FROM ethereum
+SELECT * FROM blocks_2
 WHERE block_number >= {} AND block_number < {}
 "#,
             start_block, stop_block
@@ -99,7 +99,7 @@ WHERE block_number >= {} AND block_number < {}
     ) -> impl Stream<Item = SerializedDataMessage> {
         let mut start_block = self.start_block;
         let mut blocks = self
-            .get_blocks::<R>(start_block, start_block + 2000)
+            .get_blocks::<R>(start_block, start_block + 1000)
             .await
             .unwrap();
 
@@ -108,8 +108,8 @@ WHERE block_number >= {} AND block_number < {}
                 for block in blocks {
                     yield Into::<SerializedDataMessage>::into(block)
                 }
-                start_block += 2000;
-                blocks = self.get_blocks::<R>(start_block, start_block + 2000).await.unwrap();
+                start_block += 1000;
+                blocks = self.get_blocks::<R>(start_block, start_block + 1000).await.unwrap();
             }
         }
     }
@@ -121,21 +121,31 @@ WHERE block_number >= {} AND block_number < {}
 
 #[cfg(test)]
 mod test {
+    use log::info;
+
     use super::*;
 
     #[tokio::test]
     async fn test_trino() {
         env_logger::try_init().unwrap_or_default();
 
-        let trino = TrinoClient::new("localhost", &8080, "trino", "delta", "ethereum", 0).unwrap();
+        let trino =
+            TrinoClient::new("194.233.82.254", &8080, "trino", "delta", "ethereum", 0).unwrap();
         let blocks = trino
-            .get_blocks::<TrinoEthereumBlock>(10_000_000, 10_000_100)
+            .get_blocks::<TrinoEthereumBlock>(10_000_000, 10_000_200)
             .await
             .unwrap();
 
-        assert_eq!(blocks.len(), 100);
+        assert_eq!(blocks.len(), 200);
 
         for (idx, block) in blocks.into_iter().enumerate() {
+            if block.transactions.len() > 0 {
+                info!(
+                    "block={}, tx length = {:?}",
+                    block.get_block_number(),
+                    block.transactions.len()
+                );
+            }
             assert_eq!(10_000_000 + idx, block.get_block_number() as usize);
             let _msg = SerializedDataMessage::from(block);
         }
