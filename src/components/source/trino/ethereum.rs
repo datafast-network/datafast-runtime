@@ -183,8 +183,7 @@ impl TryFrom<Vec<Value>> for TrinoEthereumBlock {
                 .cloned()
                 .unwrap()
                 .into_iter()
-                .map(|v| Transaction::try_from(v.as_array().cloned().unwrap()))
-                .flatten()
+                .flat_map(|v| Transaction::try_from(v.as_array().cloned().unwrap()))
                 .collect(),
             logs: values
                 .get(6)
@@ -194,8 +193,7 @@ impl TryFrom<Vec<Value>> for TrinoEthereumBlock {
                 .cloned()
                 .unwrap()
                 .into_iter()
-                .map(|v| Log::try_from(v.as_array().cloned().unwrap()))
-                .flatten()
+                .flat_map(|v| Log::try_from(v.as_array().cloned().unwrap()))
                 .collect(),
             created_at: serde_json::from_value(values.get(7).cloned().unwrap()).unwrap(),
         })
