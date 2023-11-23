@@ -80,9 +80,8 @@ mod test {
         let stream = rd.get_json_in_dir_as_stream();
         pin_mut!(stream);
 
-        while let Some(data) = stream.next().await {
+        if let Some(data) = stream.next().await {
             log::info!("Received data: {:?}", data);
-            break;
         }
     }
 }
