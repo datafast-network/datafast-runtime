@@ -38,8 +38,8 @@ impl Source {
         Ok(source)
     }
 
-    fn parse_blocks(buffer: impl AsRef<[u8]>) -> Result<SourceDataMessage, SourceError> {
-        let blocks = Blocks::decode(buffer.as_ref())?;
+    fn parse_blocks(buffer_data: impl AsRef<[u8]>) -> Result<SourceDataMessage, SourceError> {
+        let blocks = Blocks::decode(buffer_data.as_ref())?;
         let decoded_blocks = blocks
             .ethereum_blocks
             .into_iter()

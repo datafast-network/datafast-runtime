@@ -939,7 +939,7 @@ mod tests {
             }
             _ => panic!("Not a list"),
         };
-        log::info!("relation: {:?}", relation_ids);
+
         let tokens_relation = db.load_entities(tokens, relation_ids).await.unwrap();
 
         assert_eq!(tokens_relation.len(), 3);
