@@ -10,16 +10,12 @@ use crate::info;
 use crate::messages::EthereumFullBlock;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
-use crate::runtime::asc::base::asc_get;
-use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscIndexId;
-use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::base::AscType;
 use crate::runtime::asc::base::FromAscObj;
 use crate::runtime::wasm_host::AscHost;
 use std::collections::HashMap;
 use wasmer::Function;
-use wasmer::Value;
 use web3::types::Log;
 
 pub struct Transform {
@@ -85,14 +81,14 @@ impl Transform {
         source: SourceDataMessage,
         function_name: &str,
     ) -> Result<R, TransformError> {
-        let func = self
+        let _func = self
             .funcs
             .get(function_name)
             .ok_or(TransformError::InvalidFunctionName(
                 function_name.to_string(),
             ))?;
 
-        let asc_ptr = match source {
+        let _asc_ptr = match source {
             SourceDataMessage::Protobuf(_block) => {
                 // let asc_json = asc_new(&mut self.host, &block)?;
                 // asc_json.wasm_ptr() as i32

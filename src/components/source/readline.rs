@@ -1,10 +1,8 @@
 /// This Source Mode is only used for testing / debugging
-use crate::messages::SourceDataMessage;
 use async_stream::stream;
-use std::io;
 use std::io::BufRead;
+use std::io::{self};
 use tokio_stream::Stream;
-
 pub struct Readline();
 
 impl Readline {
@@ -29,7 +27,7 @@ impl Readline {
                     input.push_str(&last_input);
                 }
 
-                yield input.into_bytes(),
+                yield input.into_bytes()
             }
         }
     }
