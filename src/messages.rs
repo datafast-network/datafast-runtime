@@ -9,6 +9,7 @@ use web3::types::Log;
 #[derive(Debug, Clone)]
 pub enum SourceDataMessage {
     Protobuf(Vec<EthereumFullBlock>),
+    Parquet,
 }
 
 #[derive(Debug)]

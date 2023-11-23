@@ -66,9 +66,19 @@ impl Serializer {
             Self::Transform(mut transform) => {
                 while let Ok(source) = source_recv.recv().await {
                     debug!(Transform, "Received source data");
-                    result_sender
-                        .send(transform.handle_source_input(source)?)
-                        .await?
+                    match &source {
+                        SourceDataMessage::Protobuf(blocks) => {
+                            for block in blocks {
+                                let msg = SerializedDataMessage::Ethereum(block.clone());
+                                result_sender.send(msg).await?;
+                            }
+                        }
+                        _ => {
+                            result_sender
+                                .send(transform.handle_source_input(source)?)
+                                .await?;
+                        }
+                    }
                 }
             }
 

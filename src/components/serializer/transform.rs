@@ -88,10 +88,13 @@ impl Transform {
                 function_name.to_string(),
             ))?;
 
-        let _asc_ptr = match source {
+        match source {
             SourceDataMessage::Protobuf(_block) => {
                 // let asc_json = asc_new(&mut self.host, &block)?;
                 // asc_json.wasm_ptr() as i32
+                unimplemented!()
+            }
+            SourceDataMessage::Parquet => {
                 unimplemented!()
             }
         };
