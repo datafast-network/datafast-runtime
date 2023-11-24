@@ -70,29 +70,29 @@ impl BlockSource {
 
     pub async fn run_async(
         self,
-        sender: AsyncSender<SourceDataMessage>,
-        sender2: AsyncSender<SerializedDataMessage>,
+        sender_to_serializer: AsyncSender<SourceDataMessage>,
+        sender_to_filter: AsyncSender<SerializedDataMessage>,
     ) -> Result<(), SourceError> {
         match self.source {
             Source::Readline(source) => {
                 let s = source.get_user_input_as_stream();
                 pin_mut!(s);
                 while let Some(data) = s.next().await {
-                    sender.send(data).await?;
+                    sender_to_serializer.send(data).await?;
                 }
             }
             Source::ReadDir(source) => {
                 let s = source.get_json_in_dir_as_stream();
                 pin_mut!(s);
                 while let Some(data) = s.next().await {
-                    sender.send(data).await?;
+                    sender_to_serializer.send(data).await?;
                 }
             }
             Source::Nats(source) => {
                 let s = source.get_subscription_stream();
                 pin_mut!(s);
                 while let Some(data) = s.next().await {
-                    sender.send(data).await?;
+                    sender_to_serializer.send(data).await?;
                 }
             }
             Source::Trino(source) => {
@@ -107,7 +107,7 @@ impl BlockSource {
                 let handle_received_blockss = async {
                     while let Ok(blocks) = trino_blocks_receiver.recv().await {
                         for block in blocks {
-                            sender2.send(block).await.unwrap();
+                            sender_to_filter.send(block).await.unwrap();
                         }
                     }
                 };
