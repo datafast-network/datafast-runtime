@@ -3,6 +3,7 @@ mod readdir;
 mod readline;
 mod trino;
 
+use crate::common::Chain;
 use crate::components::source::nats::NatsConsumer;
 use crate::components::ProgressCtrl;
 use crate::config::Config;
@@ -19,14 +20,19 @@ use tokio_stream::StreamExt;
 use trino::TrinoClient;
 use trino::TrinoEthereumBlock;
 
-pub enum Source {
+enum Source {
     Readline(Readline),
     ReadDir(ReadDir),
     Nats(NatsConsumer),
     Trino(TrinoClient),
 }
 
-impl Source {
+pub struct BlockSource {
+    source: Source,
+    chain: Chain,
+}
+
+impl BlockSource {
     pub async fn new(config: &Config, pctrl: ProgressCtrl) -> Result<Self, SourceError> {
         let start_block = pctrl.get_min_start_block();
         let source = match &config.source {
@@ -56,7 +62,10 @@ impl Source {
                 query_step.to_owned(),
             )?),
         };
-        Ok(source)
+        Ok(Self {
+            source,
+            chain: config.chain.clone(),
+        })
     }
 
     pub async fn run_async(
@@ -64,7 +73,7 @@ impl Source {
         sender: AsyncSender<SourceDataMessage>,
         sender2: AsyncSender<SerializedDataMessage>,
     ) -> Result<(), SourceError> {
-        match self {
+        match self.source {
             Source::Readline(source) => {
                 let s = source.get_user_input_as_stream();
                 pin_mut!(s);
@@ -89,15 +98,23 @@ impl Source {
             Source::Trino(source) => {
                 let (trino_blocks_sender, trino_blocks_receiver) = bounded_async(1);
 
-                tokio::select! {
-                    _ = source.get_block_stream::<TrinoEthereumBlock>(trino_blocks_sender) => (),
-                    _ = async {
-                        while let Ok(blocks) = trino_blocks_receiver.recv().await {
-                            for block in blocks {
-                                sender2.send(block).await.unwrap();
-                            }
+                let query_blocks = match self.chain {
+                    Chain::Ethereum => {
+                        source.get_block_stream::<TrinoEthereumBlock>(trino_blocks_sender)
+                    }
+                };
+
+                let handle_received_blockss = async {
+                    while let Ok(blocks) = trino_blocks_receiver.recv().await {
+                        for block in blocks {
+                            sender2.send(block).await.unwrap();
                         }
-                    } => ()
+                    }
+                };
+
+                tokio::select! {
+                    _ = query_blocks => (),
+                    _ = handle_received_blockss => ()
                 };
             }
         };

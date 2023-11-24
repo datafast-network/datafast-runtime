@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let progress_ctrl =
         ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
 
-    let block_source = Source::new(&config, progress_ctrl.clone()).await?;
+    let block_source = BlockSource::new(&config, progress_ctrl.clone()).await?;
     // TODO: impl IPFS Loader
 
     // TODO: impl raw-data serializer
