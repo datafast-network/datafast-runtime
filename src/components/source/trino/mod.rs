@@ -43,7 +43,10 @@ impl TrinoClient {
             .catalog(catalog)
             .schema(schema)
             .build()
-            .unwrap();
+            .map_err(|e| {
+                error!(TrinoClient, "Connection failed"; error => e);
+                SourceError::TrinoConnectionFail
+            })?;
         Ok(Self {
             client,
             start_block,
@@ -58,7 +61,7 @@ impl TrinoClient {
             .get_all::<Row>(query.to_owned())
             .await
             .map_err(|e| {
-                error!(TrinoClient, "query failed"; error => format!("{:?}", e));
+                error!(TrinoClient, "Query failed"; error => e);
                 SourceError::TrinoQueryFail
             })?
             .into_vec())
@@ -72,11 +75,12 @@ impl TrinoClient {
     async fn get_blocks<R: TrinoBlockTrait>(
         &self,
         start_block: u64,
-        stop_block: u64,
     ) -> Result<Vec<SerializedDataMessage>, SourceError> {
         let query = format!(
             "SELECT * FROM {} WHERE block_number >= {} AND block_number < {}",
-            self.table, start_block, stop_block
+            self.table,
+            start_block,
+            start_block + self.query_step
         );
         let retry_strategy = FixedInterval::from_millis(1);
         let results = Retry::spawn(retry_strategy, || self.query(&query)).await?;
@@ -105,20 +109,25 @@ impl TrinoClient {
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
         let mut blocks = self
-            .get_blocks::<R>(start_block, start_block + self.query_step)
-            .await
-            .unwrap()
+            .get_blocks::<R>(start_block)
+            .await?
             .into_iter()
             .map(Into::<SerializedDataMessage>::into)
             .collect::<Vec<_>>();
 
         loop {
+            start_block = blocks
+                .last()
+                .expect("No block returned")
+                .get_block_ptr()
+                .number
+                + 1;
+
             sender.send(blocks).await?;
-            start_block += self.query_step;
+
             blocks = self
-                .get_blocks::<R>(start_block, start_block + self.query_step)
-                .await
-                .unwrap()
+                .get_blocks::<R>(start_block)
+                .await?
                 .into_iter()
                 .map(Into::<SerializedDataMessage>::into)
                 .collect::<Vec<_>>();
@@ -142,11 +151,11 @@ mod test {
             "ethereum",
             "ethereum",
             0,
-            10,
+            200,
         )
         .unwrap();
         let blocks = trino
-            .get_blocks::<TrinoEthereumBlock>(10_000_000, 10_000_001)
+            .get_blocks::<TrinoEthereumBlock>(10_000_000)
             .await
             .unwrap();
 

@@ -164,6 +164,8 @@ pub enum SourceError {
     Nats(#[from] io::Error),
     #[error("Nats parse message data failed: {0}")]
     ParseMessageFail(#[from] serde_json::Error),
+    #[error("Failed to connect to Trino")]
+    TrinoConnectionFail,
     #[error("Serialize from Trino row failed")]
     TrinoSerializeFail,
     #[error("Trino Query Failed")]
