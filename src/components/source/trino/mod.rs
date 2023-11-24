@@ -3,6 +3,7 @@ mod utils;
 
 use crate::error;
 use crate::errors::SourceError;
+use crate::info;
 use crate::messages::SerializedDataMessage;
 pub use ethereum::TrinoEthereumBlock;
 use kanal::AsyncSender;
@@ -108,30 +109,16 @@ impl TrinoClient {
         sender: AsyncSender<Vec<SerializedDataMessage>>,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
-        let mut blocks = self
-            .get_blocks::<R>(start_block)
-            .await?
-            .into_iter()
-            .map(Into::<SerializedDataMessage>::into)
-            .collect::<Vec<_>>();
 
-        loop {
-            start_block = blocks
-                .last()
-                .expect("No block returned")
-                .get_block_ptr()
-                .number
-                + 1;
-
+        while let Ok(blocks) = self.get_blocks::<R>(start_block).await {
+            let batch_first = blocks.first().expect("no block returned").get_block_ptr();
+            let batch_last = blocks.last().expect("no block returned").get_block_ptr();
+            info!(TrinoClient, "new block range returned"; first => batch_first, last => batch_last);
+            start_block = batch_last.number + 1;
             sender.send(blocks).await?;
-
-            blocks = self
-                .get_blocks::<R>(start_block)
-                .await?
-                .into_iter()
-                .map(Into::<SerializedDataMessage>::into)
-                .collect::<Vec<_>>();
         }
+
+        Ok(())
     }
 }
 
