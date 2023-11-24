@@ -1,7 +1,6 @@
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::errors::SubgraphError;
-use crate::info;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscIndexId;
 use crate::runtime::asc::base::AscType;

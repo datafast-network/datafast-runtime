@@ -11,11 +11,13 @@ use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use futures_util::pin_mut;
+use kanal::bounded_async;
 use kanal::AsyncSender;
 use readdir::ReadDir;
 use readline::Readline;
 use tokio_stream::StreamExt;
 use trino::TrinoClient;
+use trino::TrinoEthereumBlock;
 
 pub enum Source {
     Readline(Readline),
@@ -41,6 +43,7 @@ impl Source {
                 user,
                 catalog,
                 schema,
+                query_step,
             } => Source::Trino(TrinoClient::new(
                 host,
                 port,
@@ -48,6 +51,7 @@ impl Source {
                 catalog,
                 schema,
                 start_block,
+                query_step.to_owned(),
             )?),
         };
         Ok(source)
@@ -81,11 +85,18 @@ impl Source {
                 }
             }
             Source::Trino(source) => {
-                let s = source.get_eth_block_stream().await;
-                pin_mut!(s);
-                while let Some(data) = s.next().await {
-                    sender2.send(data).await?;
-                }
+                let (trino_blocks_sender, trino_blocks_receiver) = bounded_async(1);
+
+                tokio::select! {
+                    _ = source.get_block_stream::<TrinoEthereumBlock>(trino_blocks_sender) => (),
+                    _ = async {
+                        while let Ok(blocks) = trino_blocks_receiver.recv().await {
+                            for block in blocks {
+                                sender2.send(block).await.unwrap();
+                            }
+                        }
+                    } => ()
+                };
             }
         };
 

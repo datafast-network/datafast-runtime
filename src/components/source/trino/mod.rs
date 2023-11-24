@@ -4,13 +4,14 @@ mod utils;
 use crate::error;
 use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
-use async_stream::stream;
-use ethereum::*;
+pub use ethereum::TrinoEthereumBlock;
+use kanal::AsyncSender;
 use prusto::Client;
 use prusto::ClientBuilder;
 use prusto::Row;
 use std::collections::HashSet;
-use tokio_stream::Stream;
+use tokio_retry::strategy::FixedInterval;
+use tokio_retry::Retry;
 
 pub trait TrinoBlockTrait: TryFrom<Row> + Into<SerializedDataMessage> {
     fn get_block_number(&self) -> u64;
@@ -22,6 +23,7 @@ pub trait TrinoBlockTrait: TryFrom<Row> + Into<SerializedDataMessage> {
 pub struct TrinoClient {
     client: Client,
     start_block: u64,
+    query_step: u64,
 }
 
 impl TrinoClient {
@@ -32,6 +34,7 @@ impl TrinoClient {
         catalog: &str,
         schema: &str,
         start_block: u64,
+        query_step: u64,
     ) -> Result<Self, SourceError> {
         let client = ClientBuilder::new(user, host)
             .port(port.to_owned())
@@ -42,6 +45,7 @@ impl TrinoClient {
         Ok(Self {
             client,
             start_block,
+            query_step,
         })
     }
 
@@ -66,7 +70,7 @@ impl TrinoClient {
         &self,
         start_block: u64,
         stop_block: u64,
-    ) -> Result<Vec<R>, SourceError> {
+    ) -> Result<Vec<SerializedDataMessage>, SourceError> {
         let query = format!(
             r#"
 SELECT * FROM blocks_2
@@ -74,7 +78,8 @@ WHERE block_number >= {} AND block_number < {}
 "#,
             start_block, stop_block
         );
-        let results = self.query(&query).await?;
+        let retry_strategy = FixedInterval::from_millis(1);
+        let results = Retry::spawn(retry_strategy, || self.query(&query)).await?;
 
         let mut blocks = Vec::new();
         let mut block_hashes = HashSet::new();
@@ -84,46 +89,45 @@ WHERE block_number >= {} AND block_number < {}
             let hash = block.get_block_hash();
 
             if !block_hashes.contains(&hash) {
-                blocks.push(block);
+                blocks.push(Into::<SerializedDataMessage>::into(block));
                 block_hashes.insert(hash);
             }
         }
 
-        blocks.sort_by_key(|b| b.get_block_number());
+        blocks.sort_by_key(|b| b.get_block_ptr().number);
 
         Ok(blocks)
     }
 
     pub async fn get_block_stream<R: TrinoBlockTrait>(
         self,
-    ) -> impl Stream<Item = SerializedDataMessage> {
+        sender: AsyncSender<Vec<SerializedDataMessage>>,
+    ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
-        let step = 100;
         let mut blocks = self
-            .get_blocks::<R>(start_block, start_block + step)
+            .get_blocks::<R>(start_block, start_block + self.query_step)
             .await
-            .unwrap();
+            .unwrap()
+            .into_iter()
+            .map(Into::<SerializedDataMessage>::into)
+            .collect::<Vec<_>>();
 
-        stream! {
-            loop {
-                for block in blocks {
-                    yield Into::<SerializedDataMessage>::into(block)
-                }
-                start_block += step;
-                blocks = self.get_blocks::<R>(start_block, start_block + step).await.unwrap();
-            }
+        loop {
+            sender.send(blocks).await?;
+            start_block += self.query_step;
+            blocks = self
+                .get_blocks::<R>(start_block, start_block + self.query_step)
+                .await
+                .unwrap()
+                .into_iter()
+                .map(Into::<SerializedDataMessage>::into)
+                .collect::<Vec<_>>();
         }
-    }
-
-    pub async fn get_eth_block_stream(self) -> impl Stream<Item = SerializedDataMessage> {
-        self.get_block_stream::<TrinoEthereumBlock>().await
     }
 }
 
 #[cfg(test)]
 mod test {
-    use log::info;
-
     use super::*;
 
     #[tokio::test]
@@ -131,7 +135,7 @@ mod test {
         env_logger::try_init().unwrap_or_default();
 
         let trino =
-            TrinoClient::new("194.233.82.254", &8080, "trino", "delta", "ethereum", 0).unwrap();
+            TrinoClient::new("194.233.82.254", &8080, "trino", "delta", "ethereum", 0, 10).unwrap();
         let blocks = trino
             .get_blocks::<TrinoEthereumBlock>(10_000_000, 10_000_001)
             .await
@@ -140,14 +144,7 @@ mod test {
         assert_eq!(blocks.len(), 200);
 
         for (idx, block) in blocks.into_iter().enumerate() {
-            if !block.transactions.is_empty() {
-                info!(
-                    "block={}, tx length = {:?}",
-                    block.get_block_number(),
-                    block.transactions.len()
-                );
-            }
-            assert_eq!(10_000_000 + idx, block.get_block_number() as usize);
+            assert_eq!(10_000_000 + idx, block.get_block_ptr().number as usize);
             let _msg = SerializedDataMessage::from(block);
         }
     }

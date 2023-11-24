@@ -23,6 +23,7 @@ pub enum SourceTypes {
         user: String,
         catalog: String,
         schema: String,
+        query_step: u64,
     },
 }
 
