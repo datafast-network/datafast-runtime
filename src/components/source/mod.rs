@@ -43,6 +43,7 @@ impl Source {
                 user,
                 catalog,
                 schema,
+                table,
                 query_step,
             } => Source::Trino(TrinoClient::new(
                 host,
@@ -50,6 +51,7 @@ impl Source {
                 user,
                 catalog,
                 schema,
+                table,
                 start_block,
                 query_step.to_owned(),
             )?),

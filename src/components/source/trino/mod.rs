@@ -24,6 +24,7 @@ pub struct TrinoClient {
     client: Client,
     start_block: u64,
     query_step: u64,
+    table: String,
 }
 
 impl TrinoClient {
@@ -33,6 +34,7 @@ impl TrinoClient {
         user: &str,
         catalog: &str,
         schema: &str,
+        table: &str,
         start_block: u64,
         query_step: u64,
     ) -> Result<Self, SourceError> {
@@ -46,6 +48,7 @@ impl TrinoClient {
             client,
             start_block,
             query_step,
+            table: table.to_owned(),
         })
     }
 
@@ -72,11 +75,8 @@ impl TrinoClient {
         stop_block: u64,
     ) -> Result<Vec<SerializedDataMessage>, SourceError> {
         let query = format!(
-            r#"
-SELECT * FROM blocks_2
-WHERE block_number >= {} AND block_number < {}
-"#,
-            start_block, stop_block
+            "SELECT * FROM {} WHERE block_number >= {} AND block_number < {}",
+            self.table, start_block, stop_block
         );
         let retry_strategy = FixedInterval::from_millis(1);
         let results = Retry::spawn(retry_strategy, || self.query(&query)).await?;
@@ -134,8 +134,17 @@ mod test {
     async fn test_trino() {
         env_logger::try_init().unwrap_or_default();
 
-        let trino =
-            TrinoClient::new("194.233.82.254", &8080, "trino", "delta", "ethereum", 0, 10).unwrap();
+        let trino = TrinoClient::new(
+            "194.233.82.254",
+            &8080,
+            "trino",
+            "delta",
+            "ethereum",
+            "ethereum",
+            0,
+            10,
+        )
+        .unwrap();
         let blocks = trino
             .get_blocks::<TrinoEthereumBlock>(10_000_000, 10_000_001)
             .await
