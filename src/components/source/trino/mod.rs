@@ -1,4 +1,4 @@
-mod ethereum;
+pub mod ethereum;
 mod utils;
 
 use crate::config::TrinoConfig;
