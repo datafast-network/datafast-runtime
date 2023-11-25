@@ -83,9 +83,9 @@ impl EthereumFilter {
             })
             .map_err(|e| {
                 error!(
-                    parse_event,
+                    EthereumFilter,
                     "parse event error";
-                    error => format!("{:?}", e),
+                    error => e,
                     event => format!("{:?}", event),
                     block_number => format!("{:?}", block_header.number)
                 );
