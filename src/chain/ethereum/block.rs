@@ -12,8 +12,6 @@ use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::asc::base::ToAscObj;
 use crate::runtime::bignumber::bigint::BigInt;
 use semver::Version;
-use serde::Deserialize;
-use serde::Serialize;
 use web3::types::Block;
 use web3::types::H160;
 use web3::types::H256;
@@ -62,7 +60,7 @@ impl_asc_type_struct!(
     base_fee_per_block => AscPtr<AscBigInt>
 );
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub struct EthereumBlockData {
     pub hash: H256,
     pub parent_hash: H256,
