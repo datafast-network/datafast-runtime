@@ -178,6 +178,8 @@ pub enum SourceError {
     DataFusionError(#[from] DataFusionError),
     #[error("DeltaLake RecordBatch serialization error")]
     DeltaSerializationError,
+    #[error("No blocks found from Delta")]
+    DeltaEmptyData,
 }
 
 #[derive(Debug, Error)]

@@ -11,7 +11,7 @@ pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use std::sync::Arc;
 
-pub trait DeltaBlockTrait: TryFrom<Vec<RecordBatch>> + Into<Vec<SerializedDataMessage>> {}
+pub trait DeltaBlockTrait: TryFrom<RecordBatch> + Into<Vec<SerializedDataMessage>> {}
 
 pub struct DeltaClient {
     ctx: SessionContext,
@@ -44,7 +44,15 @@ impl DeltaClient {
             "SELECT * FROM blocks WHERE block_number >= {start_block} AND block_number < {}",
             start_block + self.query_step
         );
-        let batches = self.query_arrow_records(&query).await?;
+        let batches = self
+            .query_arrow_records(&query)
+            .await?
+            .first()
+            .cloned()
+            .ok_or_else(|| {
+                error!(DeltaClient, "No blocks found");
+                SourceError::DeltaEmptyData
+            })?;
         let blocks = R::try_from(batches).map_err(|_| {
             error!(DeltaClient, "serialization to blocks failed");
             SourceError::DeltaSerializationError
@@ -68,5 +76,33 @@ impl DeltaClient {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_delta() {
+        env_logger::try_init().unwrap_or_default();
+
+        let cfg = DeltaConfig {
+            table_path: "s3://blocks/ethereum/".to_owned(),
+            query_step: 100,
+        };
+
+        let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
+        let blocks = client
+            .get_blocks::<DeltaEthereumBlocks>(10_000_000)
+            .await
+            .unwrap();
+
+        assert_eq!(blocks.len(), 200);
+
+        for (idx, block) in blocks.into_iter().enumerate() {
+            assert_eq!(10_000_000 + idx, block.get_block_ptr().number as usize);
+            let _msg = block;
+        }
     }
 }
