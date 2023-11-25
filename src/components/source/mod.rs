@@ -1,3 +1,4 @@
+mod delta;
 mod nats;
 mod readdir;
 mod readline;
@@ -11,6 +12,7 @@ use crate::config::SourceTypes;
 use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
+use delta::DeltaClient;
 use futures_util::pin_mut;
 use kanal::bounded_async;
 use kanal::AsyncSender;
@@ -25,6 +27,7 @@ enum Source {
     ReadDir(ReadDir),
     Nats(NatsConsumer),
     Trino(TrinoClient),
+    Delta(DeltaClient),
 }
 
 pub struct BlockSource {

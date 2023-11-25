@@ -1,3 +1,5 @@
+use deltalake::datafusion::error::DataFusionError;
+use deltalake::DeltaTableError;
 use kanal::SendError;
 use scylla::transport::errors::NewSessionError;
 use scylla::transport::errors::QueryError;
@@ -170,6 +172,12 @@ pub enum SourceError {
     TrinoSerializeFail,
     #[error("Trino Query Failed")]
     TrinoQueryFail,
+    #[error("DeltaTable Error")]
+    DeltaTableError(#[from] DeltaTableError),
+    #[error("DataFusion Error")]
+    DataFusionError(#[from] DataFusionError),
+    #[error("DeltaLake RecordBatch serialization error")]
+    DeltaSerializationError,
 }
 
 #[derive(Debug, Error)]

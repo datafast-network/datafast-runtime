@@ -16,6 +16,12 @@ pub struct TrinoConfig {
     pub query_step: u64,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct DeltaConfig {
+    pub table_path: String,
+    pub query_step: u64,
+}
+
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
