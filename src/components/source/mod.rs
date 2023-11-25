@@ -43,24 +43,9 @@ impl BlockSource {
                 subject,
                 content_type,
             } => Source::Nats(NatsConsumer::new(uri, subject, content_type.clone())?),
-            SourceTypes::Trino {
-                host,
-                port,
-                user,
-                catalog,
-                schema,
-                table,
-                query_step,
-            } => Source::Trino(TrinoClient::new(
-                host,
-                port,
-                user,
-                catalog,
-                schema,
-                table,
-                start_block,
-                query_step.to_owned(),
-            )?),
+            SourceTypes::Trino(trino_cfg) => {
+                Source::Trino(TrinoClient::new(trino_cfg.to_owned(), start_block)?)
+            }
         };
         Ok(Self {
             source,

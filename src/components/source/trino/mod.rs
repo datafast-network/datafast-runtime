@@ -1,6 +1,7 @@
 mod ethereum;
 mod utils;
 
+use crate::config::TrinoConfig;
 use crate::error;
 use crate::errors::SourceError;
 use crate::info;
@@ -29,20 +30,11 @@ pub struct TrinoClient {
 }
 
 impl TrinoClient {
-    pub fn new(
-        host: &str,
-        port: &u16,
-        user: &str,
-        catalog: &str,
-        schema: &str,
-        table: &str,
-        start_block: u64,
-        query_step: u64,
-    ) -> Result<Self, SourceError> {
-        let client = ClientBuilder::new(user, host)
-            .port(port.to_owned())
-            .catalog(catalog)
-            .schema(schema)
+    pub fn new(cfg: TrinoConfig, start_block: u64) -> Result<Self, SourceError> {
+        let client = ClientBuilder::new(cfg.user, cfg.host)
+            .port(cfg.port)
+            .catalog(cfg.catalog)
+            .schema(cfg.schema)
             .build()
             .map_err(|e| {
                 error!(TrinoClient, "Connection failed"; error => e);
@@ -51,8 +43,8 @@ impl TrinoClient {
         Ok(Self {
             client,
             start_block,
-            query_step,
-            table: table.to_owned(),
+            query_step: cfg.query_step,
+            table: cfg.table,
         })
     }
 
@@ -130,17 +122,17 @@ mod test {
     async fn test_trino() {
         env_logger::try_init().unwrap_or_default();
 
-        let trino = TrinoClient::new(
-            "194.233.82.254",
-            &8080,
-            "trino",
-            "delta",
-            "ethereum",
-            "ethereum",
-            0,
-            200,
-        )
-        .unwrap();
+        let cfg = TrinoConfig {
+            host: "194.233.82.254".to_owned(),
+            port: 8080,
+            schema: "ethereum".to_string(),
+            table: "ethereum".to_string(),
+            query_step: 200,
+            catalog: "delta".to_string(),
+            user: "trino".to_string(),
+        };
+
+        let trino = TrinoClient::new(cfg, 1).unwrap();
         let blocks = trino
             .get_blocks::<TrinoEthereumBlock>(10_000_000)
             .await
@@ -150,7 +142,7 @@ mod test {
 
         for (idx, block) in blocks.into_iter().enumerate() {
             assert_eq!(10_000_000 + idx, block.get_block_ptr().number as usize);
-            let _msg = SerializedDataMessage::from(block);
+            let _msg = block;
         }
     }
 }

@@ -5,6 +5,17 @@ use figment::providers::Toml;
 use figment::Figment;
 use serde::Deserialize;
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct TrinoConfig {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub catalog: String,
+    pub schema: String,
+    pub table: String,
+    pub query_step: u64,
+}
+
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
@@ -17,15 +28,7 @@ pub enum SourceTypes {
         subject: String,
         content_type: ContentType,
     },
-    Trino {
-        host: String,
-        port: u16,
-        user: String,
-        catalog: String,
-        schema: String,
-        table: String,
-        query_step: u64,
-    },
+    Trino(TrinoConfig),
 }
 
 #[derive(Deserialize, Clone, Debug)]
