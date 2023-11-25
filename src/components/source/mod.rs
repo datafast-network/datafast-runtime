@@ -13,6 +13,7 @@ use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
 use crate::messages::SourceDataMessage;
 use delta::DeltaClient;
+use delta::DeltaEthereumBlocks;
 use futures_util::pin_mut;
 use kanal::bounded_async;
 use kanal::AsyncSender;
@@ -48,6 +49,9 @@ impl BlockSource {
             } => Source::Nats(NatsConsumer::new(uri, subject, content_type.clone())?),
             SourceTypes::Trino(trino_cfg) => {
                 Source::Trino(TrinoClient::new(trino_cfg.to_owned(), start_block)?)
+            }
+            SourceTypes::Delta(delta_cfg) => {
+                Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block).await?)
             }
         };
         Ok(Self {
@@ -94,6 +98,28 @@ impl BlockSource {
 
                 let handle_received_blockss = async {
                     while let Ok(blocks) = trino_blocks_receiver.recv().await {
+                        for block in blocks {
+                            sender_to_filter.send(block).await.unwrap();
+                        }
+                    }
+                };
+
+                tokio::select! {
+                    _ = query_blocks => (),
+                    _ = handle_received_blockss => ()
+                };
+            }
+            Source::Delta(source) => {
+                let (delta_blocks_sender, delta_blocks_receiver) = bounded_async(1);
+
+                let query_blocks = match self.chain {
+                    Chain::Ethereum => {
+                        source.get_block_stream::<DeltaEthereumBlocks>(delta_blocks_sender)
+                    }
+                };
+
+                let handle_received_blockss = async {
+                    while let Ok(blocks) = delta_blocks_receiver.recv().await {
                         for block in blocks {
                             sender_to_filter.send(block).await.unwrap();
                         }

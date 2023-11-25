@@ -35,6 +35,7 @@ pub enum SourceTypes {
         content_type: ContentType,
     },
     Trino(TrinoConfig),
+    Delta(DeltaConfig),
 }
 
 #[derive(Deserialize, Clone, Debug)]
