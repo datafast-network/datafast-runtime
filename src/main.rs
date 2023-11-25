@@ -35,17 +35,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::load();
     let registry = default_registry();
 
-    let block_source = Source::new(&config).await?;
-    // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
+    let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
+    let progress_ctrl =
+        ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
+
+    let block_source = BlockSource::new(&config, progress_ctrl.clone()).await?;
+    // TODO: impl IPFS Loader
 
     // TODO: impl raw-data serializer
     let serializer = Serializer::new(&config, registry)?;
     let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
-    let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
-    let progress_ctrl =
-        ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
 
     let mut subgraph = Subgraph::new_empty(&config, registry);
 
@@ -68,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender4, recv4) = kanal::bounded_async::<FilteredDataMessage>(1);
 
     tokio::select!(
-        r = block_source.run_async(sender1) => handle_task_result(r, "block-source"),
+        r = block_source.run_async(sender1, sender2.clone()) => handle_task_result(r, "block-source"),
         r = serializer.run_async(recv1, sender2) => handle_task_result(r, "Serializer"),
         r = progress_ctrl.run_async(recv2, sender3) => handle_task_result(r, "ProgressCtrl"),
         r = filter.run_async(recv3, sender4) => handle_task_result(r, "SubgraphFilter"),

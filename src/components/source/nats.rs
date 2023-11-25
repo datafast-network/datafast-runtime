@@ -94,9 +94,8 @@ mod tests {
         };
 
         let t3 = async {
-            while let Ok(msg) = receive.recv().await {
+            if let Ok(msg) = receive.recv().await {
                 log::info!("Received message: {:?}", msg);
-                return;
             }
         };
 

@@ -7,6 +7,7 @@ use crate::database::DatabaseAgent;
 use crate::errors::ProgressCtrlError;
 use crate::messages::SerializedDataMessage;
 
+#[derive(Clone)]
 pub struct ProgressCtrl {
     db: DatabaseAgent,
     recent_block_ptrs: Vec<BlockPtr>,
@@ -31,9 +32,15 @@ impl ProgressCtrl {
         Ok(this)
     }
 
-    fn get_min_start_block(&self) -> u64 {
+    pub fn get_min_start_block(&self) -> u64 {
         let min_start_block = self.sources.iter().filter_map(|s| s.startBlock).min();
-        min_start_block.unwrap_or(0)
+        min_start_block.unwrap_or(0).max(
+            self.recent_block_ptrs
+                .last()
+                .cloned()
+                .map(|b| b.number + 1)
+                .unwrap_or_default(),
+        )
     }
 
     pub async fn progress_check(

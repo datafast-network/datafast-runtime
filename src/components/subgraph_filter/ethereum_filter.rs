@@ -9,6 +9,7 @@ use crate::common::Chain;
 use crate::common::Datasource;
 use crate::components::manifest_loader::ManifestLoader;
 use crate::debug;
+use crate::error;
 use crate::errors::FilterError;
 use crate::info;
 use crate::messages::EthereumFilteredEvent;
@@ -80,7 +81,16 @@ impl EthereumFilter {
                 block: block_header.to_owned(),
                 transaction: transaction.to_owned(),
             })
-            .map_err(|e| FilterError::ParseError(e.to_string()))
+            .map_err(|e| {
+                error!(
+                    EthereumFilter,
+                    "parse event error";
+                    error => e,
+                    event => format!("{:?}", event),
+                    block_number => format!("{:?}", block_header.number)
+                );
+                FilterError::ParseError(e.to_string())
+            })
     }
 
     fn filter_events(
@@ -145,11 +155,6 @@ impl SubgraphFilterTrait for EthereumFilter {
                 transactions,
             } => {
                 let events = self.filter_events(block.clone(), transactions, logs)?;
-                info!(EthereumFilter, "Filter events";
-                    events => events.len(),
-                    block_number => format!("{:?}", block.number)
-                );
-
                 Ok(FilteredDataMessage::Ethereum { events, block })
             }
         }
