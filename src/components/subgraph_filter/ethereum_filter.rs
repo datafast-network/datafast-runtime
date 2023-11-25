@@ -82,11 +82,12 @@ impl EthereumFilter {
                 transaction: transaction.to_owned(),
             })
             .map_err(|e| {
-                error!(parse_event,
-                "parse event error";
-                error => format!("{:?}", e),
-                event => format!("{:?}", event),
-                block_number => format!("{:?}", block_header.number)
+                error!(
+                    parse_event,
+                    "parse event error";
+                    error => format!("{:?}", e),
+                    event => format!("{:?}", event),
+                    block_number => format!("{:?}", block_header.number)
                 );
                 FilterError::ParseError(e.to_string())
             })
