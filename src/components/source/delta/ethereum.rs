@@ -18,7 +18,7 @@ pub struct DeltaEthereumBlocks(Vec<TrinoEthereumBlock>);
 #[derive(Debug)]
 pub struct DeltaEthereumHeaders(Vec<Header>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DeltaEthereumTransactions(Vec<Transaction>);
 
 #[derive(Debug, Clone)]
@@ -162,7 +162,7 @@ impl TryFrom<&StructArray> for DeltaEthereumHeaders {
             .downcast_ref::<StringArray>()
             .unwrap()
             .into_iter()
-            .map(|b| b.unwrap().to_owned())
+            .map(|b| b.map(|s| s.to_owned()))
             .collect::<Vec<_>>();
 
         let nonces = value
@@ -193,7 +193,7 @@ impl TryFrom<&StructArray> for DeltaEthereumHeaders {
                 total_difficulty: String::default(),
                 seal_fields: seal_fields[i].clone(),
                 size: sizes.get(i).copied(),
-                base_fee_per_gas: base_fee_per_gass.get(i).cloned(),
+                base_fee_per_gas: base_fee_per_gass.get(i).cloned().unwrap(),
                 nonce: nonces[i].clone(),
             };
             headers.push(header);
@@ -273,7 +273,7 @@ impl TryFrom<&StructArray> for DeltaEthereumTransactions {
             .downcast_ref::<StringArray>()
             .unwrap()
             .into_iter()
-            .map(|t| t.unwrap().to_owned())
+            .map(|t| t.map(|s| s.to_owned()))
             .collect::<Vec<_>>();
 
         let values = value
@@ -357,7 +357,7 @@ impl TryFrom<&StructArray> for DeltaEthereumTransactions {
                 block_number: block_numbers.get(i).cloned(),
                 transaction_index: transaction_indexes.get(i).cloned(),
                 from_address: from_addresses[i].clone(),
-                to_address: to_addresses.get(i).cloned(),
+                to_address: to_addresses.get(i).cloned().unwrap(),
                 value: values[i].clone(),
                 gas_price: gas_prices.get(i).cloned(),
                 gas: gas[i].clone(),
@@ -575,9 +575,10 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .unwrap()
             .as_any()
             .downcast_ref::<ListArray>()
+            .unwrap()
             .iter()
-            .copied()
             .map(|s| {
+                let s = s.unwrap();
                 let structs = s.as_any().downcast_ref::<StructArray>().unwrap();
                 DeltaEthereumTransactions::try_from(structs).unwrap()
             })
@@ -587,7 +588,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .column_by_name("logs")
             .unwrap()
             .as_any()
-            .downcast_ref::<ListArray>()
+            .downcast_ref::<StructArray>()
             .iter()
             .copied()
             .map(|s| {
