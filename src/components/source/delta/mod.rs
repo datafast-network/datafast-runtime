@@ -52,7 +52,7 @@ impl DeltaClient {
             self.start_block + self.query_step
         );
         let df = self.get_dataframe(&query).await?;
-        info!(DeltaClient, "dataframe set up OK");
+        info!(DeltaClient, "dataframe set up OK"; query => query);
         let mut stream = df.execute_stream().await?;
 
         while let Some(Ok(batches)) = stream.next().await {
@@ -71,7 +71,11 @@ impl DeltaClient {
             );
             sender.send(messages).await?;
         }
-        tokio::time::sleep(Duration::from_secs(600)).await;
+        info!(
+            DeltaClient,
+            "No more batches returned, exiting in 2 minutes..."
+        );
+        tokio::time::sleep(Duration::from_secs(120)).await;
         Ok(())
     }
 }
