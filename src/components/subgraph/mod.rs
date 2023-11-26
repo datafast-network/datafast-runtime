@@ -114,14 +114,16 @@ impl Subgraph {
             timer.stop_and_record();
             self.metrics.block_process_counter.inc();
 
-            if block_ptr.number % 200 == 0 {
+            if block_ptr.number % 1000 == 0 {
                 info!(
                     Subgraph,
                     "Finished processing block";
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
+            }
 
+            if block_ptr.number % 100 == 0 {
                 db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
                     error!(Subgraph, "Failed to migrate db";
                         error => e.to_string(),

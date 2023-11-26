@@ -5,13 +5,13 @@ use crate::error;
 use crate::errors::SourceError;
 use crate::info;
 use crate::messages::SerializedDataMessage;
-use crate::warn;
 use deltalake::datafusion::common::arrow::array::RecordBatch;
+use deltalake::datafusion::physical_plan::RecordBatchStream;
 use deltalake::datafusion::prelude::{DataFrame, SessionContext};
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
+use std::pin::Pin;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio_stream::StreamExt;
 
 pub trait DeltaBlockTrait: TryFrom<RecordBatch> + Into<Vec<SerializedDataMessage>> {}
@@ -43,41 +43,48 @@ impl DeltaClient {
         Ok(df)
     }
 
+    async fn query_blocks(
+        &self,
+        start_block: u64,
+    ) -> Result<Pin<Box<dyn RecordBatchStream>>, SourceError> {
+        let query = format!(
+            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number ASC",
+            start_block,
+            start_block + self.query_step
+        );
+        let df = self.get_dataframe(&query).await?;
+        info!(DeltaClient, "dataframe set up OK"; query => query);
+        let stream = df.execute_stream().await?;
+        Ok(stream)
+    }
+
     pub async fn get_block_stream<R: DeltaBlockTrait>(
         &self,
         sender: AsyncSender<Vec<SerializedDataMessage>>,
     ) -> Result<(), SourceError> {
-        let query = format!(
-            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number ASC",
-            self.start_block,
-            self.start_block + self.query_step
-        );
-        let df = self.get_dataframe(&query).await?;
-        info!(DeltaClient, "dataframe set up OK"; query => query);
-        let mut stream = df.execute_stream().await?;
+        let mut start_block = self.start_block;
+        let mut stream = self.query_blocks(start_block).await?;
 
-        while let Some(Ok(batches)) = stream.next().await {
-            info!(DeltaClient, "batches received");
-            let time = std::time::Instant::now();
-            let blocks = R::try_from(batches).map_err(|_| {
-                error!(DeltaClient, "serialization to blocks failed");
-                SourceError::DeltaSerializationError
-            })?;
-            let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
-            info!(
-                DeltaClient,
-                "batches serialized";
-                serialize_time => format!("{:?}", time.elapsed()),
-                number_of_blocks => messages.len()
-            );
-            sender.send(messages).await?;
+        loop {
+            while let Some(Ok(batches)) = stream.next().await {
+                info!(DeltaClient, "batches received");
+                let time = std::time::Instant::now();
+                let blocks = R::try_from(batches).map_err(|_| {
+                    error!(DeltaClient, "serialization to blocks failed");
+                    SourceError::DeltaSerializationError
+                })?;
+                let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
+                info!(
+                    DeltaClient,
+                    "batches serialized";
+                    serialize_time => format!("{:?}", time.elapsed()),
+                    number_of_blocks => messages.len()
+                );
+                sender.send(messages).await?;
+            }
+            start_block += self.query_step;
+            stream = self.query_blocks(start_block).await?;
         }
-        warn!(
-            DeltaClient,
-            "No more batches returned, exiting in 2 minutes..."
-        );
-        tokio::time::sleep(Duration::from_secs(120)).await;
-        Ok(())
     }
 }
 
