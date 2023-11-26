@@ -1,5 +1,4 @@
 mod ethereum;
-mod utils;
 
 use crate::config::DeltaConfig;
 use crate::error;
