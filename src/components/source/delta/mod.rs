@@ -51,9 +51,11 @@ impl DeltaClient {
             self.start_block
         );
         let df = self.get_dataframe(&query).await?;
+        info!(DeltaClient, "dataframe set up OK");
         let mut stream = df.execute_stream().await?;
 
         while let Some(Ok(batches)) = stream.next().await {
+            info!(DeltaClient, "batches received");
             let time = std::time::Instant::now();
             let blocks = R::try_from(batches).map_err(|_| {
                 error!(DeltaClient, "serialization to blocks failed");
@@ -62,7 +64,7 @@ impl DeltaClient {
             let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
             info!(
                 DeltaClient,
-                "received new batch";
+                "batches serialized";
                 serialize_time => format!("{:?}", time.elapsed()),
                 number_of_blocks => messages.len()
             );
