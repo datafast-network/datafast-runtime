@@ -20,7 +20,7 @@ use web3::types::U128;
 use web3::types::U256;
 use web3::types::U64;
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Header {
     pub author: String,
     pub state_root: String,
@@ -58,7 +58,7 @@ from_vec_json_value!(
     nonce => String
 );
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Transaction {
     pub hash: String,
     pub nonce: u64,
@@ -102,7 +102,7 @@ from_vec_json_value!(
     max_fee_per_gas => Option<String>
 );
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Log {
     pub address: String,
     pub topics: Vec<String>,
@@ -132,7 +132,7 @@ from_vec_json_value!(
     removed => Option<bool>
 );
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct TrinoEthereumBlock {
     pub chain_id: u64,
     pub block_hash: String,
