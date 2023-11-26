@@ -3,6 +3,7 @@ use crate::common::BlockPtr;
 use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
+use crate::info;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;
@@ -47,6 +48,7 @@ impl Scylladb {
         keyspace: &str,
         schema_lookup: SchemaLookup,
     ) -> Result<Self, DatabaseError> {
+        info!(Scylladb, "Init db connection");
         let session: Session = SessionBuilder::new().known_node(uri).build().await?;
         let this = Self {
             session,
@@ -54,8 +56,11 @@ impl Scylladb {
             schema_lookup,
         };
         this.create_keyspace().await?;
+        info!(Scylladb, "Keyspace created OK");
         this.create_entity_tables().await?;
+        info!(Scylladb, "Entities table created OK");
         this.create_block_ptr_table().await?;
+        info!(Scylladb, "Block_Ptr table created OK");
         Ok(this)
     }
 

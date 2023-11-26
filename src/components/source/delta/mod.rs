@@ -23,9 +23,12 @@ pub struct DeltaClient {
 
 impl DeltaClient {
     pub async fn new(cfg: DeltaConfig, start_block: u64) -> Result<Self, SourceError> {
+        info!(DeltaClient, "Init connection to data store");
         let ctx = SessionContext::new();
         let table = deltalake::open_table(&cfg.table_path).await?;
+        info!(DeltaClient, "Table found OK");
         ctx.register_table("blocks", Arc::new(table))?;
+        info!(DeltaClient, "Registered table");
         Ok(Self {
             ctx,
             start_block,
