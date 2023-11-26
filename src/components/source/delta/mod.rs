@@ -10,6 +10,7 @@ use deltalake::datafusion::prelude::{DataFrame, SessionContext};
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio_stream::StreamExt;
 
 pub trait DeltaBlockTrait: TryFrom<RecordBatch> + Into<Vec<SerializedDataMessage>> {}
@@ -67,6 +68,7 @@ impl DeltaClient {
             );
             sender.send(messages).await?;
         }
+        tokio::time::sleep(Duration::from_secs(600)).await;
         Ok(())
     }
 }

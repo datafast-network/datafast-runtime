@@ -121,21 +121,21 @@ impl Subgraph {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
+
+                db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
+                    error!(Subgraph, "Failed to migrate db";
+                        error => e.to_string(),
+                        block_number => block_ptr.number,
+                        block_hash => block_ptr.hash
+                    );
+                    SubgraphError::MigrateDbError
+                })?;
+
+                db_agent
+                    .clear_in_memory()
+                    .await
+                    .map_err(|_| SubgraphError::MigrateDbError)?;
             }
-
-            db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
-                error!(Subgraph, "Failed to migrate db";
-                    error => e.to_string(),
-                    block_number => block_ptr.number,
-                    block_hash => block_ptr.hash
-                );
-                SubgraphError::MigrateDbError
-            })?;
-
-            db_agent
-                .clear_in_memory()
-                .await
-                .map_err(|_| SubgraphError::MigrateDbError)?;
         }
 
         Ok(())
