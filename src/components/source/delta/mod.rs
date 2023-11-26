@@ -47,8 +47,9 @@ impl DeltaClient {
         sender: AsyncSender<Vec<SerializedDataMessage>>,
     ) -> Result<(), SourceError> {
         let query = format!(
-            "SELECT * FROM blocks WHERE block_number >= {} ORDER BY block_number ASC",
-            self.start_block
+            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number ASC",
+            self.start_block,
+            self.start_block + self.query_step
         );
         let df = self.get_dataframe(&query).await?;
         info!(DeltaClient, "dataframe set up OK");

@@ -474,7 +474,7 @@ impl TryFrom<&StructArray> for DeltaEthereumLogs {
             .downcast_ref::<Int64Array>()
             .unwrap()
             .into_iter()
-            .map(|t| t.unwrap() as u64)
+            .map(|t| t.map(|v| v as u64))
             .collect::<Vec<_>>();
 
         let log_types = value
@@ -484,7 +484,7 @@ impl TryFrom<&StructArray> for DeltaEthereumLogs {
             .downcast_ref::<StringArray>()
             .unwrap()
             .into_iter()
-            .map(|l| l.unwrap().to_owned())
+            .map(|l| l.map(|v| v.to_owned()))
             .collect::<Vec<_>>();
 
         let removeds = value
@@ -510,8 +510,8 @@ impl TryFrom<&StructArray> for DeltaEthereumLogs {
                 transaction_hash: transaction_hashes.get(i).cloned(),
                 transaction_index: transaction_indexes.get(i).cloned(),
                 log_index: log_indexes.get(i).cloned(),
-                transaction_log_index: transaction_log_indexes.get(i).cloned(),
-                log_type: log_types.get(i).cloned(),
+                transaction_log_index: transaction_log_indexes.get(i).cloned().unwrap(),
+                log_type: log_types.get(i).cloned().unwrap(),
                 removed: removeds.get(i).cloned(),
             };
             logs.push(log);
