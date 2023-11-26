@@ -114,7 +114,7 @@ impl Subgraph {
             timer.stop_and_record();
             self.metrics.block_process_counter.inc();
 
-            if block_ptr.number % 1000 == 0 {
+            if block_ptr.number % 500 == 0 {
                 info!(
                     Subgraph,
                     "Finished processing block";
