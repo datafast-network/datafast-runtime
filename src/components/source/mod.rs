@@ -1,7 +1,5 @@
 mod delta;
 mod nats;
-mod readdir;
-mod readline;
 mod trino;
 
 use crate::common::Chain;
@@ -17,15 +15,11 @@ use delta::DeltaEthereumBlocks;
 use futures_util::pin_mut;
 use kanal::bounded_async;
 use kanal::AsyncSender;
-use readdir::ReadDir;
-use readline::Readline;
 use tokio_stream::StreamExt;
 use trino::TrinoClient;
 use trino::TrinoEthereumBlock;
 
 enum Source {
-    Readline(Readline),
-    ReadDir(ReadDir),
     Nats(NatsConsumer),
     Trino(TrinoClient),
     Delta(DeltaClient),
@@ -40,8 +34,6 @@ impl BlockSource {
     pub async fn new(config: &Config, pctrl: ProgressCtrl) -> Result<Self, SourceError> {
         let start_block = pctrl.get_min_start_block();
         let source = match &config.source {
-            SourceTypes::ReadLine => Source::Readline(Readline()),
-            SourceTypes::ReadDir { source_dir } => Source::ReadDir(ReadDir::new(source_dir)),
             SourceTypes::Nats {
                 uri,
                 subject,
@@ -66,20 +58,6 @@ impl BlockSource {
         sender_to_filter: AsyncSender<SerializedDataMessage>,
     ) -> Result<(), SourceError> {
         match self.source {
-            Source::Readline(source) => {
-                let s = source.get_user_input_as_stream();
-                pin_mut!(s);
-                while let Some(data) = s.next().await {
-                    sender_to_serializer.send(data).await?;
-                }
-            }
-            Source::ReadDir(source) => {
-                let s = source.get_json_in_dir_as_stream();
-                pin_mut!(s);
-                while let Some(data) = s.next().await {
-                    sender_to_serializer.send(data).await?;
-                }
-            }
             Source::Nats(source) => {
                 let s = source.get_subscription_stream();
                 pin_mut!(s);

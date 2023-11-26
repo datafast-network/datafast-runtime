@@ -25,10 +25,6 @@ pub struct DeltaConfig {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
-    ReadLine,
-    ReadDir {
-        source_dir: String,
-    },
     Nats {
         uri: String,
         subject: String,

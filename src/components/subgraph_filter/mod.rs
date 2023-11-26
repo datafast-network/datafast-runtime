@@ -17,7 +17,7 @@ pub enum SubgraphFilter {
 
 impl SubgraphFilter {
     pub async fn run_async(
-        &self,
+        self,
         data_receiver: AsyncReceiver<SerializedDataMessage>,
         result_sender: AsyncSender<FilteredDataMessage>,
     ) -> Result<(), FilterError> {

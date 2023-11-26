@@ -3,6 +3,7 @@ mod local;
 use crate::common::Datasource;
 use crate::common::Source;
 use crate::errors::ManifestLoaderError;
+use crate::info;
 use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
 use local::LocalFileLoader;
@@ -43,9 +44,10 @@ impl ManifestLoader {
         match protocol.as_str() {
             "fs" => {
                 let local_path = format!("/{}", parts[1]);
-                log::info!(
-                    "Using LocalFile Loader, loading subgraph build bundle at: {}",
-                    local_path
+                info!(
+                    ManifestLoader,
+                    "Using LocalFile Loader, loading subgraph build bundle";
+                    local_path => local_path
                 );
                 let loader = LocalFileLoader::new(&local_path).await?;
                 Ok(ManifestLoader::Local(loader))
