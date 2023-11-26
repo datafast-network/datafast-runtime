@@ -14,8 +14,9 @@ pub struct DeltaEthereumBlocks(Vec<TrinoEthereumBlock>);
 #[derive(Debug)]
 pub struct DeltaEthereumHeaders(Vec<Header>);
 
-impl From<&StructArray> for DeltaEthereumHeaders {
-    fn from(value: &StructArray) -> Self {
+impl TryFrom<&StructArray> for DeltaEthereumHeaders {
+    type Error = SourceError;
+    fn try_from(value: &StructArray) -> Result<Self, Self::Error> {
         todo!()
     }
 }
@@ -67,7 +68,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .as_any()
             .downcast_ref::<StructArray>()
             .to_owned()
-            .map(DeltaEthereumHeaders::from)
+            .map(|s| DeltaEthereumHeaders::try_from(s).unwrap())
             .unwrap();
 
         info!(
