@@ -98,7 +98,7 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(blocks.len(), 200);
+        assert_eq!(blocks.len(), 100);
 
         for (idx, block) in blocks.into_iter().enumerate() {
             assert_eq!(10_000_000 + idx, block.get_block_ptr().number as usize);

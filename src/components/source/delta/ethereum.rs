@@ -588,10 +588,11 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .column_by_name("logs")
             .unwrap()
             .as_any()
-            .downcast_ref::<StructArray>()
+            .downcast_ref::<ListArray>()
+            .unwrap()
             .iter()
-            .copied()
             .map(|s| {
+                let s = s.unwrap();
                 let structs = s.as_any().downcast_ref::<StructArray>().unwrap();
                 DeltaEthereumLogs::try_from(structs).unwrap()
             })
@@ -619,7 +620,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
                 header: block_headers.0.get(i).cloned().unwrap(),
                 transactions: block_transactions.get(i).cloned().unwrap().0,
                 logs: block_logs.get(i).cloned().unwrap().0,
-                created_at: created_at.get(i).cloned().unwrap(),
+                created_at: created_at[i],
             };
             blocks.push(block);
         }
