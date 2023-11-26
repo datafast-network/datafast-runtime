@@ -5,6 +5,7 @@ use crate::error;
 use crate::errors::SourceError;
 use crate::info;
 use crate::messages::SerializedDataMessage;
+use crate::warn;
 use deltalake::datafusion::common::arrow::array::RecordBatch;
 use deltalake::datafusion::prelude::{DataFrame, SessionContext};
 pub use ethereum::DeltaEthereumBlocks;
@@ -71,7 +72,7 @@ impl DeltaClient {
             );
             sender.send(messages).await?;
         }
-        info!(
+        warn!(
             DeltaClient,
             "No more batches returned, exiting in 2 minutes..."
         );
