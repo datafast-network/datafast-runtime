@@ -1,19 +1,9 @@
 chain = "ethereum"
-# source = "readline"
 subgraph_name = "mysub"
 subgraph_id = "xxxxxx"
 subgraph_dir = "fs://User/vutr/mysub"
 reorg_threshold = 500
 
-# [source.readdir]
-# source_dir = "/Users/quannguyen/blocks/blocks_ingestor"
-
-[source.nats]
-uri = "nats://localhost:4222"
-subject = "ethereum"
-content_type = "json"
-
-[transform.ethereum]
-block = "transformEthereumBlock"
-logs = "transformEthereumLogs"
-transactions = "transformEthereumTxs"
+[source.delta]
+table_path = "s3://ethereum/"
+query_step = 10000
