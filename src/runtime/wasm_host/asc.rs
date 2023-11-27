@@ -151,6 +151,19 @@ pub struct AscHost {
     pub rpc_agent: RpcAgent,
 }
 
+impl AscHost {
+    pub fn deallocate_memory(&mut self) {
+        // self.memory = self.instance.exports.get_with_generics("memory").unwrap();
+        // let view = self.memory.view(&self.store);
+        // let data_size = view.data_size();
+        // let bytes = vec![0; data_size as usize];
+        // view.write(0, &bytes).unwrap();
+
+        self.arena_start_ptr = 0;
+        self.arena_free_size = 0;
+    }
+}
+
 impl AscHeap for AscHost {
     fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
         let require_length = bytes.len() as u64;
