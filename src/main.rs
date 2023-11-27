@@ -63,7 +63,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::select!(
         r = tokio::spawn(block_source.run_async(sender2)) => handle_task_result(r.unwrap(), "block-source"),
         r = async move {
-            use crate::info;
 
             while let Ok(messages) = recv2.recv().await {
                 info!(main, "message batch recevied and about to be processed");
