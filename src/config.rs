@@ -19,13 +19,6 @@ pub enum SourceTypes {
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
-pub enum ContentType {
-    Json,
-    Protobuf,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-#[serde(rename_all = "lowercase")]
 pub enum DatabaseConfig {
     Scylla { uri: String, keyspace: String },
 }
@@ -41,17 +34,6 @@ pub struct Config {
     pub reorg_threshold: u16,
     pub metric_port: Option<u16>,
     pub rpc_endpoint: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase")]
-pub enum TransformConfig {
-    Ethereum {
-        block: String,
-        transactions: String,
-        logs: String,
-    },
-    Mock,
 }
 
 impl Config {
