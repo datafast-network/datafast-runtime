@@ -1,26 +1,20 @@
 mod delta;
-mod nats;
 mod trino;
 
 use crate::common::Chain;
-use crate::components::source::nats::NatsConsumer;
 use crate::components::ProgressCtrl;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
-use crate::messages::SourceDataMessage;
 use delta::DeltaClient;
 use delta::DeltaEthereumBlocks;
-use futures_util::pin_mut;
 use kanal::bounded_async;
 use kanal::AsyncSender;
-use tokio_stream::StreamExt;
 use trino::TrinoClient;
 use trino::TrinoEthereumBlock;
 
 enum Source {
-    Nats(NatsConsumer),
     Trino(TrinoClient),
     Delta(DeltaClient),
 }
@@ -34,11 +28,6 @@ impl BlockSource {
     pub async fn new(config: &Config, pctrl: ProgressCtrl) -> Result<Self, SourceError> {
         let start_block = pctrl.get_min_start_block();
         let source = match &config.source {
-            SourceTypes::Nats {
-                uri,
-                subject,
-                content_type,
-            } => Source::Nats(NatsConsumer::new(uri, subject, content_type.clone())?),
             SourceTypes::Trino(trino_cfg) => {
                 Source::Trino(TrinoClient::new(trino_cfg.to_owned(), start_block)?)
             }
@@ -54,17 +43,9 @@ impl BlockSource {
 
     pub async fn run_async(
         self,
-        sender_to_serializer: AsyncSender<SourceDataMessage>,
-        sender_to_filter: AsyncSender<SerializedDataMessage>,
+        sender: AsyncSender<SerializedDataMessage>,
     ) -> Result<(), SourceError> {
         match self.source {
-            Source::Nats(source) => {
-                let s = source.get_subscription_stream();
-                pin_mut!(s);
-                while let Some(data) = s.next().await {
-                    sender_to_serializer.send(data).await?;
-                }
-            }
             Source::Trino(source) => {
                 let (trino_blocks_sender, trino_blocks_receiver) = bounded_async(1);
 
@@ -77,7 +58,7 @@ impl BlockSource {
                 let handle_received_blockss = async {
                     while let Ok(blocks) = trino_blocks_receiver.recv().await {
                         for block in blocks {
-                            sender_to_filter.send(block).await.unwrap();
+                            sender.send(block).await.unwrap();
                         }
                     }
                 };
@@ -99,7 +80,7 @@ impl BlockSource {
                 let handle_received_blockss = async {
                     while let Ok(blocks) = delta_blocks_receiver.recv().await {
                         for block in blocks {
-                            sender_to_filter.send(block).await.unwrap();
+                            sender.send(block).await.unwrap();
                         }
                     }
                 };

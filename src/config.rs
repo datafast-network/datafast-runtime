@@ -25,11 +25,6 @@ pub struct DeltaConfig {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
-    Nats {
-        uri: String,
-        subject: String,
-        content_type: ContentType,
-    },
     Trino(TrinoConfig),
     Delta(DeltaConfig),
 }
