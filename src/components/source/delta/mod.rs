@@ -77,8 +77,6 @@ impl DeltaClient {
                     DeltaClient,
                     "batches received & serialized";
                     serialize_time => format!("{:?}", time.elapsed()),
-                    start_block => start_block,
-                    last_block => format!("{:?}", start_block + self.query_step),
                     number_of_blocks => messages.len()
                 );
                 sender.send(messages).await?;
@@ -100,7 +98,7 @@ mod test {
 
         let cfg = DeltaConfig {
             table_path: "s3://ethereum/".to_owned(),
-            query_step: 1000,
+            query_step: 10000,
         };
 
         let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
