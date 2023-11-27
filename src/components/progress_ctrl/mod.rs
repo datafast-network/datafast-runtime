@@ -1,6 +1,3 @@
-use kanal::AsyncReceiver;
-use kanal::AsyncSender;
-
 use crate::common::BlockPtr;
 use crate::common::Source;
 use crate::database::DatabaseAgent;

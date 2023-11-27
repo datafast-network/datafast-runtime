@@ -6,17 +6,6 @@ use figment::Figment;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct TrinoConfig {
-    pub host: String,
-    pub port: u16,
-    pub user: String,
-    pub catalog: String,
-    pub schema: String,
-    pub table: String,
-    pub query_step: u64,
-}
-
-#[derive(Clone, Debug, Deserialize)]
 pub struct DeltaConfig {
     pub table_path: String,
     pub query_step: u64,
@@ -25,7 +14,6 @@ pub struct DeltaConfig {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
-    Trino(TrinoConfig),
     Delta(DeltaConfig),
 }
 

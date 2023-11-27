@@ -6,9 +6,7 @@ mod utils;
 
 use crate::common::BlockPtr;
 use crate::config::Config;
-use crate::error;
 use crate::errors::DatabaseError;
-use crate::info;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
 use crate::messages::FieldName;
@@ -24,7 +22,6 @@ use metrics::DatabaseMetrics;
 use prometheus::Registry;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use web3::futures::executor;
 
 pub struct Database {
     pub mem: MemoryDb,
