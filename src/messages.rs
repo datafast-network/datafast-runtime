@@ -15,12 +15,6 @@ pub enum SerializedDataMessage {
     },
 }
 
-#[derive(Debug)]
-pub enum SourceDataMessage {
-    Json(serde_json::Value),
-    Protobuf(Vec<u8>),
-}
-
 impl SerializedDataMessage {
     pub fn get_block_ptr(&self) -> BlockPtr {
         match self {

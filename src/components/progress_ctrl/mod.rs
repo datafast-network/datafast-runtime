@@ -1,6 +1,3 @@
-use kanal::AsyncReceiver;
-use kanal::AsyncSender;
-
 use crate::common::BlockPtr;
 use crate::common::Source;
 use crate::database::DatabaseAgent;
@@ -114,15 +111,11 @@ impl ProgressCtrl {
         }
     }
 
-    pub async fn run_async(
-        mut self,
-        recv: AsyncReceiver<SerializedDataMessage>,
-        sender: AsyncSender<SerializedDataMessage>,
-    ) -> Result<(), ProgressCtrlError> {
-        while let Ok(msg) = recv.recv().await {
-            let ok_msg = self.handle_serialized_message(msg).await?;
-            sender.send(ok_msg).await?;
-        }
-        Ok(())
+    pub async fn run_sync(
+        &mut self,
+        msg: SerializedDataMessage,
+    ) -> Result<SerializedDataMessage, ProgressCtrlError> {
+        let ok_msg = self.handle_serialized_message(msg).await?;
+        Ok(ok_msg)
     }
 }

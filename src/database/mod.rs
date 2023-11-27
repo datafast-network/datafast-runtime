@@ -22,7 +22,6 @@ use metrics::DatabaseMetrics;
 use prometheus::Registry;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use web3::futures::executor;
 
 pub struct Database {
     pub mem: MemoryDb,
@@ -228,10 +227,22 @@ impl DatabaseAgent {
         &self,
         message: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
-        executor::block_on(async {
-            let mut db = self.db.lock().await;
-            db.handle_store_request(message).await
+        use std::thread;
+        let db = self.db.clone();
+
+        thread::spawn(|| {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()
+                .unwrap();
+            rt.block_on(async move {
+                let mut db = db.lock().await;
+                let result = db.handle_store_request(message).await?;
+                Ok::<StoreRequestResult, DatabaseError>(result)
+            })
         })
+        .join()
+        .unwrap()
     }
 
     pub async fn get_recent_block_pointers(

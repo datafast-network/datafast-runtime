@@ -1,8 +1,6 @@
-use super::super::trino::ethereum::Header;
-use super::super::trino::TrinoEthereumBlock;
 use super::DeltaBlockTrait;
-use crate::components::source::trino::ethereum::Log;
-use crate::components::source::trino::ethereum::Transaction;
+use crate::chain::ethereum::block::EthereumBlockData;
+use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
 use deltalake::arrow::array::Array;
@@ -12,8 +10,181 @@ use deltalake::arrow::array::ListArray;
 use deltalake::arrow::array::StringArray;
 use deltalake::arrow::array::StructArray;
 use deltalake::arrow::record_batch::RecordBatch;
+use ethabi::Bytes;
+use hex::FromHex;
+use serde::Deserialize;
+use serde::Serialize;
+use std::str::FromStr;
+use web3::types::Bytes as Web3Bytes;
+use web3::types::Index;
+use web3::types::Log as Web3Log;
+use web3::types::H160;
+use web3::types::H256;
+use web3::types::U128;
+use web3::types::U256;
+use web3::types::U64;
 
-pub struct DeltaEthereumBlocks(Vec<TrinoEthereumBlock>);
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct Header {
+    pub author: String,
+    pub state_root: String,
+    pub transactions_root: String,
+    pub receipts_root: String,
+    pub gas_used: String,
+    pub gas_limit: String,
+    pub extra_data: String,
+    pub logs_bloom: Option<String>,
+    pub timestamp: String,
+    pub difficulty: String,
+    pub total_difficulty: String,
+    pub seal_fields: Vec<String>,
+    pub size: Option<u64>,
+    pub base_fee_per_gas: Option<String>,
+    pub nonce: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct Transaction {
+    pub hash: String,
+    pub nonce: u64,
+    pub block_hash: Option<String>,
+    pub block_number: Option<u64>,
+    pub transaction_index: Option<u64>,
+    pub from_address: String,
+    pub to_address: Option<String>,
+    pub value: String,
+    pub gas_price: Option<String>,
+    pub gas: String,
+    pub input: String,
+    pub v: u64,
+    pub r: String,
+    pub s: String,
+    pub transaction_type: Option<i32>,
+    pub access_list: Option<String>,
+    pub max_priority_fee_per_gas: Option<String>,
+    pub max_fee_per_gas: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct Log {
+    pub address: String,
+    pub topics: Vec<String>,
+    pub data: String,
+    pub block_hash: Option<String>,
+    pub block_number: Option<u64>,
+    pub transaction_hash: Option<String>,
+    pub transaction_index: Option<u64>,
+    pub log_index: Option<u64>,
+    pub transaction_log_index: Option<u64>,
+    pub log_type: Option<String>,
+    pub removed: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct DeltaEthereumBlock {
+    pub chain_id: u64,
+    pub block_hash: String,
+    pub parent_hash: String,
+    pub block_number: u64,
+    pub header: Header,
+    pub transactions: Vec<Transaction>,
+    pub logs: Vec<Log>,
+    pub created_at: u64,
+}
+
+impl From<&DeltaEthereumBlock> for EthereumBlockData {
+    fn from(b: &DeltaEthereumBlock) -> Self {
+        Self {
+            hash: H256::from_str(&b.block_hash).unwrap(),
+            parent_hash: H256::from_str(&b.parent_hash).unwrap(),
+            uncles_hash: H256::default(),
+            author: H160::from_str(&b.header.author).unwrap(),
+            state_root: H256::from_str(&b.header.state_root).unwrap(),
+            transactions_root: H256::from_str(&b.header.transactions_root).unwrap(),
+            receipts_root: H256::from_str(&b.header.receipts_root).unwrap(),
+            number: U64::from(b.block_number),
+            gas_used: U256::from_dec_str(&b.header.gas_used).unwrap(),
+            gas_limit: U256::from_dec_str(&b.header.gas_limit).unwrap(),
+            timestamp: U256::from_dec_str(&b.header.timestamp).unwrap(),
+            difficulty: U256::from_dec_str(&b.header.difficulty).unwrap(),
+            total_difficulty: U256::from_dec_str(&b.header.total_difficulty).unwrap(),
+            size: None,
+            base_fee_per_gas: None,
+        }
+    }
+}
+
+impl From<&DeltaEthereumBlock> for Vec<EthereumTransactionData> {
+    fn from(value: &DeltaEthereumBlock) -> Self {
+        let mut result = vec![];
+
+        for tx in value.transactions.iter() {
+            let tx_data = EthereumTransactionData {
+                hash: H256::from_str(&tx.hash).unwrap(),
+                index: U128::from(tx.transaction_index.unwrap()),
+                from: H160::from_str(&tx.from_address).unwrap(),
+                to: tx
+                    .to_address
+                    .clone()
+                    .map(|addr| H160::from_str(&addr).unwrap()),
+                value: U256::from_dec_str(&tx.value).unwrap(),
+                gas_limit: U256::from_dec_str(&tx.gas).unwrap(),
+                gas_price: U256::from_dec_str(&tx.gas_price.clone().unwrap_or_default())
+                    .unwrap_or_default(),
+                input: Bytes::from_hex(&tx.input.replace("0x", "")).unwrap_or_default(),
+                nonce: U256::from(tx.nonce),
+            };
+            result.push(tx_data);
+        }
+
+        result
+    }
+}
+
+impl From<&DeltaEthereumBlock> for Vec<Web3Log> {
+    fn from(b: &DeltaEthereumBlock) -> Self {
+        let mut result = vec![];
+
+        for log in b.logs.iter() {
+            let log_data = Web3Log {
+                address: H160::from_str(&log.address).unwrap(),
+                topics: log
+                    .topics
+                    .iter()
+                    .map(|t| H256::from_str(t).unwrap())
+                    .collect(),
+                data: Web3Bytes::from(
+                    Bytes::from_hex(log.data.replace("0x", "")).unwrap_or_default(),
+                ),
+                block_hash: Some(H256::from_str(&b.block_hash).unwrap()),
+                block_number: Some(U64::from(b.block_number)),
+                transaction_hash: Some(
+                    H256::from_str(&log.transaction_hash.clone().unwrap()).unwrap(),
+                ),
+                transaction_index: Some(Index::from(log.transaction_index.unwrap())),
+                log_index: Some(U256::from(log.log_index.unwrap())),
+                transaction_log_index: log.transaction_log_index.map(U256::from),
+                log_type: log.log_type.clone(),
+                removed: log.removed,
+            };
+            result.push(log_data);
+        }
+
+        result
+    }
+}
+
+impl From<DeltaEthereumBlock> for SerializedDataMessage {
+    fn from(value: DeltaEthereumBlock) -> Self {
+        SerializedDataMessage::Ethereum {
+            block: EthereumBlockData::from(&value),
+            transactions: Vec::<EthereumTransactionData>::from(&value),
+            logs: Vec::<Web3Log>::from(&value),
+        }
+    }
+}
+
+pub struct DeltaEthereumBlocks(Vec<DeltaEthereumBlock>);
 
 #[derive(Debug)]
 pub struct DeltaEthereumHeaders(Vec<Header>);
@@ -612,7 +783,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
         let mut blocks = vec![];
 
         for i in 0..num_rows {
-            let block = TrinoEthereumBlock {
+            let block = DeltaEthereumBlock {
                 chain_id,
                 block_hash: block_hashes[i].clone(),
                 parent_hash: parent_hashes[i].clone(),

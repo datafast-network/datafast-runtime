@@ -14,9 +14,6 @@ mod schema_lookup;
 use components::*;
 use config::Config;
 use database::DatabaseAgent;
-use messages::FilteredDataMessage;
-use messages::SerializedDataMessage;
-use messages::SourceDataMessage;
 use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
@@ -35,16 +32,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::load();
     let registry = default_registry();
 
+    // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
     let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
-    let progress_ctrl =
+    let mut progress_ctrl =
         ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
 
     let block_source = BlockSource::new(&config, progress_ctrl.clone()).await?;
-    // TODO: impl IPFS Loader
 
-    // TODO: impl raw-data serializer
-    let serializer = Serializer::new(&config, registry)?;
     let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
 
@@ -63,17 +58,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         subgraph.create_source(wasm_host, datasource)?;
     }
 
-    let (sender1, recv1) = kanal::bounded_async::<SourceDataMessage>(1);
-    let (sender2, recv2) = kanal::bounded_async::<SerializedDataMessage>(1);
-    let (sender3, recv3) = kanal::bounded_async::<SerializedDataMessage>(1);
-    let (sender4, recv4) = kanal::bounded_async::<FilteredDataMessage>(1);
+    let (sender2, recv2) = kanal::bounded_async(1);
 
     tokio::select!(
-        r = block_source.run_async(sender1, sender2.clone()) => handle_task_result(r, "block-source"),
-        r = serializer.run_async(recv1, sender2) => handle_task_result(r, "Serializer"),
-        r = progress_ctrl.run_async(recv2, sender3) => handle_task_result(r, "ProgressCtrl"),
-        r = filter.run_async(recv3, sender4) => handle_task_result(r, "SubgraphFilter"),
-        r = subgraph.run_async(recv4, db, rpc) => handle_task_result(r, "Subgraph"),
+        r = tokio::spawn(block_source.run_async(sender2)) => handle_task_result(r.unwrap(), "block-source"),
+        r = async move {
+
+            while let Ok(messages) = recv2.recv().await {
+                info!(main, "message batch recevied and about to be processed");
+                for msg in messages {
+                    let ok_msg = progress_ctrl.run_sync(msg).await?;
+                    let ok_msg = filter.run_sync(ok_msg).await?;
+                    subgraph.run_sync(ok_msg, &db, &rpc).await?;
+                }
+            };
+
+            Ok::<(), Box<dyn std::error::Error>>(())
+        } => handle_task_result(r, "ProgressCtrl"),
         _ = run_metric_server(config.metric_port.unwrap_or(8081)) => ()
     );
 
