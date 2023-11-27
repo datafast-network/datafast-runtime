@@ -16,19 +16,22 @@ pub struct TrinoConfig {
     pub query_step: u64,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct DeltaConfig {
+    pub table_path: String,
+    pub query_step: u64,
+}
+
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
-    ReadLine,
-    ReadDir {
-        source_dir: String,
-    },
     Nats {
         uri: String,
         subject: String,
         content_type: ContentType,
     },
     Trino(TrinoConfig),
+    Delta(DeltaConfig),
 }
 
 #[derive(Deserialize, Clone, Debug)]

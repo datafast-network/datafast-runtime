@@ -39,6 +39,7 @@ prometheus = "0.13.3"
 warp = "0.3.6"
 prusto = "0.5.1"
 tokio-retry = "0.3.0"
+deltalake = { version = "0.16.5", features = ["s3", "datafusion"] }
 
 [dev-dependencies]
 async-std = { version = "1.12.0", features = ["attributes"] }

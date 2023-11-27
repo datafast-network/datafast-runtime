@@ -4,7 +4,6 @@ mod utils;
 use super::manifest_loader::ManifestLoader;
 use crate::common::Chain;
 use crate::errors::FilterError;
-use crate::info;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
 use ethereum_filter::EthereumFilter;
@@ -18,19 +17,12 @@ pub enum SubgraphFilter {
 
 impl SubgraphFilter {
     pub async fn run_async(
-        &self,
+        self,
         data_receiver: AsyncReceiver<SerializedDataMessage>,
         result_sender: AsyncSender<FilteredDataMessage>,
     ) -> Result<(), FilterError> {
         while let Ok(filter_data) = data_receiver.recv().await {
             let result = self.handle_serialize_message(filter_data)?;
-            match &result {
-                FilteredDataMessage::Ethereum { events, .. } => {
-                    if !events.is_empty() {
-                        info!(SubgraphFilter, "Events found"; events => events.len());
-                    }
-                }
-            }
             result_sender.send(result).await?;
         }
         Ok(())

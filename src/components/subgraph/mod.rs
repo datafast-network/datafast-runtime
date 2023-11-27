@@ -114,7 +114,7 @@ impl Subgraph {
             timer.stop_and_record();
             self.metrics.block_process_counter.inc();
 
-            if block_ptr.number % 200 == 0 {
+            if block_ptr.number % 1000 == 0 {
                 info!(
                     Subgraph,
                     "Finished processing block";
@@ -123,19 +123,21 @@ impl Subgraph {
                 );
             }
 
-            db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
-                error!(Subgraph, "Failed to migrate db";
-                    error => e.to_string(),
-                    block_number => block_ptr.number,
-                    block_hash => block_ptr.hash
-                );
-                SubgraphError::MigrateDbError
-            })?;
+            if block_ptr.number % 100 == 0 {
+                db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
+                    error!(Subgraph, "Failed to commit db";
+                        error => e.to_string(),
+                        block_number => block_ptr.number,
+                        block_hash => block_ptr.hash
+                    );
+                    SubgraphError::MigrateDbError
+                })?;
 
-            db_agent
-                .clear_in_memory()
-                .await
-                .map_err(|_| SubgraphError::MigrateDbError)?;
+                db_agent
+                    .clear_in_memory()
+                    .await
+                    .map_err(|_| SubgraphError::MigrateDbError)?;
+            }
         }
 
         Ok(())
