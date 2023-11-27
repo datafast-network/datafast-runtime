@@ -7,8 +7,6 @@ use crate::errors::FilterError;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
 use ethereum_filter::EthereumFilter;
-use kanal::AsyncReceiver;
-use kanal::AsyncSender;
 
 #[derive(Debug)]
 pub enum SubgraphFilter {
@@ -16,18 +14,6 @@ pub enum SubgraphFilter {
 }
 
 impl SubgraphFilter {
-    pub async fn run_async(
-        self,
-        data_receiver: AsyncReceiver<SerializedDataMessage>,
-        result_sender: AsyncSender<FilteredDataMessage>,
-    ) -> Result<(), FilterError> {
-        while let Ok(filter_data) = data_receiver.recv().await {
-            let result = self.handle_serialize_message(filter_data)?;
-            result_sender.send(result).await?;
-        }
-        Ok(())
-    }
-
     pub async fn run_sync(
         &self,
         msg: SerializedDataMessage,

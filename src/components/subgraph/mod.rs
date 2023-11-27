@@ -14,7 +14,6 @@ use crate::messages::FilteredDataMessage;
 use crate::rpc_client::RpcAgent;
 use crate::runtime::wasm_host::AscHost;
 use datasource_wasm_instance::DatasourceWasmInstance;
-use kanal::AsyncReceiver;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
@@ -92,55 +91,6 @@ impl Subgraph {
                 self.handle_ethereum_filtered_data(events, block).await
             }
         }
-    }
-
-    pub async fn run_async(
-        mut self,
-        recv: AsyncReceiver<FilteredDataMessage>,
-        db_agent: DatabaseAgent,
-        rpc_agent: RpcAgent,
-    ) -> Result<(), SubgraphError> {
-        while let Ok(msg) = recv.recv().await {
-            let block_ptr = msg.get_block_ptr();
-
-            rpc_agent.set_block_ptr(block_ptr.clone()).await;
-
-            self.metrics
-                .current_block_number
-                .set(block_ptr.number as i64);
-
-            let timer = self.metrics.block_process_duration.start_timer();
-            self.handle_filtered_data(msg).await?;
-            timer.stop_and_record();
-            self.metrics.block_process_counter.inc();
-
-            if block_ptr.number % 1000 == 0 {
-                info!(
-                    Subgraph,
-                    "Finished processing block";
-                    block_number => block_ptr.number,
-                    block_hash => block_ptr.hash
-                );
-            }
-
-            if block_ptr.number % 100 == 0 {
-                db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
-                    error!(Subgraph, "Failed to commit db";
-                        error => e.to_string(),
-                        block_number => block_ptr.number,
-                        block_hash => block_ptr.hash
-                    );
-                    SubgraphError::MigrateDbError
-                })?;
-
-                db_agent
-                    .clear_in_memory()
-                    .await
-                    .map_err(|_| SubgraphError::MigrateDbError)?;
-            }
-        }
-
-        Ok(())
     }
 
     pub async fn run_sync(
