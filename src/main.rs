@@ -68,10 +68,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender3, recv3) = kanal::bounded_async::<SerializedDataMessage>(1);
     let (sender4, recv4) = kanal::bounded_async::<FilteredDataMessage>(1);
 
-    let t1 = tokio::spawn(block_source.run_async(sender1, sender2.clone()));
-
     tokio::select!(
-        r = t1 => handle_task_result(r.unwrap(), "block-source"),
+        r = block_source.run_async(sender1, sender2.clone()) => handle_task_result(r, "block-source"),
         r = serializer.run_async(recv1, sender2) => handle_task_result(r, "Serializer"),
         r = progress_ctrl.run_async(recv2, sender3) => handle_task_result(r, "ProgressCtrl"),
         r = filter.run_async(recv3, sender4) => handle_task_result(r, "SubgraphFilter"),
