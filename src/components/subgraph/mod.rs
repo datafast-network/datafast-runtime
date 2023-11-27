@@ -159,14 +159,13 @@ mod test {
     use crate::rpc_client::RpcAgent;
     use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
     use crate::runtime::wasm_host::test::mock_wasm_host;
-    use async_std::task;
     use prometheus::default_registry;
     use std::collections::HashMap;
 
     #[::rstest::rstest]
     #[case("0.0.4")]
     #[case("0.0.5")]
-    async fn test_subgraph(#[case] version: &str) {
+    fn test_subgraph(#[case] version: &str) {
         env_logger::try_init().unwrap_or_default();
         let registry = default_registry();
 
@@ -210,45 +209,51 @@ mod test {
 
         log::info!("Finished setup");
 
-        let (sender, receiver) = kanal::bounded_async(1);
-        let agent = DatabaseAgent::empty(registry);
-        let rpc_agent = RpcAgent::new_mock();
-        let t = task::spawn(subgraph.run_async(receiver, agent, rpc_agent));
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let (sender, receiver) = kanal::bounded_async(1);
+                let agent = DatabaseAgent::empty(registry);
+                let rpc_agent = RpcAgent::new_mock();
+                let t = tokio::spawn(subgraph.run_async(receiver, agent, rpc_agent));
 
-        // Test sending block data
-        let block_data_msg = FilteredDataMessage::Ethereum {
-            events: vec![],
-            block: EthereumBlockData::default(),
-        };
-        sender
-            .send(block_data_msg)
-            .await
-            .expect("Failed to send block_data_msg");
+                // Test sending block data
+                let block_data_msg = FilteredDataMessage::Ethereum {
+                    events: vec![],
+                    block: EthereumBlockData::default(),
+                };
+                sender
+                    .send(block_data_msg)
+                    .await
+                    .expect("Failed to send block_data_msg");
 
-        // Test sending event data
-        let example_event = EthereumEventData {
-            block: EthereumBlockData {
-                number: ethabi::ethereum_types::U64::from(1000),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let event_data_msg = FilteredDataMessage::Ethereum {
-            events: vec![EthereumFilteredEvent {
-                datasource: "TestDataSource1".to_string(),
-                handler: "testHandlerEvent".to_string(),
-                event: example_event,
-            }],
-            block: EthereumBlockData::default(),
-        };
+                // Test sending event data
+                let example_event = EthereumEventData {
+                    block: EthereumBlockData {
+                        number: ethabi::ethereum_types::U64::from(1000),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                };
+                let event_data_msg = FilteredDataMessage::Ethereum {
+                    events: vec![EthereumFilteredEvent {
+                        datasource: "TestDataSource1".to_string(),
+                        handler: "testHandlerEvent".to_string(),
+                        event: example_event,
+                    }],
+                    block: EthereumBlockData::default(),
+                };
 
-        sender
-            .send(event_data_msg)
-            .await
-            .expect("Failed to send event_data_msg");
+                sender
+                    .send(event_data_msg)
+                    .await
+                    .expect("Failed to send event_data_msg");
 
-        task::sleep(std::time::Duration::from_secs(2)).await;
-        sender.close();
-        t.await.unwrap();
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                sender.close();
+                t.await.unwrap().unwrap();
+            });
     }
 }
