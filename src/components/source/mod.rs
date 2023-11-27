@@ -43,52 +43,20 @@ impl BlockSource {
 
     pub async fn run_async(
         self,
-        sender: AsyncSender<SerializedDataMessage>,
+        sender: AsyncSender<Vec<SerializedDataMessage>>,
     ) -> Result<(), SourceError> {
         match self.source {
             Source::Trino(source) => {
-                let (trino_blocks_sender, trino_blocks_receiver) = bounded_async(1);
-
                 let query_blocks = match self.chain {
-                    Chain::Ethereum => {
-                        source.get_block_stream::<TrinoEthereumBlock>(trino_blocks_sender)
-                    }
+                    Chain::Ethereum => source.get_block_stream::<TrinoEthereumBlock>(sender),
                 };
-
-                let handle_received_blockss = async {
-                    while let Ok(blocks) = trino_blocks_receiver.recv().await {
-                        for block in blocks {
-                            sender.send(block).await.unwrap();
-                        }
-                    }
-                };
-
-                tokio::select! {
-                    _ = query_blocks => (),
-                    _ = handle_received_blockss => ()
-                };
+                query_blocks.await?
             }
             Source::Delta(source) => {
-                let (delta_blocks_sender, delta_blocks_receiver) = bounded_async(1);
-
                 let query_blocks = match self.chain {
-                    Chain::Ethereum => {
-                        source.get_block_stream::<DeltaEthereumBlocks>(delta_blocks_sender)
-                    }
+                    Chain::Ethereum => source.get_block_stream::<DeltaEthereumBlocks>(sender),
                 };
-
-                let handle_received_blockss = async {
-                    while let Ok(blocks) = delta_blocks_receiver.recv().await {
-                        for block in blocks {
-                            sender.send(block).await.unwrap();
-                        }
-                    }
-                };
-
-                tokio::select! {
-                    _ = query_blocks => (),
-                    _ = handle_received_blockss => ()
-                };
+                query_blocks.await?
             }
         };
 

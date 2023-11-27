@@ -28,6 +28,14 @@ impl SubgraphFilter {
         Ok(())
     }
 
+    pub async fn run_sync(
+        &self,
+        msg: SerializedDataMessage,
+    ) -> Result<FilteredDataMessage, FilterError> {
+        let result = self.handle_serialize_message(msg)?;
+        Ok(result)
+    }
+
     pub fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
         let filter = match chain {
             Chain::Ethereum => SubgraphFilter::Ethereum(EthereumFilter::new(chain, manifest)?),

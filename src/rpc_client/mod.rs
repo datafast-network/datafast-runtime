@@ -123,6 +123,7 @@ impl RpcAgent {
     pub async fn set_block_ptr(&self, block_ptr: BlockPtr) {
         let mut rpc_agent = self.client.lock().await;
         rpc_agent.set_block_ptr(block_ptr);
+        drop(rpc_agent);
     }
 
     pub fn new_mock() -> Self {
