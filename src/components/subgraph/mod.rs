@@ -125,7 +125,7 @@ impl Subgraph {
 
             if block_ptr.number % 100 == 0 {
                 db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
-                    error!(Subgraph, "Failed to migrate db";
+                    error!(Subgraph, "Failed to commit db";
                         error => e.to_string(),
                         block_number => block_ptr.number,
                         block_hash => block_ptr.hash
