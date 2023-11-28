@@ -40,14 +40,13 @@ impl EthereumRPC {
                 )
             })
             .collect();
-        info!(EthereumRPC, "get client version");
         let supports_eip_1898 = client
             .web3()
             .client_version()
             .await
             .map(|s| s.contains("TestRPC"))
             .unwrap_or(false);
-        info!(EthereumRPC, "supports_eip_1898: {:?}"; supports_eip_1898 => supports_eip_1898);
+        info!(EthereumRPC, "client check"; supports_eip_1898 => supports_eip_1898);
         Ok(EthereumRPC {
             client,
             supports_eip_1898,
