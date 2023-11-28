@@ -56,7 +56,7 @@ impl DeltaClient {
         start_block: u64,
     ) -> Result<SendableRecordBatchStream, SourceError> {
         let query = format!(
-            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {}",
+            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number ASC",
             start_block,
             start_block + self.query_step
         );
