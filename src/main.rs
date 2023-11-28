@@ -74,8 +74,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
+            warn!(MainFlow, "No more messages returned from block-stream");
             Ok::<(), Box<dyn std::error::Error>>(())
-        } => handle_task_result(r, "ProgressCtrl"),
+        } => handle_task_result(r, "Main flow stopped"),
         _ = run_metric_server(config.metric_port.unwrap_or(8081)) => ()
     );
 
