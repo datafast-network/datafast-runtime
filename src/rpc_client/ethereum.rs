@@ -7,6 +7,7 @@ use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::BlockPtr;
 use crate::error;
 use crate::errors::RPCClientError;
+use crate::info;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -39,14 +40,14 @@ impl EthereumRPC {
                 )
             })
             .collect();
-        log::info!("get client version");
+        info!(EthereumRPC, "get client version");
         let supports_eip_1898 = client
             .web3()
             .client_version()
             .await
             .map(|s| s.contains("TestRPC"))
             .unwrap_or(false);
-        log::info!("supports_eip_1898: {:?}", supports_eip_1898);
+        info!(EthereumRPC, "supports_eip_1898: {:?}"; supports_eip_1898 => supports_eip_1898);
         Ok(EthereumRPC {
             client,
             supports_eip_1898,
