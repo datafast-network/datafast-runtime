@@ -4141,7 +4141,6 @@ dependencies = [
  "tiny-keccak",
  "tokio",
  "tokio-retry",
- "tokio-stream",
  "warp",
  "wasmer",
  "web3",

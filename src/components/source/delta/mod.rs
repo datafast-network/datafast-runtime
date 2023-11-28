@@ -5,13 +5,11 @@ use crate::errors::SourceError;
 use crate::info;
 use crate::messages::SerializedDataMessage;
 use deltalake::datafusion::common::arrow::array::RecordBatch;
-use deltalake::datafusion::physical_plan::SendableRecordBatchStream;
 use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use std::sync::Arc;
-use tokio_stream::StreamExt;
 
 pub trait DeltaBlockTrait:
     TryFrom<RecordBatch, Error = SourceError> + Into<Vec<SerializedDataMessage>>
@@ -62,10 +60,7 @@ impl DeltaClient {
         Ok(df)
     }
 
-    async fn query_blocks(
-        &self,
-        start_block: u64,
-    ) -> Result<SendableRecordBatchStream, SourceError> {
+    async fn query_blocks(&self, start_block: u64) -> Result<Vec<RecordBatch>, SourceError> {
         let query = format!(
             "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number ASC",
             start_block,
@@ -73,8 +68,8 @@ impl DeltaClient {
         );
         let df = self.get_dataframe(&query).await?;
         info!(DeltaClient, "dataframe set up OK"; query => query);
-        let stream = df.execute_stream().await?;
-        Ok(stream)
+        let batches = df.collect().await?;
+        Ok(batches)
     }
 
     pub async fn get_block_stream<R: DeltaBlockTrait>(
@@ -82,13 +77,12 @@ impl DeltaClient {
         sender: AsyncSender<Vec<SerializedDataMessage>>,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
+        info!(DeltaClient, "Start collecting data");
 
         loop {
-            let mut stream = self.query_blocks(start_block).await?;
-
-            while let Some(Ok(batches)) = stream.next().await {
+            for batch in self.query_blocks(start_block).await?.into_iter() {
                 let time = std::time::Instant::now();
-                let blocks = R::try_from(batches)?;
+                let blocks = R::try_from(batch)?;
                 let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
                 info!(
                     DeltaClient,
@@ -116,6 +110,7 @@ mod test {
         let cfg = DeltaConfig {
             table_path: "s3://ethereum/".to_owned(),
             query_step: 10000,
+            version: None,
         };
 
         let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
