@@ -26,9 +26,19 @@ pub struct DeltaClient {
 
 impl DeltaClient {
     pub async fn new(cfg: DeltaConfig, start_block: u64) -> Result<Self, SourceError> {
-        info!(DeltaClient, "Init connection to data store");
+        info!(
+            DeltaClient,
+            "Init connection to data store";
+            version => format!("{:?}", cfg.version),
+            path => cfg.table_path
+        );
         let ctx = SessionContext::new();
-        let table = deltalake::open_table(&cfg.table_path).await?;
+        let table = match cfg.version {
+            None => deltalake::open_table(&cfg.table_path).await?,
+            Some(version) => {
+                deltalake::open_table_with_version(&cfg.table_path, version as i64).await?
+            }
+        };
         let file_count = table.get_files().len();
         ctx.register_table("blocks", Arc::new(table))?;
         info!(
@@ -37,6 +47,7 @@ impl DeltaClient {
             query_step => cfg.query_step,
             start_block => start_block,
             table_path => cfg.table_path,
+            version => cfg.version.map(|v| v.to_string()).unwrap_or("latest".to_string()),
             file_count => file_count
         );
         Ok(Self {
