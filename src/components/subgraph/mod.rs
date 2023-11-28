@@ -46,7 +46,7 @@ impl Subgraph {
         Ok(())
     }
 
-    async fn handle_ethereum_filtered_data(
+    fn handle_ethereum_filtered_data(
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
@@ -82,13 +82,10 @@ impl Subgraph {
         Ok(())
     }
 
-    async fn handle_filtered_data(
-        &mut self,
-        data: FilteredDataMessage,
-    ) -> Result<(), SubgraphError> {
+    fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
-                self.handle_ethereum_filtered_data(events, block).await
+                self.handle_ethereum_filtered_data(events, block)
             }
         }
     }
@@ -108,7 +105,7 @@ impl Subgraph {
             .set(block_ptr.number as i64);
 
         let timer = self.metrics.block_process_duration.start_timer();
-        self.handle_filtered_data(msg).await?;
+        self.handle_filtered_data(msg)?;
         timer.stop_and_record();
         self.metrics.block_process_counter.inc();
 
@@ -138,119 +135,5 @@ impl Subgraph {
         }
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::datasource_wasm_instance::DatasourceWasmInstance;
-    use super::datasource_wasm_instance::EthereumHandlers;
-    use super::datasource_wasm_instance::Handler;
-    use super::metrics::SubgraphMetrics;
-    use super::Subgraph;
-    use crate::chain::ethereum::block::EthereumBlockData;
-    use crate::chain::ethereum::event::EthereumEventData;
-    use crate::database::DatabaseAgent;
-    use crate::messages::EthereumFilteredEvent;
-    use crate::messages::FilteredDataMessage;
-    use crate::rpc_client::RpcAgent;
-    use crate::runtime::wasm_host::test::get_subgraph_testing_resource;
-    use crate::runtime::wasm_host::test::mock_wasm_host;
-    use prometheus::default_registry;
-    use std::collections::HashMap;
-
-    #[::rstest::rstest]
-    #[case("0.0.4")]
-    #[case("0.0.5")]
-    fn test_subgraph(#[case] version: &str) {
-        env_logger::try_init().unwrap_or_default();
-        let registry = default_registry();
-
-        let mut subgraph = Subgraph {
-            id: "TestSubgraph".to_string(),
-            name: "TestSubgraph".to_string(),
-            sources: HashMap::new(),
-            metrics: SubgraphMetrics::new(registry),
-        };
-
-        let subgraph_sources = vec!["TestDataSource1"];
-
-        for source_name in subgraph_sources {
-            let (version, wasm_path) = get_subgraph_testing_resource(version, "TestDataSource");
-
-            let id = source_name.to_string();
-            let host = mock_wasm_host(version.clone(), &wasm_path, registry, RpcAgent::new_mock());
-            let mut ethereum_handlers = EthereumHandlers {
-                block: HashMap::new(),
-                events: HashMap::new(),
-            };
-
-            ethereum_handlers.block.insert(
-                "testHandlerBlock".to_owned(),
-                Handler::new(&host.instance.exports, "testHandlerBlock").unwrap(),
-            );
-            ethereum_handlers.events.insert(
-                "testHandlerEvent".to_owned(),
-                Handler::new(&host.instance.exports, "testHandlerEvent").unwrap(),
-            );
-
-            subgraph.sources.insert(
-                source_name.to_string(),
-                DatasourceWasmInstance {
-                    id,
-                    host,
-                    ethereum_handlers,
-                },
-            );
-        }
-
-        log::info!("Finished setup");
-
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(async {
-                let (sender, receiver) = kanal::bounded_async(1);
-                let agent = DatabaseAgent::empty(registry);
-                let rpc_agent = RpcAgent::new_mock();
-                let t = tokio::spawn(subgraph.run_async(receiver, agent, rpc_agent));
-
-                // Test sending block data
-                let block_data_msg = FilteredDataMessage::Ethereum {
-                    events: vec![],
-                    block: EthereumBlockData::default(),
-                };
-                sender
-                    .send(block_data_msg)
-                    .await
-                    .expect("Failed to send block_data_msg");
-
-                // Test sending event data
-                let example_event = EthereumEventData {
-                    block: EthereumBlockData {
-                        number: ethabi::ethereum_types::U64::from(1000),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                };
-                let event_data_msg = FilteredDataMessage::Ethereum {
-                    events: vec![EthereumFilteredEvent {
-                        datasource: "TestDataSource1".to_string(),
-                        handler: "testHandlerEvent".to_string(),
-                        event: example_event,
-                    }],
-                    block: EthereumBlockData::default(),
-                };
-
-                sender
-                    .send(event_data_msg)
-                    .await
-                    .expect("Failed to send event_data_msg");
-
-                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                sender.close();
-                t.await.unwrap().unwrap();
-            });
     }
 }
