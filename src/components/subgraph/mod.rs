@@ -90,12 +90,6 @@ impl Subgraph {
         }
     }
 
-    pub fn clear_mem(&mut self) {
-        for (_, source) in self.sources.iter_mut() {
-            source.host.deallocate_memory();
-        }
-    }
-
     pub async fn run_sync(
         &mut self,
         msg: FilteredDataMessage,

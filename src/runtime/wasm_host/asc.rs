@@ -25,6 +25,11 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         let (env, mut store) = self.data_and_store_mut();
         let size = i32::try_from(bytes.len()).unwrap();
 
+        if env.arena_start_ptr > env.memory_threshold as i32 {
+            env.arena_start_ptr = 0;
+            env.arena_free_size = 0;
+        }
+
         if size > env.arena_free_size {
             // Allocate a new arena. Any free space left in the previous arena is left unused. This
             // causes at most half of memory to be wasted, which is acceptable.
@@ -149,25 +154,18 @@ pub struct AscHost {
     pub arena_free_size: i32,
     pub db_agent: DatabaseAgent,
     pub rpc_agent: RpcAgent,
-}
-
-impl AscHost {
-    pub fn deallocate_memory(&mut self) {
-        // self.memory = self.instance.exports.get_with_generics("memory").unwrap();
-        // let view = self.memory.view(&self.store);
-        // let data_size = view.data_size();
-        // let bytes = vec![0; data_size as usize];
-        // view.write(0, &bytes).unwrap();
-
-        self.arena_start_ptr = 0;
-        self.arena_free_size = 0;
-    }
+    pub memory_threshold: u64,
 }
 
 impl AscHeap for AscHost {
     fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
         let require_length = bytes.len() as u64;
         let size = i32::try_from(bytes.len()).unwrap();
+
+        if self.arena_start_ptr > self.memory_threshold as i32 {
+            self.arena_start_ptr = 0;
+            self.arena_free_size = 0;
+        }
 
         if size > self.arena_free_size {
             let arena_size = size.max(MIN_ARENA_SIZE);

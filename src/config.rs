@@ -34,6 +34,7 @@ pub struct Config {
     pub reorg_threshold: u16,
     pub metric_port: Option<u16>,
     pub rpc_endpoint: String,
+    pub wasm_memory_threshold: Option<u64>,
 }
 
 impl Config {

@@ -1,7 +1,6 @@
 mod ethereum;
 
 use crate::config::DeltaConfig;
-use crate::debug;
 use crate::errors::SourceError;
 use crate::info;
 use crate::messages::SerializedDataMessage;
@@ -30,9 +29,16 @@ impl DeltaClient {
         info!(DeltaClient, "Init connection to data store");
         let ctx = SessionContext::new();
         let table = deltalake::open_table(&cfg.table_path).await?;
-        info!(DeltaClient, "Table found OK");
+        let file_count = table.get_files().len();
         ctx.register_table("blocks", Arc::new(table))?;
-        info!(DeltaClient, "Registered table");
+        info!(
+            DeltaClient,
+            "Setup done";
+            query_step => cfg.query_step,
+            start_block => start_block,
+            table_path => cfg.table_path,
+            file_count => file_count
+        );
         Ok(Self {
             ctx,
             start_block,
@@ -50,12 +56,12 @@ impl DeltaClient {
         start_block: u64,
     ) -> Result<SendableRecordBatchStream, SourceError> {
         let query = format!(
-            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number ASC",
+            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {}",
             start_block,
             start_block + self.query_step
         );
         let df = self.get_dataframe(&query).await?;
-        debug!(DeltaClient, "dataframe set up OK"; query => query);
+        info!(DeltaClient, "dataframe set up OK"; query => query);
         let stream = df.execute_stream().await?;
         Ok(stream)
     }

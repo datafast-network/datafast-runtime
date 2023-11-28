@@ -36,6 +36,7 @@ pub struct Env {
     pub db_agent: DatabaseAgent,
     pub datasource_name: String,
     pub rpc_agent: RpcAgent,
+    pub memory_threshold: u64,
 }
 
 pub fn create_wasm_host(
@@ -44,6 +45,7 @@ pub fn create_wasm_host(
     db_agent: DatabaseAgent,
     datasource_name: String,
     rpc_agent: RpcAgent,
+    memory_threshold: u64,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -60,6 +62,7 @@ pub fn create_wasm_host(
             db_agent: db_agent.clone(),
             datasource_name,
             rpc_agent: rpc_agent.clone(),
+            memory_threshold,
         },
     );
 
@@ -230,6 +233,7 @@ pub fn create_wasm_host(
         arena_free_size,
         db_agent,
         rpc_agent,
+        memory_threshold,
     };
 
     Ok(host)
@@ -263,6 +267,7 @@ pub mod test {
             db_agent,
             "Test".to_string(),
             rpc_agent,
+            10_000_000,
         )
         .unwrap()
     }
