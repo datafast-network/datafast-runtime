@@ -68,8 +68,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             while let Ok(messages) = recv2.recv().await {
                 info!(main, "message batch recevied and about to be processed");
                 for msg in messages {
-                    let ok_msg = progress_ctrl.run_sync(msg).await?;
-                    let ok_msg = filter.run_sync(ok_msg).await?;
+                    progress_ctrl.run_sync(msg.get_block_ptr()).await?;
+                    let ok_msg = filter.run_sync(msg).await?;
                     subgraph.run_sync(ok_msg, &db, &rpc).await?;
                 }
             };

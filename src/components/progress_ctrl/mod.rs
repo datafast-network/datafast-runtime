@@ -2,7 +2,6 @@ use crate::common::BlockPtr;
 use crate::common::Source;
 use crate::database::DatabaseAgent;
 use crate::errors::ProgressCtrlError;
-use crate::messages::SerializedDataMessage;
 
 #[derive(Clone)]
 pub struct ProgressCtrl {
@@ -102,23 +101,8 @@ impl ProgressCtrl {
         }
     }
 
-    async fn handle_serialized_message(
-        &mut self,
-        message: SerializedDataMessage,
-    ) -> Result<SerializedDataMessage, ProgressCtrlError> {
-        let new_block_ptr = message.get_block_ptr();
-        // We can abort or raise error here
-        match self.progress_check(new_block_ptr).await {
-            Ok(()) => Ok(message),
-            Err(e) => Err(e),
-        }
-    }
-
-    pub async fn run_sync(
-        &mut self,
-        msg: SerializedDataMessage,
-    ) -> Result<SerializedDataMessage, ProgressCtrlError> {
-        let ok_msg = self.handle_serialized_message(msg).await?;
-        Ok(ok_msg)
+    pub async fn run_sync(&mut self, block_ptr: BlockPtr) -> Result<(), ProgressCtrlError> {
+        self.progress_check(block_ptr).await?;
+        Ok(())
     }
 }
