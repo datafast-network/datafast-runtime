@@ -19,6 +19,7 @@ use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use runtime::wasm_host::create_wasm_host;
 use std::fmt::Debug;
+use tokio::spawn;
 
 fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
     info!(main, format!("{task_name} has finished"); result => format!("{:?}", r));
@@ -62,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender2, recv2) = kanal::bounded_async(1);
 
     tokio::select!(
-        r = block_source.run_async(sender2) => handle_task_result(r, "block-source"),
+        r = spawn(block_source.run_async(sender2)) => handle_task_result(r.unwrap(), "block-source"),
         r = async move {
 
             while let Ok(messages) = recv2.recv().await {
