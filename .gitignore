@@ -1,5 +1,5 @@
 /target
 .DS_Store
 .idea
-config.toml
+docker/config.toml
 src/tests
