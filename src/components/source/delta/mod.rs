@@ -102,7 +102,7 @@ impl DeltaClient {
                 return Ok(());
             }
 
-            collect_msg.par_sort_by_key(|m| m.get_block_ptr().number);
+            collect_msg.par_sort_unstable_by_key(|m| m.get_block_ptr().number);
             sender.send(collect_msg).await?;
             start_block += self.query_step;
         }
