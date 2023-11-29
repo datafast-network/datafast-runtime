@@ -4,6 +4,7 @@ use crate::config::DeltaConfig;
 use crate::errors::SourceError;
 use crate::info;
 use crate::messages::SerializedDataMessage;
+use crate::warn;
 use deltalake::datafusion::common::arrow::array::RecordBatch;
 use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
@@ -82,7 +83,7 @@ impl DeltaClient {
         loop {
             let mut collect_msg = vec![];
 
-            for batch in self.query_blocks(start_block).await?.into_iter() {
+            for batch in self.query_blocks(start_block).await? {
                 let time = std::time::Instant::now();
                 let blocks = R::try_from(batch)?;
                 let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
@@ -92,8 +93,12 @@ impl DeltaClient {
                     serialize_time => format!("{:?}", time.elapsed()),
                     number_of_blocks => messages.len()
                 );
-                info!(DeltaClient, "block batches sent");
                 collect_msg.extend(messages);
+            }
+
+            if collect_msg.is_empty() {
+                warn!(DeltaClient, "No more block to query...");
+                return Ok(());
             }
 
             collect_msg.sort_by_key(|m| m.get_block_ptr().number);
