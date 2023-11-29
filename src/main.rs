@@ -62,22 +62,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender2, recv2) = kanal::bounded_async(1);
 
     tokio::select!(
-        r = block_source.run_async(sender2) => handle_task_result(r, "block-source"),
+        r = tokio::spawn(block_source.run_async(sender2)) => match r {
+            Ok(r) => handle_task_result(r, "Block source"),
+            Err(e) => {
+                error!(main, "Block source failed"; error => format!("{:?}", e));
+                panic!("Block source failed");
+            }
+        },
         r = async move {
-
             while let Ok(messages) = recv2.recv().await {
-                info!(main, "message batch recevied and about to be processed");
+                info!(main, "message batch received and about to be processed");
                 for msg in messages {
                     let ok_msg = progress_ctrl.run_sync(msg).await?;
                     let ok_msg = filter.run_sync(ok_msg).await?;
                     subgraph.run_sync(ok_msg, &db, &rpc).await?;
                 }
             };
-
             warn!(MainFlow, "No more messages returned from block-stream");
             Ok::<(), Box<dyn std::error::Error>>(())
         } => handle_task_result(r, "Main flow stopped"),
-        _ = run_metric_server(config.metric_port.unwrap_or(8081)) => ()
+        _ = tokio::spawn(run_metric_server(config.metric_port.unwrap_or(8081))) => ()
     );
 
     Ok(())

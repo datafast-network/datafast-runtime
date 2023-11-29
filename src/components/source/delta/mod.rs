@@ -10,6 +10,7 @@ use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
+use rayon::prelude::ParallelSliceMut;
 use std::sync::Arc;
 
 pub trait DeltaBlockTrait:
@@ -101,7 +102,7 @@ impl DeltaClient {
                 return Ok(());
             }
 
-            collect_msg.sort_by_key(|m| m.get_block_ptr().number);
+            collect_msg.par_sort_by_key(|m| m.get_block_ptr().number);
             sender.send(collect_msg).await?;
             start_block += self.query_step;
         }

@@ -4,6 +4,7 @@ use crate::common::Chain;
 use crate::components::ProgressCtrl;
 use crate::config::Config;
 use crate::config::SourceTypes;
+use crate::error;
 use crate::errors::SourceError;
 use crate::messages::SerializedDataMessage;
 use delta::DeltaClient;
@@ -37,15 +38,23 @@ impl BlockSource {
         self,
         sender: AsyncSender<Vec<SerializedDataMessage>>,
     ) -> Result<(), SourceError> {
-        match self.source {
+        let result = match self.source {
             Source::Delta(source) => {
                 let query_blocks = match self.chain {
                     Chain::Ethereum => source.get_block_stream::<DeltaEthereumBlocks>(sender),
                 };
-                query_blocks.await?
+                query_blocks.await
             }
         };
-
-        Ok(())
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                error!(
+                    BlockSource,
+                    "Source error"; error => format!("{:?}", e)
+                );
+                Err(e)
+            }
+        }
     }
 }
