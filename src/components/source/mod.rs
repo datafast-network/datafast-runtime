@@ -24,9 +24,9 @@ impl BlockSource {
     pub async fn new(config: &Config, pctrl: ProgressCtrl) -> Result<Self, SourceError> {
         let start_block = pctrl.get_min_start_block();
         let source = match &config.source {
-            SourceTypes::Delta(delta_cfg) => {
-                Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block).await?)
-            }
+            SourceTypes::Delta(delta_cfg) => Source::Delta(
+                DeltaClient::new(delta_cfg.to_owned(), start_block, delta_cfg.query_wait).await?,
+            ),
         };
         Ok(Self {
             source,

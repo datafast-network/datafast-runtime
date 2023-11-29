@@ -22,10 +22,15 @@ pub struct DeltaClient {
     ctx: SessionContext,
     start_block: u64,
     query_step: u64,
+    query_wait: u64,
 }
 
 impl DeltaClient {
-    pub async fn new(cfg: DeltaConfig, start_block: u64) -> Result<Self, SourceError> {
+    pub async fn new(
+        cfg: DeltaConfig,
+        start_block: u64,
+        query_wait: u64,
+    ) -> Result<Self, SourceError> {
         info!(
             DeltaClient,
             "Init connection to data store";
@@ -54,6 +59,7 @@ impl DeltaClient {
             ctx,
             start_block,
             query_step: cfg.query_step,
+            query_wait,
         })
     }
 
@@ -105,6 +111,7 @@ impl DeltaClient {
             collect_msg.par_sort_unstable_by_key(|m| m.get_block_ptr().number);
             sender.send(collect_msg).await?;
             start_block += self.query_step;
+            tokio::time::sleep(tokio::time::Duration::from_secs(self.query_wait)).await;
         }
     }
 }
@@ -121,9 +128,10 @@ mod test {
             table_path: "s3://ethereum/".to_owned(),
             query_step: 10000,
             version: None,
+            query_wait: 0,
         };
 
-        let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
+        let client = DeltaClient::new(cfg, 10_000_000, 0).await.unwrap();
         let (sender, recv) = kanal::bounded_async(1);
 
         tokio::select! {

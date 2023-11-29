@@ -10,6 +10,7 @@ pub struct DeltaConfig {
     pub table_path: String,
     pub query_step: u64,
     pub version: Option<u64>,
+    pub query_wait: u64,
 }
 
 #[derive(Deserialize, Clone, Debug)]
