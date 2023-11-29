@@ -12,6 +12,8 @@ use deltalake::arrow::array::StructArray;
 use deltalake::arrow::record_batch::RecordBatch;
 use ethabi::Bytes;
 use hex::FromHex;
+use rayon::prelude::IntoParallelIterator;
+use rayon::prelude::ParallelIterator;
 use serde::Deserialize;
 use serde::Serialize;
 use std::str::FromStr;
@@ -803,7 +805,10 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
 impl From<DeltaEthereumBlocks> for Vec<SerializedDataMessage> {
     fn from(value: DeltaEthereumBlocks) -> Self {
         let inner = value.0;
-        inner.into_iter().map(SerializedDataMessage::from).collect()
+        inner
+            .into_par_iter()
+            .map(SerializedDataMessage::from)
+            .collect()
     }
 }
 
