@@ -10,6 +10,8 @@ use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
+use rayon::prelude::IntoParallelIterator;
+use rayon::prelude::ParallelIterator;
 use rayon::prelude::ParallelSliceMut;
 use std::sync::Arc;
 
@@ -92,7 +94,7 @@ impl DeltaClient {
 
             for batch in self.query_blocks(start_block).await? {
                 let time = std::time::Instant::now();
-                let blocks = R::try_from(batch)?;
+                let blocks = R::try_from(batch).unwrap();
                 let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
                 info!(
                     DeltaClient,
@@ -107,10 +109,16 @@ impl DeltaClient {
                 warn!(DeltaClient, "No more block to query...");
                 return Ok(());
             }
-
+            let message_size = std::mem::size_of_val(&collect_msg);
             collect_msg.par_sort_unstable_by_key(|m| m.get_block_ptr().number);
             sender.send(collect_msg).await?;
             start_block += self.query_step;
+            info!(
+                DeltaClient,
+                "message sent";
+                message_size => format!("{:?}", message_size),
+                start_block => start_block
+            );
             tokio::time::sleep(tokio::time::Duration::from_secs(self.query_wait)).await;
         }
     }

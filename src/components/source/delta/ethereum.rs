@@ -13,6 +13,7 @@ use deltalake::arrow::record_batch::RecordBatch;
 use ethabi::Bytes;
 use hex::FromHex;
 use rayon::prelude::IntoParallelIterator;
+use rayon::prelude::ParallelBridge;
 use rayon::prelude::ParallelIterator;
 use serde::Deserialize;
 use serde::Serialize;
@@ -711,6 +712,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .downcast_ref::<StringArray>()
             .unwrap()
             .into_iter()
+            .par_bridge()
             .map(|h| h.unwrap().to_owned())
             .collect::<Vec<_>>();
 
@@ -721,6 +723,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .downcast_ref::<StringArray>()
             .unwrap()
             .into_iter()
+            .par_bridge()
             .map(|h| h.unwrap().to_owned())
             .collect::<Vec<_>>();
 
@@ -731,6 +734,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .downcast_ref::<Int64Array>()
             .unwrap()
             .into_iter()
+            .par_bridge()
             .map(|h| h.unwrap() as u64)
             .collect::<Vec<_>>();
 
@@ -750,6 +754,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .downcast_ref::<ListArray>()
             .unwrap()
             .iter()
+            .par_bridge()
             .map(|s| {
                 let s = s.unwrap();
                 let structs = s.as_any().downcast_ref::<StructArray>().unwrap();
@@ -764,6 +769,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .downcast_ref::<ListArray>()
             .unwrap()
             .iter()
+            .par_bridge()
             .map(|s| {
                 let s = s.unwrap();
                 let structs = s.as_any().downcast_ref::<StructArray>().unwrap();
@@ -778,6 +784,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .downcast_ref::<Int64Array>()
             .unwrap()
             .into_iter()
+            .par_bridge()
             .map(|c| c.unwrap() as u64)
             .collect::<Vec<_>>();
 
