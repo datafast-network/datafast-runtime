@@ -10,8 +10,6 @@ use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
-use rayon::prelude::IntoParallelIterator;
-use rayon::prelude::ParallelIterator;
 use rayon::prelude::ParallelSliceMut;
 use std::sync::Arc;
 
