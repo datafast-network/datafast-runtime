@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender2, recv2) = kanal::bounded_async(1);
 
     tokio::select!(
-        r = tokio::spawn(block_source.run_async(sender2)) => handle_task_result(r.unwrap(), "block-source"),
+        r = block_source.run_async(sender2) => handle_task_result(r, "block-source"),
         r = async move {
 
             while let Ok(messages) = recv2.recv().await {
@@ -74,8 +74,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
+            warn!(MainFlow, "No more messages returned from block-stream");
             Ok::<(), Box<dyn std::error::Error>>(())
-        } => handle_task_result(r, "ProgressCtrl"),
+        } => handle_task_result(r, "Main flow stopped"),
         _ = run_metric_server(config.metric_port.unwrap_or(8081)) => ()
     );
 

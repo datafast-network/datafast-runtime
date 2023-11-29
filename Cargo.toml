@@ -35,7 +35,6 @@ prometheus = "0.13.3"
 warp = "0.3.6"
 tokio-retry = "0.3.0"
 deltalake = { version = "0.16.5", features = ["s3", "datafusion"] }
-tokio-stream = "0.1.14"
 
 [dev-dependencies]
 rstest = "0.18.2"

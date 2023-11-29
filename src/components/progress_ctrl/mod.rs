@@ -68,7 +68,10 @@ impl ProgressCtrl {
                 // reorg or not?
                 // Block gap: 8 - 9 - (missing 10) - 11
                 if recent_block_ptrs.number + 1 < new_block_ptr.number {
-                    return Err(ProgressCtrlError::BlockGap);
+                    return Err(ProgressCtrlError::BlockGap(
+                        recent_block_ptrs.number,
+                        new_block_ptr.number,
+                    ));
                 }
 
                 // reorg happen some where...

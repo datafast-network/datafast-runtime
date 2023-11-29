@@ -1,3 +1,6 @@
+mod ethereum;
+mod types;
+
 use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
@@ -6,12 +9,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use web3::futures::executor;
-
-mod ethereum;
-mod types;
-
 pub use types::*;
+use web3::futures::executor;
 
 #[derive(Clone)]
 pub enum RPCChain {

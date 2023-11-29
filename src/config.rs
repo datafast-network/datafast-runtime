@@ -9,6 +9,7 @@ use serde::Deserialize;
 pub struct DeltaConfig {
     pub table_path: String,
     pub query_step: u64,
+    pub version: Option<u64>,
 }
 
 #[derive(Deserialize, Clone, Debug)]

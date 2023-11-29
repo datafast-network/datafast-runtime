@@ -7,6 +7,8 @@ use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::wasm_host::Env;
 use semver::Version;
 use std::mem::MaybeUninit;
+use std::sync::Arc;
+use std::sync::Mutex;
 use wasmer::AsStoreMut;
 use wasmer::AsStoreRef;
 use wasmer::FromToNativeWasmType;
@@ -25,12 +27,21 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         let (env, mut store) = self.data_and_store_mut();
         let size = i32::try_from(bytes.len()).unwrap();
 
-        if env.arena_start_ptr > env.memory_threshold as i32 {
-            env.arena_start_ptr = 0;
-            env.arena_free_size = 0;
+        let mut arena_start_ptr = env
+            .arena_start_ptr
+            .lock()
+            .expect("lock arena-start-ptr failed");
+        let mut arena_free_size = env
+            .arena_free_size
+            .lock()
+            .expect("lock arena-free-size failed");
+
+        if *arena_start_ptr > env.memory_threshold as i32 {
+            *arena_start_ptr = 0;
+            *arena_free_size = 0;
         }
 
-        if size > env.arena_free_size {
+        if size > *arena_free_size {
             // Allocate a new arena. Any free space left in the previous arena is left unused. This
             // causes at most half of memory to be wasted, which is acceptable.
             let arena_size = size.max(MIN_ARENA_SIZE);
@@ -40,10 +51,10 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
             // of the node.
             if let Some(memory_allocate) = env.memory_allocate.as_ref() {
                 let new_arena_ptr = memory_allocate.call(&mut store, arena_size).unwrap();
-                env.arena_start_ptr = new_arena_ptr;
+                *arena_start_ptr = new_arena_ptr;
             }
 
-            env.arena_free_size = arena_size;
+            *arena_free_size = arena_size;
 
             match &env.api_version {
                 version if *version <= Version::new(0, 0, 4) => {}
@@ -54,8 +65,8 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
                     // `mmInfo` has size of 4, and everything allocated on AssemblyScript memory
                     // should have alignment of 16, this means we need to do a 12 offset on these
                     // big chunks of untyped allocation.
-                    env.arena_start_ptr += 12;
-                    env.arena_free_size -= 12;
+                    *arena_start_ptr += 12;
+                    *arena_free_size -= 12;
                 }
             };
         };
@@ -70,13 +81,13 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         }
 
         // NOTE: write to page's footer
-        let ptr = env.arena_start_ptr as usize;
+        let ptr = *arena_start_ptr as usize;
 
         view.write(ptr as u64, bytes).expect("Failed");
 
         // Unwrap: We have just allocated enough space for `bytes`.
-        env.arena_start_ptr += size;
-        env.arena_free_size -= size;
+        *arena_start_ptr += size;
+        *arena_free_size -= size;
 
         Ok(ptr as u32)
     }
@@ -150,8 +161,8 @@ pub struct AscHost {
     pub api_version: Version,
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub memory_allocate: Option<TypedFunction<i32, i32>>,
-    pub arena_start_ptr: i32,
-    pub arena_free_size: i32,
+    pub arena_start_ptr: Arc<Mutex<i32>>,
+    pub arena_free_size: Arc<Mutex<i32>>,
     pub db_agent: DatabaseAgent,
     pub rpc_agent: RpcAgent,
     pub memory_threshold: u64,
@@ -159,29 +170,38 @@ pub struct AscHost {
 
 impl AscHeap for AscHost {
     fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
+        let mut arena_start_ptr = self
+            .arena_start_ptr
+            .lock()
+            .expect("lock arena-start-ptr failed");
+        let mut arena_free_size = self
+            .arena_free_size
+            .lock()
+            .expect("lock arena-free-size failed");
+
         let require_length = bytes.len() as u64;
         let size = i32::try_from(bytes.len()).unwrap();
 
-        if self.arena_start_ptr > self.memory_threshold as i32 {
-            self.arena_start_ptr = 0;
-            self.arena_free_size = 0;
+        if *arena_start_ptr > self.memory_threshold as i32 {
+            *arena_start_ptr = 0;
+            *arena_free_size = 0;
         }
 
-        if size > self.arena_free_size {
+        if size > *arena_free_size {
             let arena_size = size.max(MIN_ARENA_SIZE);
 
             if let Some(memory_allocate) = self.memory_allocate.clone() {
                 let new_arena_ptr = memory_allocate.call(&mut self.store, arena_size).unwrap();
-                self.arena_start_ptr = new_arena_ptr;
+                *arena_start_ptr = new_arena_ptr;
             }
 
-            self.arena_free_size = arena_size;
+            *arena_free_size = arena_size;
 
             match &self.api_version {
                 version if *version <= Version::new(0, 0, 4) => {}
                 _ => {
-                    self.arena_start_ptr += 12;
-                    self.arena_free_size -= 12;
+                    *arena_start_ptr += 12;
+                    *arena_free_size -= 12;
                 }
             };
         };
@@ -193,11 +213,11 @@ impl AscHeap for AscHost {
             return Err(AscError::SizeNotFit);
         }
 
-        let ptr = self.arena_start_ptr as usize;
+        let ptr = *arena_start_ptr as usize;
         view.write(ptr as u64, bytes).expect("Failed");
 
-        self.arena_start_ptr += size;
-        self.arena_free_size -= size;
+        *arena_start_ptr += size;
+        *arena_free_size -= size;
 
         Ok(ptr as u32)
     }
