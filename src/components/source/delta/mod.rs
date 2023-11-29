@@ -62,7 +62,7 @@ impl DeltaClient {
 
     async fn query_blocks(&self, start_block: u64) -> Result<Vec<RecordBatch>, SourceError> {
         let query = format!(
-            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number ASC",
+            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {}",
             start_block,
             start_block + self.query_step
         );
@@ -80,6 +80,8 @@ impl DeltaClient {
         info!(DeltaClient, "Start collecting data");
 
         loop {
+            let mut collect_msg = vec![];
+
             for batch in self.query_blocks(start_block).await?.into_iter() {
                 let time = std::time::Instant::now();
                 let blocks = R::try_from(batch)?;
@@ -90,10 +92,12 @@ impl DeltaClient {
                     serialize_time => format!("{:?}", time.elapsed()),
                     number_of_blocks => messages.len()
                 );
-                sender.send(messages).await?;
                 info!(DeltaClient, "block batches sent");
+                collect_msg.extend(messages);
             }
 
+            collect_msg.sort_by_key(|m| m.get_block_ptr().number);
+            sender.send(collect_msg).await?;
             start_block += self.query_step;
         }
     }
