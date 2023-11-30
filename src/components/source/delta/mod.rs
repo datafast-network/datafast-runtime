@@ -117,7 +117,7 @@ mod test {
         env_logger::try_init().unwrap_or_default();
 
         let cfg = DeltaConfig {
-            table_path: "s3://ethereum/".to_owned(),
+            table_path: "s3://ethereum/blocks_01/".to_owned(),
             query_step: 10000,
             version: None,
         };
@@ -134,6 +134,7 @@ mod test {
                     let first = b.first().map(|f| f.get_block_ptr()).unwrap();
                     let last = b.last().map(|f| f.get_block_ptr()).unwrap();
                     log::warn!("Received: {:?} msgs, first_block={}, last_block={}", b.len(), first, last);
+                    recv.close();
                 }
             } => {
                 log::info!(" DONE RECV");
