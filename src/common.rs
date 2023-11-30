@@ -31,6 +31,7 @@ pub struct Mapping {
     pub abis: Vec<MappingABI>,
     pub eventHandlers: Option<Vec<EventHandler>>,
     pub blockHandlers: Option<Vec<BlockHandler>>,
+    pub file: String,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
