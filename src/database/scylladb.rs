@@ -13,12 +13,14 @@ use crate::runtime::bignumber::bigint::BigInt;
 use crate::schema_lookup::FieldKind;
 use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
+use futures_util::future::try_join_all;
 use scylla::_macro_internal::CqlValue;
 use scylla::batch::Batch;
 use scylla::transport::session::Session;
 use scylla::QueryResult;
 use scylla::SessionBuilder;
 use std::str::FromStr;
+use std::sync::Arc;
 
 impl From<Value> for CqlValue {
     fn from(value: Value) -> Self {
@@ -37,7 +39,7 @@ impl From<Value> for CqlValue {
 }
 
 pub struct Scylladb {
-    session: Session,
+    session: Arc<Session>,
     keyspace: String,
     schema_lookup: SchemaLookup,
 }
@@ -51,7 +53,7 @@ impl Scylladb {
         info!(Scylladb, "Init db connection");
         let session: Session = SessionBuilder::new().known_node(uri).build().await?;
         let this = Self {
-            session,
+            session: Arc::new(session),
             keyspace: keyspace.to_owned(),
             schema_lookup,
         };
@@ -424,27 +426,50 @@ impl ExternDBTrait for Scylladb {
         block_ptr: BlockPtr,
         values: Vec<(String, RawEntity)>,
     ) -> Result<(), DatabaseError> {
-        let mut batch_queries = Batch::default();
-        let mut batch_values = vec![];
+        let mut inserts = vec![];
+        let chunks = values.chunks(100);
 
-        for (entity_type, data) in values {
-            if data.get("is_deleted").is_none() {
-                error!(Scylladb,
-                    "Missing is_deleted field";
-                    entity_type => entity_type,
-                    entity_data => format!("{:?}", data),
-                    block_ptr_number => block_ptr.number,
-                    block_ptr_hash => block_ptr.hash
-                );
-                return Err(DatabaseError::MissingField("is_deleted".to_string()));
+        for chunk in chunks {
+            let mut batch_queries = Batch::default();
+            let mut batch_values = vec![];
+            let session = self.session.clone();
+
+            for (entity_type, data) in chunk.to_vec() {
+                if data.get("is_deleted").is_none() {
+                    error!(Scylladb,
+                           "Missing is_deleted field";
+                           entity_type => entity_type,
+                           entity_data => format!("{:?}", data),
+                           block_ptr_number => block_ptr.number,
+                           block_ptr_hash => block_ptr.hash
+                    );
+                    return Err(DatabaseError::MissingField("is_deleted".to_string()));
+                }
+
+                let (query, values) =
+                    self.generate_insert_query(&entity_type, data, block_ptr.clone());
+                batch_queries.append_statement(query.as_str());
+                batch_values.push(values);
             }
 
-            let (query, values) = self.generate_insert_query(&entity_type, data, block_ptr.clone());
-            batch_queries.append_statement(query.as_str());
-            batch_values.push(values)
+            let st = session.prepare_batch(&batch_queries).await?;
+            let insert = tokio::spawn(async move {
+                session.batch(&st, batch_values).await?;
+                Ok::<(), DatabaseError>(())
+            });
+
+            inserts.push(insert);
         }
-        let st = self.session.prepare_batch(&batch_queries).await?;
-        self.session.batch(&st, batch_values).await?;
+
+        let result = try_join_all(inserts).await.unwrap();
+        info!(
+            Scylladb,
+            "Commit result";
+            result => format!("{:?} commits", result.len()),
+            ok => format!("{:?} commits", result.iter().filter(|r| r.is_ok()).collect::<Vec<_>>().len()),
+            failure => format!("{:?}", result.iter().filter(|r| r.is_err()).collect::<Vec<_>>())
+        );
+
         Ok(())
     }
 

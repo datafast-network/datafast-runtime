@@ -17,6 +17,7 @@ use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
+use std::time::Instant;
 
 pub struct Subgraph {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
@@ -118,7 +119,9 @@ impl Subgraph {
             );
         }
 
-        if block_ptr.number % 100 == 0 {
+        if block_ptr.number % 2000 == 0 {
+            info!(Subgraph, "Commiting data to DB"; block_number => block_ptr.number);
+            let time = Instant::now();
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
                 error!(Subgraph, "Failed to commit db";
                        error => e.to_string(),
@@ -132,6 +135,7 @@ impl Subgraph {
                 .clear_in_memory()
                 .await
                 .map_err(|_| SubgraphError::MigrateDbError)?;
+            info!(Subgraph, "Db commit OK"; execution_time => format!("{:?}", time.elapsed()));
         }
 
         Ok(())
