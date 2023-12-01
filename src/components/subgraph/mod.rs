@@ -109,7 +109,7 @@ impl Subgraph {
         }
     }
 
-    pub async fn run_sync(
+    pub async fn process(
         &mut self,
         msg: FilteredDataMessage,
         db_agent: &DatabaseAgent,

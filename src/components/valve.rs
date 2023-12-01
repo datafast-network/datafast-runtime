@@ -41,7 +41,7 @@ impl Valve {
 
         info!(
             Valve,
-            format!("Should continue? {result}");
+            format!("should continue download? {result}");
             downloaded => this.downloaded,
             finished => this.finished,
             lag => this.downloaded - this.finished,

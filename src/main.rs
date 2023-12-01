@@ -18,7 +18,6 @@ use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
-use tokio::spawn;
 
 fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
     info!(main, format!("{task_name} has finished"); result => format!("{:?}", r));
@@ -44,36 +43,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender, recv) = kanal::bounded_async(1);
 
     tokio::select!(
-        r = spawn(block_source.run_async(sender, source_valve)) => handle_task_result(r.unwrap(), "block-source"),
+        r = block_source.run_async(sender, source_valve) => handle_task_result(r, "block-source"),
         r = async move {
 
-            while let Ok(messages) = recv.recv().await {
-                info!(main, "message batch recevied and about to be processed");
+            while let Ok(blocks) = recv.recv().await {
+                info!(
+                    MainFlow,
+                    "block batch recevied and about to be processed";
+                    total_block => blocks.len()
+                );
 
                 let time = std::time::Instant::now();
-                let messages = filter.filter_multi(messages)?;
-                let count_msg = messages.len();
+                let blocks = filter.filter_multi(blocks)?;
+                let count_blocks = blocks.len();
 
                 info!(
-                    main,
-                    "filter done";
+                    MainFlow,
+                    "filter processed OK";
                     exec_time => format!("{:?}", time.elapsed()),
-                    count => count_msg
+                    count_blocks => count_blocks
                 );
 
                 let time = std::time::Instant::now();
 
-                for msg in messages {
+                for block in blocks {
                     subgraph.create_sources(&manifest, &db, &rpc).await?;
-                    progress_ctrl.check_block(msg.get_block_ptr()).await?;
-                    subgraph.run_sync(msg, &db, &rpc, &valve).await?;
+                    progress_ctrl.check_block(block.get_block_ptr()).await?;
+                    subgraph.process(block, &db, &rpc, &valve).await?;
                 }
 
                 info!(
-                    main,
-                    "process block batch done";
+                    MainFlow,
+                    "block batch processed OK";
                     exec_time => format!("{:?}", time.elapsed()),
-                    count => count_msg
+                    count => count_blocks
                 );
             };
 
