@@ -7,6 +7,7 @@ use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
+use wasmer::MemoryAccessError;
 use wasmer::RuntimeError;
 
 #[derive(Error, Debug)]
@@ -56,6 +57,8 @@ pub enum AscError {
     MaxRecursion,
     #[error(transparent)]
     BigNumberOutOfRange(#[from] BigNumberErr),
+    #[error(transparent)]
+    WasmMemoryAccessError(#[from] MemoryAccessError),
 }
 
 impl From<AscError> for RuntimeError {

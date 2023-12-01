@@ -78,7 +78,7 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         // NOTE: write to page's footer
         let ptr = *arena_start_ptr as usize;
 
-        view.write(ptr as u64, bytes).expect("Failed");
+        view.write(ptr as u64, bytes)?;
 
         // Unwrap: We have just allocated enough space for `bytes`.
         *arena_start_ptr += size;
@@ -102,8 +102,8 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);
 
-        view.read_uninit(offset as u64, buffer)
-            .map_err(|_| AscError::Plain(format!("Heap access out of bounds. Offset: {}", offset)))
+        let result = view.read_uninit(offset as u64, buffer)?;
+        Ok(result)
     }
 
     fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
@@ -118,12 +118,7 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);
 
-        view.read(offset as u64, &mut bytes).map_err(|_| {
-            AscError::Plain(format!(
-                "Heap access out of bounds. Offset: {} Size: {}",
-                offset, 4
-            ))
-        })?;
+        view.read(offset as u64, &mut bytes)?;
         Ok(u32::from_le_bytes(bytes))
     }
 
@@ -203,7 +198,7 @@ impl AscHeap for AscHost {
         }
 
         let ptr = *arena_start_ptr as usize;
-        view.write(ptr as u64, bytes).expect("Failed");
+        view.write(ptr as u64, bytes)?;
 
         *arena_start_ptr += size;
         *arena_free_size -= size;
@@ -219,8 +214,8 @@ impl AscHeap for AscHost {
         let store_ref = self.store.as_store_ref();
         let view = self.memory.view(&store_ref);
 
-        view.read_uninit(offset as u64, buffer)
-            .map_err(|_| AscError::Plain(format!("Heap access out of bounds. Offset: {}", offset)))
+        let result = view.read_uninit(offset as u64, buffer)?;
+        Ok(result)
     }
 
     fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
@@ -228,12 +223,7 @@ impl AscHeap for AscHost {
         let store_ref = self.store.as_store_ref();
         let view = self.memory.view(&store_ref);
 
-        view.read(offset as u64, &mut bytes).map_err(|_| {
-            AscError::Plain(format!(
-                "Heap access out of bounds. Offset: {} Size: {}",
-                offset, 4
-            ))
-        })?;
+        view.read(offset as u64, &mut bytes)?;
         Ok(u32::from_le_bytes(bytes))
     }
 
