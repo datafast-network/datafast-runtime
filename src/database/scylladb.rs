@@ -435,7 +435,7 @@ impl ExternDBTrait for Scylladb {
             let mut batch_values = vec![];
             let session = self.session.clone();
 
-            for (entity_type, data) in chunk.to_vec() {
+            for (entity_type, data) in chunk.iter().cloned() {
                 if data.get("is_deleted").is_none() {
                     error!(Scylladb,
                            "Missing is_deleted field";
