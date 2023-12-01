@@ -1,4 +1,5 @@
 use crate::config::ValveConfig;
+use crate::info;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -25,6 +26,10 @@ impl Valve {
         self.0.read().unwrap().cfg.wait_time
     }
 
+    pub fn get_downloaded(&self) -> u64 {
+        self.0.read().unwrap().downloaded
+    }
+
     pub fn should_continue(&self) -> bool {
         let this = self.0.read().unwrap();
 
@@ -32,7 +37,18 @@ impl Valve {
             return true;
         }
 
-        this.downloaded - this.finished < this.cfg.allowed_lag
+        let result = this.downloaded - this.finished < this.cfg.allowed_lag;
+
+        info!(
+            Valve,
+            format!("Should continue? {result}");
+            downloaded => this.downloaded,
+            finished => this.finished,
+            lag => this.downloaded - this.finished,
+            allowed_lag => this.cfg.allowed_lag
+        );
+
+        result
     }
 
     pub fn set_finished(&self, finished_block: u64) {

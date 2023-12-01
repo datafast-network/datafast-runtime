@@ -96,14 +96,18 @@ impl DeltaClient {
                 let blocks = R::try_from(batch)?;
                 let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
                 let first_block_number = messages.first().map(|b| b.get_block_ptr().number);
-                let last_block_number = messages.last().map(|b| b.get_block_ptr().number);
+
+                if let Some(number) = first_block_number {
+                    if number > valve.get_downloaded() {
+                        valve.set_downloaded(number);
+                    }
+                }
+
                 info!(
                     DeltaClient,
                     "batches received & serialized";
                     serialize_time => format!("{:?}", time.elapsed()),
-                    number_of_blocks => messages.len(),
-                    first_block => format!("{:?}", first_block_number),
-                    last_block => format!("{:?}", last_block_number)
+                    number_of_blocks => messages.len()
                 );
                 collect_msg.extend(messages);
             }
