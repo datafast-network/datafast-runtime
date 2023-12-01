@@ -56,7 +56,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             db.clone(),
             datasource.name.clone(),
             rpc.clone(),
-            config.wasm_memory_threshold.unwrap_or(104_857_600), // default 100Mb
         )?;
         subgraph.create_source(wasm_host, datasource)?;
     }
@@ -91,7 +90,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             db.clone(),
                             datasource.name.clone(),
                             rpc.clone(),
-                            config.wasm_memory_threshold.unwrap_or(104_857_600), // default 100Mb
                         )?;
                         subgraph.create_source(wasm_host, datasource)?;
                     }

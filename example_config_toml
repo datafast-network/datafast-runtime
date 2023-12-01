@@ -1,9 +1,18 @@
 chain = "ethereum"
 subgraph_name = "mysub"
 subgraph_id = "xxxxxx"
-subgraph_dir = "fs://User/vutr/mysub"
+subgraph_dir = "fs://Users/vutran/Works/hardbed/erc20-sgd"
 reorg_threshold = 500
+rpc_endpoint = "https://cloudflare-eth.com/"
 
 [source.delta]
-table_path = "s3://ethereum/"
-query_step = 10000
+table_path = "s3://ethereum/blocks_01/"
+query_step = 20000
+
+[database.scylla]
+uri = "localhost:9042"
+keyspace = "erc0"
+
+[valve]
+allowed_lag = 5000
+wait_time = 120
