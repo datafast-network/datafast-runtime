@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 for msg in messages {
                     subgraph.create_sources(&manifest, &db, &rpc).await?;
-                    progress_ctrl.run_sync(msg.get_block_ptr()).await?;
+                    progress_ctrl.check_block(msg.get_block_ptr()).await?;
                     subgraph.run_sync(msg, &db, &rpc, &valve).await?;
                 }
 

@@ -39,10 +39,7 @@ impl ProgressCtrl {
         )
     }
 
-    pub async fn progress_check(
-        &mut self,
-        new_block_ptr: BlockPtr,
-    ) -> Result<(), ProgressCtrlError> {
+    pub async fn check_block(&mut self, new_block_ptr: BlockPtr) -> Result<(), ProgressCtrlError> {
         match &self.recent_block_ptrs.last() {
             None => {
                 let min_start_block = self.get_min_start_block();
@@ -99,10 +96,5 @@ impl ProgressCtrl {
                 }
             }
         }
-    }
-
-    pub async fn run_sync(&mut self, block_ptr: BlockPtr) -> Result<(), ProgressCtrlError> {
-        self.progress_check(block_ptr).await?;
-        Ok(())
     }
 }
