@@ -7,12 +7,14 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::read_to_string;
 use std::io::BufReader;
+use tokio::sync::Mutex;
 
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
     pub abis: HashMap<String, serde_json::Value>,
     pub schema: SchemaLookup,
+    wasm_per_source: Mutex<HashMap<String, Vec<u8>>>,
 }
 
 impl LocalFileLoader {
@@ -31,6 +33,7 @@ impl LocalFileLoader {
             subgraph_yaml: SubgraphYaml::default(),
             abis: HashMap::new(),
             schema: SchemaLookup::new(),
+            wasm_per_source: Mutex::new(HashMap::new()),
         };
 
         this.load_yaml().await?;
@@ -86,6 +89,10 @@ impl LoaderTrait for LocalFileLoader {
     }
 
     async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError> {
+        if let Some(wasm_bytes) = self.wasm_per_source.lock().await.get(datasource_name) {
+            return Ok(wasm_bytes.clone());
+        }
+
         let datasource = self
             .subgraph_yaml
             .dataSources
@@ -98,13 +105,15 @@ impl LoaderTrait for LocalFileLoader {
             ));
         }
 
-        let wasm_file = format!(
-            "{}/build/{datasource_name}/{datasource_name}.wasm",
-            self.subgraph_dir
-        );
+        let file_path = datasource.unwrap().mapping.file.clone();
+        let wasm_file = format!("{}/build/{file_path}", self.subgraph_dir);
         let wasm_bytes =
             fs::read(&wasm_file).map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
 
+        self.wasm_per_source
+            .lock()
+            .await
+            .insert(datasource_name.to_string(), wasm_bytes.clone());
         Ok(wasm_bytes)
     }
 

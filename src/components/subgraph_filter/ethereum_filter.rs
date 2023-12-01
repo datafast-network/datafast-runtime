@@ -8,7 +8,6 @@ use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Chain;
 use crate::common::Datasource;
 use crate::components::manifest_loader::ManifestLoader;
-use crate::debug;
 use crate::error;
 use crate::errors::FilterError;
 use crate::info;
@@ -50,10 +49,11 @@ impl EthereumFilter {
     fn parse_event(
         &self,
         contract: &Contract,
-        log: &Log,
+        log: Log,
         block_header: EthereumBlockData,
         transaction: EthereumTransactionData,
     ) -> Result<EthereumEventData, FilterError> {
+        let block_number = block_header.number;
         let event = contract
             .events()
             .find(|event| event.signature() == log.topics[0])
@@ -61,11 +61,6 @@ impl EthereumFilter {
                 "Invalid signature event {}",
                 log.address
             )))?;
-
-        debug!(EthereumFilter, "Event found";
-            event => format!("{:?}", event),
-            log => format!("{:?}", log)
-        );
 
         event
             .parse_log(ethabi::RawLog {
@@ -77,17 +72,16 @@ impl EthereumFilter {
                 address: log.address,
                 log_index: log.log_index.unwrap_or_default(),
                 transaction_log_index: log.transaction_log_index.unwrap_or_default(),
-                log_type: log.log_type.clone(),
-                block: block_header.to_owned(),
-                transaction: transaction.to_owned(),
+                log_type: log.log_type,
+                block: block_header,
+                transaction,
             })
             .map_err(|e| {
                 error!(
                     EthereumFilter,
                     "parse event error";
                     error => e,
-                    event => format!("{:?}", event),
-                    block_number => format!("{:?}", block_header.number)
+                    block_number => format!("{:?}", block_number)
                 );
                 FilterError::ParseError(e.to_string())
             })
@@ -100,11 +94,11 @@ impl EthereumFilter {
         logs: Vec<Log>,
     ) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
         let mut events = Vec::new();
-        for log in logs.iter() {
+        for log in logs {
             let check_log_valid = self
                 .addresses
                 .iter()
-                .any(|(addr, source)| addr == &log.address && check_log_matches(source, log));
+                .any(|(addr, source)| addr == &log.address && check_log_matches(source, &log));
             if !check_log_valid {
                 continue;
             }

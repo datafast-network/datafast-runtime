@@ -36,11 +36,6 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
             .lock()
             .expect("lock arena-free-size failed");
 
-        if *arena_start_ptr > env.memory_threshold as i32 {
-            *arena_start_ptr = 0;
-            *arena_free_size = 0;
-        }
-
         if size > *arena_free_size {
             // Allocate a new arena. Any free space left in the previous arena is left unused. This
             // causes at most half of memory to be wasted, which is acceptable.
@@ -83,7 +78,7 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         // NOTE: write to page's footer
         let ptr = *arena_start_ptr as usize;
 
-        view.write(ptr as u64, bytes).expect("Failed");
+        view.write(ptr as u64, bytes)?;
 
         // Unwrap: We have just allocated enough space for `bytes`.
         *arena_start_ptr += size;
@@ -107,8 +102,8 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);
 
-        view.read_uninit(offset as u64, buffer)
-            .map_err(|_| AscError::Plain(format!("Heap access out of bounds. Offset: {}", offset)))
+        let result = view.read_uninit(offset as u64, buffer)?;
+        Ok(result)
     }
 
     fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
@@ -123,12 +118,7 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);
 
-        view.read(offset as u64, &mut bytes).map_err(|_| {
-            AscError::Plain(format!(
-                "Heap access out of bounds. Offset: {} Size: {}",
-                offset, 4
-            ))
-        })?;
+        view.read(offset as u64, &mut bytes)?;
         Ok(u32::from_le_bytes(bytes))
     }
 
@@ -165,7 +155,6 @@ pub struct AscHost {
     pub arena_free_size: Arc<Mutex<i32>>,
     pub db_agent: DatabaseAgent,
     pub rpc_agent: RpcAgent,
-    pub memory_threshold: u64,
 }
 
 impl AscHeap for AscHost {
@@ -181,11 +170,6 @@ impl AscHeap for AscHost {
 
         let require_length = bytes.len() as u64;
         let size = i32::try_from(bytes.len()).unwrap();
-
-        if *arena_start_ptr > self.memory_threshold as i32 {
-            *arena_start_ptr = 0;
-            *arena_free_size = 0;
-        }
 
         if size > *arena_free_size {
             let arena_size = size.max(MIN_ARENA_SIZE);
@@ -214,7 +198,7 @@ impl AscHeap for AscHost {
         }
 
         let ptr = *arena_start_ptr as usize;
-        view.write(ptr as u64, bytes).expect("Failed");
+        view.write(ptr as u64, bytes)?;
 
         *arena_start_ptr += size;
         *arena_free_size -= size;
@@ -230,8 +214,8 @@ impl AscHeap for AscHost {
         let store_ref = self.store.as_store_ref();
         let view = self.memory.view(&store_ref);
 
-        view.read_uninit(offset as u64, buffer)
-            .map_err(|_| AscError::Plain(format!("Heap access out of bounds. Offset: {}", offset)))
+        let result = view.read_uninit(offset as u64, buffer)?;
+        Ok(result)
     }
 
     fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
@@ -239,12 +223,7 @@ impl AscHeap for AscHost {
         let store_ref = self.store.as_store_ref();
         let view = self.memory.view(&store_ref);
 
-        view.read(offset as u64, &mut bytes).map_err(|_| {
-            AscError::Plain(format!(
-                "Heap access out of bounds. Offset: {} Size: {}",
-                offset, 4
-            ))
-        })?;
+        view.read(offset as u64, &mut bytes)?;
         Ok(u32::from_le_bytes(bytes))
     }
 

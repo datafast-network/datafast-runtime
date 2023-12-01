@@ -24,7 +24,6 @@ use wasmer::TypedFunction;
 
 use crate::database::DatabaseAgent;
 use crate::rpc_client::RpcAgent;
-use crate::warn;
 pub use asc::AscHost;
 
 #[derive(Clone)]
@@ -38,7 +37,6 @@ pub struct Env {
     pub db_agent: DatabaseAgent,
     pub datasource_name: String,
     pub rpc_agent: RpcAgent,
-    pub memory_threshold: u64,
 }
 
 pub fn create_wasm_host(
@@ -47,7 +45,6 @@ pub fn create_wasm_host(
     db_agent: DatabaseAgent,
     datasource_name: String,
     rpc_agent: RpcAgent,
-    memory_threshold: u64,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -64,7 +61,6 @@ pub fn create_wasm_host(
             db_agent: db_agent.clone(),
             datasource_name,
             rpc_agent: rpc_agent.clone(),
-            memory_threshold,
         },
     );
 
@@ -181,13 +177,6 @@ pub fn create_wasm_host(
             .ok(),
     };
 
-    if data_mut.memory_allocate.is_none() {
-        warn!(
-            wasm_host,
-            "MemoryAllocate function is not available in host-exports"
-        );
-    }
-
     data_mut.id_of_type = match api_version.clone() {
         version if version <= Version::new(0, 0, 4) => None,
         _ => instance
@@ -196,22 +185,13 @@ pub fn create_wasm_host(
             .ok(),
     };
 
-    if data_mut.id_of_type.is_none() {
-        warn!(
-            wasm_host,
-            "id_of_type function is not available in host-exports"
-        );
-    }
-
     match data_mut.api_version.clone() {
         version if version <= Version::new(0, 0, 4) => {}
         _ => {
-            warn!(wasm_host, "Try calling '_start' if possible");
             instance
                 .exports
                 .get_function("_start")
                 .map(|f| {
-                    warn!(wasm_host, "Try calling ...");
                     f.call(&mut store_mut, &[]).unwrap();
                 })
                 .ok();
@@ -235,7 +215,6 @@ pub fn create_wasm_host(
         arena_free_size,
         db_agent,
         rpc_agent,
-        memory_threshold,
     };
 
     Ok(host)
@@ -269,7 +248,6 @@ pub mod test {
             db_agent,
             "Test".to_string(),
             rpc_agent,
-            10_000_000,
         )
         .unwrap()
     }

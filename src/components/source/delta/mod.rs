@@ -1,5 +1,6 @@
 mod ethereum;
 
+use crate::components::Valve;
 use crate::config::DeltaConfig;
 use crate::errors::SourceError;
 use crate::info;
@@ -11,6 +12,7 @@ use deltalake::datafusion::prelude::SessionContext;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub trait DeltaBlockTrait:
     TryFrom<RecordBatch, Error = SourceError> + Into<Vec<SerializedDataMessage>>
@@ -76,23 +78,39 @@ impl DeltaClient {
     pub async fn get_block_stream<R: DeltaBlockTrait>(
         &self,
         sender: AsyncSender<Vec<SerializedDataMessage>>,
+        valve: Valve,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
-        info!(DeltaClient, "Start collecting data");
+        info!(DeltaClient, "source start collecting data");
 
         loop {
+            while !valve.should_continue() {
+                let sleep_tine = valve.get_wait();
+                info!(DeltaClient, "source sleeping"; sleep_time => sleep_tine);
+                tokio::time::sleep(Duration::from_secs(sleep_tine)).await;
+            }
+
             let mut collect_msg = vec![];
 
             for batch in self.query_blocks(start_block).await? {
                 let time = std::time::Instant::now();
                 let blocks = R::try_from(batch)?;
                 let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
+                let first_block_number = messages.first().map(|b| b.get_block_ptr().number);
+
+                if let Some(number) = first_block_number {
+                    if number > valve.get_downloaded() {
+                        valve.set_downloaded(number);
+                    }
+                }
+
                 info!(
                     DeltaClient,
                     "batches received & serialized";
                     serialize_time => format!("{:?}", time.elapsed()),
                     number_of_blocks => messages.len()
                 );
+
                 collect_msg.extend(messages);
             }
 
@@ -101,7 +119,6 @@ impl DeltaClient {
                 return Ok(());
             }
 
-            collect_msg.sort_by_key(|m| m.get_block_ptr().number);
             sender.send(collect_msg).await?;
             start_block += self.query_step;
         }
@@ -111,13 +128,14 @@ impl DeltaClient {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::config::ValveConfig;
 
     #[tokio::test]
     async fn test_delta() {
         env_logger::try_init().unwrap_or_default();
 
         let cfg = DeltaConfig {
-            table_path: "s3://ethereum/".to_owned(),
+            table_path: "s3://ethereum/blocks_01/".to_owned(),
             query_step: 10000,
             version: None,
         };
@@ -126,7 +144,7 @@ mod test {
         let (sender, recv) = kanal::bounded_async(1);
 
         tokio::select! {
-            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender) => {
+            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default())) => {
                 log::info!(" DONE SENDER");
             },
             _ = async move {
@@ -134,6 +152,7 @@ mod test {
                     let first = b.first().map(|f| f.get_block_ptr()).unwrap();
                     let last = b.last().map(|f| f.get_block_ptr()).unwrap();
                     log::warn!("Received: {:?} msgs, first_block={}, last_block={}", b.len(), first, last);
+                    recv.close();
                 }
             } => {
                 log::info!(" DONE RECV");

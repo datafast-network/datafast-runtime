@@ -24,6 +24,13 @@ pub enum DatabaseConfig {
     Scylla { uri: String, keyspace: String },
 }
 
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub struct ValveConfig {
+    pub allowed_lag: u64,
+    pub wait_time: u64,
+}
+
 #[derive(Deserialize, Clone, Debug)]
 pub struct Config {
     pub chain: Chain,
@@ -35,7 +42,7 @@ pub struct Config {
     pub reorg_threshold: u16,
     pub metric_port: Option<u16>,
     pub rpc_endpoint: String,
-    pub wasm_memory_threshold: Option<u64>,
+    pub valve: ValveConfig,
 }
 
 impl Config {

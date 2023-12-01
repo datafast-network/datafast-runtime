@@ -17,7 +17,6 @@ use database::DatabaseAgent;
 use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
-use runtime::wasm_host::create_wasm_host;
 use std::fmt::Debug;
 
 fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
@@ -27,51 +26,58 @@ fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::try_init().unwrap_or_default();
-
     // TODO: impl CLI
     let config = Config::load();
     let registry = default_registry();
-
     // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
+    let valve = Valve::new(&config.valve);
     let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
     let mut progress_ctrl =
         ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
-
     let block_source = BlockSource::new(&config, progress_ctrl.clone()).await?;
-
     let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
-
     let mut subgraph = Subgraph::new_empty(&config, registry);
-
-    for datasource in manifest.datasources() {
-        let api_version = datasource.mapping.apiVersion.to_owned();
-        let wasm_bytes = manifest.load_wasm(&datasource.name).await?;
-        let wasm_host = create_wasm_host(
-            api_version,
-            wasm_bytes,
-            db.clone(),
-            datasource.name.clone(),
-            rpc.clone(),
-            config.wasm_memory_threshold.unwrap_or(104_857_600), // default 100Mb
-        )?;
-        subgraph.create_source(wasm_host, datasource)?;
-    }
-
-    let (sender2, recv2) = kanal::bounded_async(1);
+    let source_valve = valve.clone();
+    let (sender, recv) = kanal::bounded_async(1);
 
     tokio::select!(
-        r = block_source.run_async(sender2) => handle_task_result(r, "block-source"),
+        r = block_source.run_async(sender, source_valve) => handle_task_result(r, "block-source"),
         r = async move {
 
-            while let Ok(messages) = recv2.recv().await {
-                info!(main, "message batch recevied and about to be processed");
-                for msg in messages {
-                    let ok_msg = progress_ctrl.run_sync(msg).await?;
-                    let ok_msg = filter.run_sync(ok_msg).await?;
-                    subgraph.run_sync(ok_msg, &db, &rpc).await?;
+            while let Ok(blocks) = recv.recv().await {
+                info!(
+                    MainFlow,
+                    "block batch recevied and about to be processed";
+                    total_block => blocks.len()
+                );
+
+                let time = std::time::Instant::now();
+                let blocks = filter.filter_multi(blocks)?;
+                let count_blocks = blocks.len();
+
+                info!(
+                    MainFlow,
+                    "filter processed OK";
+                    exec_time => format!("{:?}", time.elapsed()),
+                    count_blocks => count_blocks
+                );
+
+                let time = std::time::Instant::now();
+
+                for block in blocks {
+                    subgraph.create_sources(&manifest, &db, &rpc).await?;
+                    progress_ctrl.check_block(block.get_block_ptr()).await?;
+                    subgraph.process(block, &db, &rpc, &valve).await?;
                 }
+
+                info!(
+                    MainFlow,
+                    "block batch processed OK";
+                    exec_time => format!("{:?}", time.elapsed()),
+                    count => count_blocks
+                );
             };
 
             warn!(MainFlow, "No more messages returned from block-stream");

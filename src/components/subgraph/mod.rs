@@ -1,8 +1,9 @@
 mod datasource_wasm_instance;
 mod metrics;
 
+use super::ManifestLoader;
+use super::Valve;
 use crate::chain::ethereum::block::EthereumBlockData;
-use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::config::Config;
 use crate::database::DatabaseAgent;
@@ -12,11 +13,12 @@ use crate::info;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::rpc_client::RpcAgent;
-use crate::runtime::wasm_host::AscHost;
+use crate::runtime::wasm_host::create_wasm_host;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
+use std::time::Instant;
 
 pub struct Subgraph {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
@@ -36,13 +38,30 @@ impl Subgraph {
         }
     }
 
-    pub fn create_source(
+    pub async fn create_sources(
         &mut self,
-        host: AscHost,
-        datasource: Datasource,
+        manifest: &ManifestLoader,
+        db: &DatabaseAgent,
+        rpc: &RpcAgent,
     ) -> Result<(), SubgraphError> {
-        let source = DatasourceWasmInstance::try_from((host, datasource))?;
-        self.sources.insert(source.id.clone(), source);
+        self.sources = HashMap::new();
+        for datasource in manifest.datasources() {
+            let api_version = datasource.mapping.apiVersion.to_owned();
+            let wasm_bytes = manifest
+                .load_wasm(&datasource.name)
+                .await
+                .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
+            let wasm_host = create_wasm_host(
+                api_version,
+                wasm_bytes,
+                db.clone(),
+                datasource.name.clone(),
+                rpc.clone(),
+            )
+            .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
+            let source = DatasourceWasmInstance::try_from((wasm_host, datasource))?;
+            self.sources.insert(source.id.clone(), source);
+        }
         Ok(())
     }
 
@@ -90,11 +109,12 @@ impl Subgraph {
         }
     }
 
-    pub async fn run_sync(
+    pub async fn process(
         &mut self,
         msg: FilteredDataMessage,
         db_agent: &DatabaseAgent,
         rpc_agent: &RpcAgent,
+        valve: &Valve,
     ) -> Result<(), SubgraphError> {
         let block_ptr = msg.get_block_ptr();
 
@@ -116,18 +136,27 @@ impl Subgraph {
                 block_number => block_ptr.number,
                 block_hash => block_ptr.hash
             );
+            valve.set_finished(block_ptr.number);
         }
 
-        if block_ptr.number % 100 == 0 {
+        if block_ptr.number % 1000 == 0 {
+            info!(Subgraph, "Commiting data to DB"; block_number => block_ptr.number);
+            let time = Instant::now();
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
-                error!(Subgraph, "Failed to commit db";
-                       error => e.to_string(),
-                       block_number => block_ptr.number,
-                       block_hash => block_ptr.hash
+                error!(
+                    Subgraph, "Failed to commit data to db";
+                    error => e.to_string(),
+                    block_number => block_ptr.number,
+                    block_hash => block_ptr.hash
                 );
                 SubgraphError::MigrateDbError
             })?;
 
+            info!(Subgraph, "Db commit OK"; execution_time => format!("{:?}", time.elapsed()));
+        }
+
+        if block_ptr.number % 10000 == 0 {
+            info!(Subgraph, "Flush db cache"; block_number => block_ptr.number);
             db_agent
                 .clear_in_memory()
                 .await
