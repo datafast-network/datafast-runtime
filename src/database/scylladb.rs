@@ -427,7 +427,8 @@ impl ExternDBTrait for Scylladb {
         values: Vec<(String, RawEntity)>,
     ) -> Result<(), DatabaseError> {
         let mut inserts = vec![];
-        let chunks = values.chunks(100);
+        let chunk_size = 100;
+        let chunks = values.chunks(chunk_size);
 
         for chunk in chunks {
             let mut batch_queries = Batch::default();
@@ -465,9 +466,10 @@ impl ExternDBTrait for Scylladb {
         info!(
             Scylladb,
             "Commit result";
-            result => format!("{:?} commits", result.len()),
-            ok => format!("{:?} commits", result.iter().filter(|r| r.is_ok()).collect::<Vec<_>>().len()),
-            failure => format!("{:?}", result.iter().filter(|r| r.is_err()).collect::<Vec<_>>())
+            statements => format!("{:?} statements", result.len() * chunk_size),
+            batch => format!("{:?} batches", result.len()),
+            ok_batch => format!("{:?}", result.iter().filter(|r| r.is_ok()).collect::<Vec<_>>().len()),
+            fail_batch => format!("{:?}", result.iter().filter(|r| r.is_err()).collect::<Vec<_>>())
         );
 
         Ok(())
