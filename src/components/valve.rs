@@ -37,6 +37,11 @@ impl Valve {
             return true;
         }
 
+        if this.downloaded < this.finished {
+            // WARN: it is complicated!
+            return true;
+        }
+
         let result = this.downloaded - this.finished < this.cfg.allowed_lag;
 
         info!(
