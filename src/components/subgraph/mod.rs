@@ -4,6 +4,7 @@ mod metrics;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
+use crate::components::ManifestLoader;
 use crate::config::Config;
 use crate::database::DatabaseAgent;
 use crate::error;
@@ -12,10 +13,12 @@ use crate::info;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::rpc_client::RpcAgent;
-use crate::runtime::wasm_host::AscHost;
+use crate::runtime::wasm_host::create_wasm_host;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
+use rayon::prelude::IntoParallelRefIterator;
+use rayon::prelude::ParallelIterator;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -23,28 +26,36 @@ pub struct Subgraph {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
     pub id: String,
     pub name: String,
-    sources: HashMap<String, DatasourceWasmInstance>,
     metrics: SubgraphMetrics,
+    db: DatabaseAgent,
+    rpc: RpcAgent,
+    wasm_files: HashMap<String, Vec<u8>>,
+    sources: Vec<Datasource>,
 }
 
 impl Subgraph {
-    pub fn new_empty(config: &Config, registry: &Registry) -> Self {
+    pub async fn new_empty(
+        config: &Config,
+        registry: &Registry,
+        db: DatabaseAgent,
+        rpc: RpcAgent,
+        manifest: ManifestLoader,
+    ) -> Self {
+        let sources = manifest.datasources();
+        let mut wasm_files = HashMap::new();
+        for source in sources.iter() {
+            let wasm_file = manifest.load_wasm(&source.name).await.unwrap();
+            wasm_files.insert(source.name.clone(), wasm_file);
+        }
         Self {
-            sources: HashMap::new(),
             name: config.subgraph_name.clone(),
             id: config.get_subgraph_id(),
             metrics: SubgraphMetrics::new(registry),
+            db,
+            rpc,
+            wasm_files,
+            sources,
         }
-    }
-
-    pub fn create_source(
-        &mut self,
-        host: AscHost,
-        datasource: Datasource,
-    ) -> Result<(), SubgraphError> {
-        let source = DatasourceWasmInstance::try_from((host, datasource))?;
-        self.sources.insert(source.id.clone(), source);
-        Ok(())
     }
 
     fn handle_ethereum_filtered_data(
@@ -52,31 +63,50 @@ impl Subgraph {
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
     ) -> Result<(), SubgraphError> {
+        let mut hosts = self
+            .sources
+            .par_iter()
+            .map(|source| {
+                let wasm_file = self.wasm_files.get(&source.name).unwrap().clone();
+                let version = source.mapping.apiVersion.clone();
+                let host = create_wasm_host(
+                    version,
+                    wasm_file,
+                    self.db.clone(),
+                    source.name.clone(),
+                    self.rpc.clone(),
+                    104_857_600,
+                )
+                .unwrap();
+                let source_instance =
+                    DatasourceWasmInstance::try_from((host, source.clone())).unwrap();
+                (source.name.clone(), source_instance)
+            })
+            .collect::<HashMap<String, DatasourceWasmInstance>>();
+
         let mut block_handlers = HashMap::new();
-        for (source_name, source_instance) in self.sources.iter_mut() {
+        for source in self.sources.iter() {
+            let source_instance = hosts.get_mut(&source.name).unwrap();
             let source_block_handlers = source_instance
                 .ethereum_handlers
                 .block
                 .keys()
                 .cloned()
                 .collect::<Vec<String>>();
-            block_handlers.insert(source_name.to_owned(), source_block_handlers);
+            block_handlers.insert(source.name.to_owned(), source_block_handlers);
         }
 
         for (source_name, ethereum_handlers) in block_handlers {
             // FIXME: this is not correct, block-handler may have filter itself,
             // thus not all datasource would handle the same block
-            let source_instance = self.sources.get_mut(&source_name).unwrap();
+            let source_instance = hosts.get_mut(&source_name).unwrap();
             for handler in ethereum_handlers {
                 source_instance.invoke(HandlerTypes::EthereumBlock, &handler, block.clone())?;
             }
         }
 
         for event in events {
-            let source_instance = self
-                .sources
-                .get_mut(&event.datasource)
-                .ok_or(SubgraphError::InvalidSourceID(event.datasource.to_owned()))?;
+            let source_instance = hosts.get_mut(&event.datasource).unwrap();
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
         }
 
@@ -120,7 +150,7 @@ impl Subgraph {
         }
 
         if block_ptr.number % 2000 == 0 {
-            info!(Subgraph, "Commiting data to DB"; block_number => block_ptr.number);
+            info!(Subgraph, "Committing data to DB"; block_number => block_ptr.number);
             let time = Instant::now();
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
                 error!(Subgraph, "Failed to commit db";

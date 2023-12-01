@@ -36,11 +36,6 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
             .lock()
             .expect("lock arena-free-size failed");
 
-        if *arena_start_ptr > env.memory_threshold as i32 {
-            *arena_start_ptr = 0;
-            *arena_free_size = 0;
-        }
-
         if size > *arena_free_size {
             // Allocate a new arena. Any free space left in the previous arena is left unused. This
             // causes at most half of memory to be wasted, which is acceptable.
@@ -181,11 +176,6 @@ impl AscHeap for AscHost {
 
         let require_length = bytes.len() as u64;
         let size = i32::try_from(bytes.len()).unwrap();
-
-        if *arena_start_ptr > self.memory_threshold as i32 {
-            *arena_start_ptr = 0;
-            *arena_free_size = 0;
-        }
 
         if size > *arena_free_size {
             let arena_size = size.max(MIN_ARENA_SIZE);

@@ -206,12 +206,12 @@ pub fn create_wasm_host(
     match data_mut.api_version.clone() {
         version if version <= Version::new(0, 0, 4) => {}
         _ => {
-            warn!(wasm_host, "Try calling '_start' if possible");
+            // warn!(wasm_host, "Try calling '_start' if possible");
             instance
                 .exports
                 .get_function("_start")
                 .map(|f| {
-                    warn!(wasm_host, "Try calling ...");
+                    // warn!(wasm_host, "Try calling ...");
                     f.call(&mut store_mut, &[]).unwrap();
                 })
                 .ok();

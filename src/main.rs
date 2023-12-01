@@ -17,7 +17,6 @@ use database::DatabaseAgent;
 use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
-use runtime::wasm_host::create_wasm_host;
 use std::fmt::Debug;
 use tokio::spawn;
 
@@ -44,21 +43,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
 
-    let mut subgraph = Subgraph::new_empty(&config, registry);
-
-    for datasource in manifest.datasources() {
-        let api_version = datasource.mapping.apiVersion.to_owned();
-        let wasm_bytes = manifest.load_wasm(&datasource.name).await?;
-        let wasm_host = create_wasm_host(
-            api_version,
-            wasm_bytes,
-            db.clone(),
-            datasource.name.clone(),
-            rpc.clone(),
-            config.wasm_memory_threshold.unwrap_or(104_857_600), // default 100Mb
-        )?;
-        subgraph.create_source(wasm_host, datasource)?;
-    }
+    let mut subgraph =
+        Subgraph::new_empty(&config, registry, db.clone(), rpc.clone(), manifest).await;
 
     let (sender2, recv2) = kanal::bounded_async(1);
 
