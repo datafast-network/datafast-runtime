@@ -7,6 +7,9 @@ use crate::errors::FilterError;
 use crate::messages::FilteredDataMessage;
 use crate::messages::SerializedDataMessage;
 use ethereum_filter::EthereumFilter;
+use rayon::prelude::IntoParallelIterator;
+use rayon::prelude::ParallelIterator;
+use rayon::slice::ParallelSliceMut;
 
 #[derive(Debug)]
 pub enum SubgraphFilter {
@@ -14,11 +17,16 @@ pub enum SubgraphFilter {
 }
 
 impl SubgraphFilter {
-    pub async fn run_sync(
+    pub fn filter_multi(
         &self,
-        msg: SerializedDataMessage,
-    ) -> Result<FilteredDataMessage, FilterError> {
-        let result = self.handle_serialize_message(msg)?;
+        messages: Vec<SerializedDataMessage>,
+    ) -> Result<Vec<FilteredDataMessage>, FilterError> {
+        let mut result = messages
+            .into_par_iter()
+            .map(|m| self.handle_serialize_message(m).unwrap())
+            .collect::<Vec<_>>();
+
+        result.par_sort_by_key(|m| m.get_block_ptr().number);
         Ok(result)
     }
 

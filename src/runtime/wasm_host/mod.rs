@@ -24,7 +24,6 @@ use wasmer::TypedFunction;
 
 use crate::database::DatabaseAgent;
 use crate::rpc_client::RpcAgent;
-use crate::warn;
 pub use asc::AscHost;
 
 #[derive(Clone)]
@@ -181,13 +180,6 @@ pub fn create_wasm_host(
             .ok(),
     };
 
-    if data_mut.memory_allocate.is_none() {
-        warn!(
-            wasm_host,
-            "MemoryAllocate function is not available in host-exports"
-        );
-    }
-
     data_mut.id_of_type = match api_version.clone() {
         version if version <= Version::new(0, 0, 4) => None,
         _ => instance
@@ -196,22 +188,13 @@ pub fn create_wasm_host(
             .ok(),
     };
 
-    if data_mut.id_of_type.is_none() {
-        warn!(
-            wasm_host,
-            "id_of_type function is not available in host-exports"
-        );
-    }
-
     match data_mut.api_version.clone() {
         version if version <= Version::new(0, 0, 4) => {}
         _ => {
-            warn!(wasm_host, "Try calling '_start' if possible");
             instance
                 .exports
                 .get_function("_start")
                 .map(|f| {
-                    warn!(wasm_host, "Try calling ...");
                     f.call(&mut store_mut, &[]).unwrap();
                 })
                 .ok();

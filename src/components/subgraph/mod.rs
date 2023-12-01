@@ -92,6 +92,10 @@ impl Subgraph {
         }
     }
 
+    pub fn clear_sources(&mut self) {
+        self.sources = HashMap::new();
+    }
+
     pub async fn run_sync(
         &mut self,
         msg: FilteredDataMessage,
@@ -103,14 +107,7 @@ impl Subgraph {
 
         rpc_agent.set_block_ptr(block_ptr.clone()).await;
 
-        self.metrics
-            .current_block_number
-            .set(block_ptr.number as i64);
-
-        let timer = self.metrics.block_process_duration.start_timer();
         self.handle_filtered_data(msg)?;
-        timer.stop_and_record();
-        self.metrics.block_process_counter.inc();
 
         if block_ptr.number % 1000 == 0 {
             info!(
@@ -122,7 +119,7 @@ impl Subgraph {
             valve.set_finished(block_ptr.number);
         }
 
-        if block_ptr.number % 2000 == 0 {
+        if block_ptr.number % 4000 == 0 {
             info!(Subgraph, "Commiting data to DB"; block_number => block_ptr.number);
             let time = Instant::now();
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
@@ -134,11 +131,15 @@ impl Subgraph {
                 SubgraphError::MigrateDbError
             })?;
 
+            info!(Subgraph, "Db commit OK"; execution_time => format!("{:?}", time.elapsed()));
+        }
+
+        if block_ptr.number % 20000 == 0 {
+            info!(Subgraph, "Flush db cache"; block_number => block_ptr.number);
             db_agent
                 .clear_in_memory()
                 .await
                 .map_err(|_| SubgraphError::MigrateDbError)?;
-            info!(Subgraph, "Db commit OK"; execution_time => format!("{:?}", time.elapsed()));
         }
 
         Ok(())

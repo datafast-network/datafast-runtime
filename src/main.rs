@@ -71,11 +71,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             while let Ok(messages) = recv2.recv().await {
                 info!(main, "message batch recevied and about to be processed");
+                let time = std::time::Instant::now();
+                let messages = filter.filter_multi(messages)?;
+                let count_msg = messages.len();
+                info!(main, "filter done"; exec_time => format!("{:?}", time.elapsed()), count => count_msg);
+
+                let time = std::time::Instant::now();
                 for msg in messages {
                     progress_ctrl.run_sync(msg.get_block_ptr()).await?;
-                    let ok_msg = filter.run_sync(msg).await?;
-                    subgraph.run_sync(ok_msg, &db, &rpc, &valve).await?;
+                    subgraph.run_sync(msg, &db, &rpc, &valve).await?;
+                    subgraph.clear_sources();
+
+                    for datasource in manifest.datasources() {
+                        let api_version = datasource.mapping.apiVersion.to_owned();
+                        let wasm_bytes = manifest.load_wasm(&datasource.name).await?;
+                        let wasm_host = create_wasm_host(
+                            api_version,
+                            wasm_bytes,
+                            db.clone(),
+                            datasource.name.clone(),
+                            rpc.clone(),
+                            config.wasm_memory_threshold.unwrap_or(104_857_600), // default 100Mb
+                        )?;
+                        subgraph.create_source(wasm_host, datasource)?;
+                    }
                 }
+                info!(
+                    main,
+                    "process block batch done";
+                    exec_time => format!("{:?}", time.elapsed()),
+                    count => count_msg
+                );
             };
 
             warn!(MainFlow, "No more messages returned from block-stream");
