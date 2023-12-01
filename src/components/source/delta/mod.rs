@@ -81,12 +81,13 @@ impl DeltaClient {
         valve: Valve,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
-        info!(DeltaClient, "Start collecting data");
+        info!(DeltaClient, "source start collecting data");
 
         loop {
             while !valve.should_continue() {
-                info!(DeltaClient, "Waiting...");
-                tokio::time::sleep(Duration::from_secs(valve.get_wait())).await;
+                let sleep_tine = valve.get_wait();
+                info!(DeltaClient, "source sleeping"; sleep_time => sleep_tine);
+                tokio::time::sleep(Duration::from_secs(sleep_tine)).await;
             }
 
             let mut collect_msg = vec![];
@@ -109,6 +110,7 @@ impl DeltaClient {
                     serialize_time => format!("{:?}", time.elapsed()),
                     number_of_blocks => messages.len()
                 );
+
                 collect_msg.extend(messages);
             }
 
