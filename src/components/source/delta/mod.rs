@@ -105,9 +105,9 @@ impl DeltaClient {
                 return Ok(());
             }
 
-            collect_msg.sort_by_key(|m| m.get_block_ptr().number);
             sender.send(collect_msg).await?;
             start_block += self.query_step;
+            tokio::time::sleep(std::time::Duration::from_secs(20 * 60)).await;
         }
     }
 }

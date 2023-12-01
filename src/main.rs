@@ -11,11 +11,13 @@ mod rpc_client;
 mod runtime;
 mod schema_lookup;
 
+use crate::messages::FilteredDataMessage;
 use components::*;
 use config::Config;
 use database::DatabaseAgent;
 use metrics::default_registry;
 use metrics::run_metric_server;
+use rayon::prelude::*;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
 use tokio::spawn;
@@ -53,12 +55,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         r = async move {
 
             while let Ok(messages) = recv2.recv().await {
-                info!(main, "message batch recevied and about to be processed");
-                for msg in messages {
+                let blocks_len = messages.len();
+                info!(
+                    main,
+                    "message batch received and about to be processed";
+                    blocks => blocks_len
+                );
+                let start = std::time::Instant::now();
+                let mut filtered_msg = messages.into_par_iter()
+                .map(|msg| filter.run_sync(&msg).unwrap())
+                .collect::<Vec<FilteredDataMessage>>();
+                filtered_msg.par_sort_unstable_by_key(|msg| msg.get_block_ptr().number);
+
+                for msg in filtered_msg {
                     progress_ctrl.run_sync(msg.get_block_ptr()).await?;
-                    let ok_msg = filter.run_sync(msg).await?;
-                    subgraph.run_sync(ok_msg, &db, &rpc).await?;
+                    subgraph.run_sync(msg, &db, &rpc).await?;
                 }
+
+                info!(main,
+                    "processing took";
+                    time => format!("{:?}", start.elapsed()),
+                    blocks => blocks_len
+                );
             };
 
             warn!(MainFlow, "No more messages returned from block-stream");

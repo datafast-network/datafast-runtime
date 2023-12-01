@@ -63,6 +63,9 @@ impl Subgraph {
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
     ) -> Result<(), SubgraphError> {
+        if events.is_empty() {
+            return Ok(());
+        }
         let mut hosts = self
             .sources
             .par_iter()
@@ -104,12 +107,10 @@ impl Subgraph {
                 source_instance.invoke(HandlerTypes::EthereumBlock, &handler, block.clone())?;
             }
         }
-
         for event in events {
             let source_instance = hosts.get_mut(&event.datasource).unwrap();
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
         }
-
         Ok(())
     }
 
@@ -160,12 +161,14 @@ impl Subgraph {
                 );
                 SubgraphError::MigrateDbError
             })?;
-
+            info!(Subgraph, "Db commit OK"; execution_time => format!("{:?}", time.elapsed()));
+        }
+        if block_ptr.number % 10000 == 0 {
+            info!(Subgraph, "Clearing in-memory db"; block_number => block_ptr.number);
             db_agent
                 .clear_in_memory()
                 .await
                 .map_err(|_| SubgraphError::MigrateDbError)?;
-            info!(Subgraph, "Db commit OK"; execution_time => format!("{:?}", time.elapsed()));
         }
 
         Ok(())

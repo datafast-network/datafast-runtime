@@ -14,10 +14,7 @@ pub enum SubgraphFilter {
 }
 
 impl SubgraphFilter {
-    pub async fn run_sync(
-        &self,
-        msg: SerializedDataMessage,
-    ) -> Result<FilteredDataMessage, FilterError> {
+    pub fn run_sync(&self, msg: &SerializedDataMessage) -> Result<FilteredDataMessage, FilterError> {
         let result = self.handle_serialize_message(msg)?;
         Ok(result)
     }
@@ -33,14 +30,14 @@ impl SubgraphFilter {
 pub trait SubgraphFilterTrait: Sized {
     fn handle_serialize_message(
         &self,
-        data: SerializedDataMessage,
+        data: &SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError>;
 }
 
 impl SubgraphFilterTrait for SubgraphFilter {
     fn handle_serialize_message(
         &self,
-        data: SerializedDataMessage,
+        data: &SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match self {
             SubgraphFilter::Ethereum(filter) => filter.handle_serialize_message(data),

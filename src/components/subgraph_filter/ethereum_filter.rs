@@ -80,7 +80,7 @@ impl EthereumFilter {
                 error!(
                     EthereumFilter,
                     "parse event error";
-                    error => e,
+                    error => format!("{:?}", e),
                     block_number => format!("{:?}", block_number)
                 );
                 FilterError::ParseError(e.to_string())
@@ -140,7 +140,7 @@ impl EthereumFilter {
 impl SubgraphFilterTrait for EthereumFilter {
     fn handle_serialize_message(
         &self,
-        data: SerializedDataMessage,
+        data: &SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match data {
             SerializedDataMessage::Ethereum {
@@ -148,8 +148,12 @@ impl SubgraphFilterTrait for EthereumFilter {
                 logs,
                 transactions,
             } => {
-                let events = self.filter_events(block.clone(), transactions, logs)?;
-                Ok(FilteredDataMessage::Ethereum { events, block })
+                let events =
+                    self.filter_events(block.clone(), transactions.clone(), logs.clone())?;
+                Ok(FilteredDataMessage::Ethereum {
+                    events,
+                    block: block.clone(),
+                })
             }
         }
     }
