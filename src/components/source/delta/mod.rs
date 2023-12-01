@@ -1,5 +1,6 @@
 mod ethereum;
 
+use crate::components::Valve;
 use crate::config::DeltaConfig;
 use crate::errors::SourceError;
 use crate::info;
@@ -11,6 +12,7 @@ use deltalake::datafusion::prelude::SessionContext;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub trait DeltaBlockTrait:
     TryFrom<RecordBatch, Error = SourceError> + Into<Vec<SerializedDataMessage>>
@@ -76,11 +78,17 @@ impl DeltaClient {
     pub async fn get_block_stream<R: DeltaBlockTrait>(
         &self,
         sender: AsyncSender<Vec<SerializedDataMessage>>,
+        valve: Valve,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
         info!(DeltaClient, "Start collecting data");
 
         loop {
+            while !valve.should_continue() {
+                info!(DeltaClient, "Waiting...");
+                tokio::time::sleep(Duration::from_secs(valve.get_wait())).await;
+            }
+
             let mut collect_msg = vec![];
 
             for batch in self.query_blocks(start_block).await? {
@@ -106,6 +114,12 @@ impl DeltaClient {
             }
 
             collect_msg.sort_by_key(|m| m.get_block_ptr().number);
+            let last_block_number = collect_msg.last().map(|b| b.get_block_ptr().number);
+
+            if let Some(block_number) = last_block_number {
+                valve.set_downloaded(block_number);
+            }
+
             sender.send(collect_msg).await?;
             start_block += self.query_step;
         }
@@ -115,6 +129,7 @@ impl DeltaClient {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::config::ValveConfig;
 
     #[tokio::test]
     async fn test_delta() {
@@ -130,7 +145,7 @@ mod test {
         let (sender, recv) = kanal::bounded_async(1);
 
         tokio::select! {
-            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender) => {
+            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default())) => {
                 log::info!(" DONE SENDER");
             },
             _ = async move {

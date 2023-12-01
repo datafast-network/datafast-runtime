@@ -35,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
+    let valve = Valve::new(&config.valve);
     let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
     let mut progress_ctrl =
         ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
@@ -62,8 +63,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (sender2, recv2) = kanal::bounded_async(1);
 
+    let source_valve = valve.clone();
+
     tokio::select!(
-        r = spawn(block_source.run_async(sender2)) => handle_task_result(r.unwrap(), "block-source"),
+        r = spawn(block_source.run_async(sender2, source_valve)) => handle_task_result(r.unwrap(), "block-source"),
         r = async move {
 
             while let Ok(messages) = recv2.recv().await {
@@ -71,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for msg in messages {
                     progress_ctrl.run_sync(msg.get_block_ptr()).await?;
                     let ok_msg = filter.run_sync(msg).await?;
-                    subgraph.run_sync(ok_msg, &db, &rpc).await?;
+                    subgraph.run_sync(ok_msg, &db, &rpc, &valve).await?;
                 }
             };
 

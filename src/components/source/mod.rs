@@ -1,5 +1,6 @@
 mod delta;
 
+use super::Valve;
 use crate::common::Chain;
 use crate::components::ProgressCtrl;
 use crate::config::Config;
@@ -36,11 +37,14 @@ impl BlockSource {
     pub async fn run_async(
         self,
         sender: AsyncSender<Vec<SerializedDataMessage>>,
+        valve: Valve,
     ) -> Result<(), SourceError> {
         match self.source {
             Source::Delta(source) => {
                 let query_blocks = match self.chain {
-                    Chain::Ethereum => source.get_block_stream::<DeltaEthereumBlocks>(sender),
+                    Chain::Ethereum => {
+                        source.get_block_stream::<DeltaEthereumBlocks>(sender, valve)
+                    }
                 };
                 query_blocks.await?
             }

@@ -1,6 +1,7 @@
 mod datasource_wasm_instance;
 mod metrics;
 
+use super::Valve;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::Datasource;
 use crate::common::HandlerTypes;
@@ -96,6 +97,7 @@ impl Subgraph {
         msg: FilteredDataMessage,
         db_agent: &DatabaseAgent,
         rpc_agent: &RpcAgent,
+        valve: &Valve,
     ) -> Result<(), SubgraphError> {
         let block_ptr = msg.get_block_ptr();
 
@@ -117,6 +119,7 @@ impl Subgraph {
                 block_number => block_ptr.number,
                 block_hash => block_ptr.hash
             );
+            valve.set_finished(block_ptr.number);
         }
 
         if block_ptr.number % 2000 == 0 {
