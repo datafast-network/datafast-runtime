@@ -46,7 +46,7 @@ impl LocalFileLoader {
 #[async_trait]
 impl LoaderTrait for LocalFileLoader {
     async fn load_schema(&mut self) -> Result<(), ManifestLoaderError> {
-        let schema_path = format!("{}/build/schema.graphql", self.subgraph_dir);
+        let schema_path = format!("{}/schema.graphql", self.subgraph_dir);
         let schema =
             read_to_string(schema_path).map_err(|_| ManifestLoaderError::SchemaParsingError)?;
         self.schema = SchemaLookup::new_from_graphql_schema(&schema);
@@ -54,7 +54,7 @@ impl LoaderTrait for LocalFileLoader {
     }
 
     async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError> {
-        let yaml_path = format!("{}/build/subgraph.yaml", self.subgraph_dir);
+        let yaml_path = format!("{}/subgraph.yaml", self.subgraph_dir);
         let f = fs::File::open(&yaml_path)
             .map_err(|_| ManifestLoaderError::InvalidSubgraphYAML(yaml_path.to_owned()))?;
         let reader = BufReader::new(f);
@@ -77,7 +77,7 @@ impl LoaderTrait for LocalFileLoader {
                 .find(|abi| abi.name == abi_name)
                 .map_or(
                     Err(ManifestLoaderError::InvalidABI(abi_name.to_owned())),
-                    |abi| Ok(format!("{}/build/{}", self.subgraph_dir, abi.file)),
+                    |abi| Ok(format!("{}/{}", self.subgraph_dir, abi.file)),
                 )?;
             let abi_file = fs::File::open(&abi_path)
                 .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
@@ -106,7 +106,8 @@ impl LoaderTrait for LocalFileLoader {
         }
 
         let file_path = datasource.unwrap().mapping.file.clone();
-        let wasm_file = format!("{}/build/{file_path}", self.subgraph_dir);
+        let wasm_file = format!("{}/{file_path}", self.subgraph_dir);
+
         let wasm_bytes =
             fs::read(&wasm_file).map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
 
@@ -141,7 +142,7 @@ mod test {
     #[tokio::test]
     async fn test_local_file_loader() {
         env_logger::try_init().unwrap_or_default();
-        let loader = LocalFileLoader::new("../subgraph-testing/packages/v0_0_5")
+        let mut loader = LocalFileLoader::new("../subgraph-testing/packages/v0_0_5/build")
             .await
             .unwrap();
 
@@ -151,5 +152,8 @@ mod test {
         loader.load_wasm("TestTypes").await.unwrap();
         loader.load_wasm("TestStore").await.unwrap();
         loader.load_wasm("TestDataSource").await.unwrap();
+
+        loader.load_abis().await.unwrap();
+        loader.load_yaml().await.unwrap();
     }
 }
