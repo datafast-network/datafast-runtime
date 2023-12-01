@@ -102,6 +102,8 @@ pub enum SubgraphError {
     InvalidHandlerName(String),
     #[error("Migrate memory to db error")]
     MigrateDbError,
+    #[error("Create source failed: `{0}`")]
+    CreateSourceFail(String),
 }
 
 #[derive(Debug, Error)]

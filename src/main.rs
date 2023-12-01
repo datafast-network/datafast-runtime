@@ -17,7 +17,6 @@ use database::DatabaseAgent;
 use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
-use runtime::wasm_host::create_wasm_host;
 use std::fmt::Debug;
 use tokio::spawn;
 
@@ -65,20 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let time = std::time::Instant::now();
 
                 for msg in messages {
-                    subgraph.clear_sources();
-                    for datasource in manifest.datasources() {
-                        let api_version = datasource.mapping.apiVersion.to_owned();
-                        let wasm_bytes = manifest.load_wasm(&datasource.name).await?;
-                        let wasm_host = create_wasm_host(
-                            api_version,
-                            wasm_bytes,
-                            db.clone(),
-                            datasource.name.clone(),
-                            rpc.clone(),
-                        )?;
-                        subgraph.create_source(wasm_host, datasource)?;
-                    }
-
+                    subgraph.create_sources(&manifest, &db, &rpc).await?;
                     progress_ctrl.run_sync(msg.get_block_ptr()).await?;
                     subgraph.run_sync(msg, &db, &rpc, &valve).await?;
                 }
