@@ -42,7 +42,7 @@ impl Valve {
             return true;
         }
 
-        let result = this.downloaded - this.finished < this.cfg.allowed_lag;
+        let result = this.downloaded - this.finished <= this.cfg.allowed_lag;
 
         info!(
             Valve,
