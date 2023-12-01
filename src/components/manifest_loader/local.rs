@@ -107,6 +107,7 @@ impl LoaderTrait for LocalFileLoader {
 
         let file_path = datasource.unwrap().mapping.file.clone();
         let wasm_file = format!("{}/{file_path}", self.subgraph_dir);
+
         let wasm_bytes =
             fs::read(&wasm_file).map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
 
