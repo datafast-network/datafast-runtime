@@ -113,13 +113,6 @@ impl DeltaClient {
                 return Ok(());
             }
 
-            // collect_msg.sort_by_key(|m| m.get_block_ptr().number);
-            // let last_block_number = collect_msg.last().map(|b| b.get_block_ptr().number);
-
-            // if let Some(block_number) = last_block_number {
-            //     valve.set_downloaded(block_number);
-            // }
-
             sender.send(collect_msg).await?;
             start_block += self.query_step;
         }

@@ -26,7 +26,7 @@ impl SubgraphFilter {
             .map(|m| self.handle_serialize_message(m).unwrap())
             .collect::<Vec<_>>();
 
-        result.par_sort_by_key(|m| m.get_block_ptr().number);
+        result.par_sort_unstable_by_key(|m| m.get_block_ptr().number);
         Ok(result)
     }
 
