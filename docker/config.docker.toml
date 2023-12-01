@@ -1,0 +1,23 @@
+chain = "ethereum"
+subgraph_name = "ERC20"
+subgraph_id = "xxxxxx_ERC20"
+subgraph_dir = "fs://app/subgraph"
+rpc_endpoint = "https://eth.merkle.io"
+reorg_threshold = 500
+
+[transform.ethereum]
+block = "transformEthereumBlock"
+logs = "transformEthereumLogs"
+transactions = "transformEthereumTxs"
+
+[database.scylla]
+uri = "scyladb:9042"
+keyspace = "erc20_subgraph"
+
+[source.delta]
+table_path ="s3://ethereum"
+query_step = 10000
+
+[valve]
+allowed_lag=5000
+wait_time=120

@@ -1,0 +1,31 @@
+version: "3.7"
+
+networks:
+  subgraph_runtime:
+    driver: bridge
+
+services:
+  runtime:
+    image: runtime:latest
+    env_file: .env.docker
+    volumes:
+      - ./config.docker.toml:/app/config.toml
+      - /Users/quannguyen/workspace/myjob/erc20-subgraph-master:/app/subgraph
+    networks:
+      - subgraph_runtime
+    depends_on:
+      scyladb:
+        condition: service_healthy
+  scyladb:
+    image: scylladb/scylla:latest
+    container_name: scylladb
+    restart: always
+    ports:
+      - "9042:9042"
+    networks:
+      - subgraph_runtime
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces;"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
