@@ -98,3 +98,37 @@ impl ProgressCtrl {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use log::info;
+    use prometheus::default_registry;
+    use rstest::rstest;
+
+    #[rstest]
+    fn test_progress_ctrl(#[values(None, Some(0), Some(1), Some(2))] start_block: Option<u64>) {
+        env_logger::try_init().unwrap_or_default();
+
+        let registry = default_registry();
+        let db = DatabaseAgent::mock(registry);
+        let sources = vec![Source {
+            address: None,
+            abi: "".to_owned(),
+            startBlock: start_block,
+        }];
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        rt.block_on(async move {
+            let pc = ProgressCtrl::new(db, sources, 100).await.unwrap();
+            assert!(pc.recent_block_ptrs.is_empty());
+            let actual_start_block = pc.get_min_start_block();
+
+            match start_block {
+                None => assert_eq!(actual_start_block, 0),
+                Some(block_number) => assert_eq!(actual_start_block, block_number),
+            }
+        });
+    }
+}

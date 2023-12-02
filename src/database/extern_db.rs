@@ -7,8 +7,10 @@ use crate::messages::RawEntity;
 use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
 
+#[derive(Default)]
 pub enum ExternDB {
     Scylla(Scylladb),
+    #[default]
     None,
 }
 

@@ -31,6 +31,16 @@ pub struct Database {
 }
 
 impl Database {
+    #[cfg(test)]
+    pub fn mock(registry: &Registry) -> Self {
+        Self {
+            mem: MemoryDb::default(),
+            db: ExternDB::default(),
+            metrics: DatabaseMetrics::new(registry),
+            schema: SchemaLookup::default(),
+        }
+    }
+
     pub async fn new(
         config: &DatabaseConfig,
         schema: SchemaLookup,
@@ -214,6 +224,13 @@ impl From<Database> for DatabaseAgent {
 }
 
 impl DatabaseAgent {
+    #[cfg(test)]
+    pub fn mock(registry: &Registry) -> Self {
+        Self {
+            db: Arc::new(Mutex::new(Database::mock(registry))),
+        }
+    }
+
     pub async fn new(
         config: &DatabaseConfig,
         schema: SchemaLookup,
