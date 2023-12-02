@@ -22,7 +22,7 @@ pub struct BlockSource {
 
 impl BlockSource {
     pub async fn new(config: &Config, pctrl: ProgressCtrl) -> Result<Self, SourceError> {
-        let start_block = pctrl.get_min_start_block();
+        let start_block = pctrl.get_expected_block_number();
         let source = match &config.source {
             SourceTypes::Delta(delta_cfg) => {
                 Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block).await?)
