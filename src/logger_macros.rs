@@ -3,15 +3,29 @@
 #[macro_export]
 macro_rules! generate_log_message {
     ($log_level:ident, $target:ident, $msg: expr) => {
-        log::$log_level!(target: &format!("{}",stringify!($target)), "{}", $msg);
+        let msg = match stringify!($log_level) {
+            "warn" => format!("\x1b[33m{}\x1b[0m", $msg),
+            "error" => format!("\x1b[31m{}\x1b[0m", $msg),
+            "debug" => format!("\x1b[34m{}\x1b[0m", $msg),
+            _ => format!("{}", $msg),
+        };
+
+        log::$log_level!(target: &format!("{}",stringify!($target)), "{}", msg);
     };
     ($log_level:ident, $target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
+        let msg = match stringify!($log_level) {
+            "warn" => format!("\x1b[33m{}\x1b[0m", $msg),
+            "error" => format!("\x1b[31m{}\x1b[0m", $msg),
+            "debug" => format!("\x1b[34m{}\x1b[0m", $msg),
+            _ => format!("{}", $msg),
+        };
+
         let keys_message = vec![
             $(
-                format!("{}={}", stringify!($key), $value),
+                format!("\x1b[2m{}\x1b[0m\x1b[32;2m=\x1b[0m\x1b[2m{}\x1b[0m", stringify!($key), $value),
             )*
         ].join(", ");
-        let result_message = format!("{}\n \x1b[96m{}\x1b[0m", $msg, keys_message);
+        let result_message = format!("{}\n {}", msg, keys_message);
         log::$log_level!(target: &format!("{}",stringify!($target)), "{}", result_message);
     };
 }
@@ -58,7 +72,7 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! debug {
     ($target:ident, $msg:expr) => {
-        log::debug!(target: &format!("{}", stringify!($target)), "{}", $msg);
+        $crate::generate_log_message!(debug, $target, $msg);
     };
     ($target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
         $crate::generate_log_message!(debug, $target, $msg; $($key => $value),*);
@@ -88,16 +102,16 @@ mod tests {
     #[test]
     fn test_loggers_macros() {
         env_logger::try_init().unwrap_or_default();
+        debug!(test_loggers_macros, "message only");
         info!(test_loggers_macros, "message only");
-        info!(test_loggers_macros, "KeyValue"; key => "value1", key2 => "value2");
-        info!(test_loggers_macros; key1 => 1, key2 => 2);
         warn!(test_loggers_macros, "message only");
-        warn!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
-        warn!(test_loggers_macros; key1 => "value1", key2 => "value2");
+        critical!(test_loggers_macros, "message only");
         error!(test_loggers_macros, "message only");
+
+        debug!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
+        info!(test_loggers_macros, "KeyValue"; key => "value1", key2 => "value2");
+        warn!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
         error!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
-        error!(test_loggers_macros; key1 => "value1", key2 => "value2");
-        debug!(test_loggers_macros; key1 => "value1", key2 => "value2");
         critical!(test_loggers_macros, "KeyValue"; key1 => "value1", key2 => "value2");
     }
 }
