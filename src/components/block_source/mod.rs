@@ -2,7 +2,6 @@ mod delta;
 
 use super::Valve;
 use crate::common::Chain;
-use crate::components::Inspector;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
@@ -21,8 +20,7 @@ pub struct BlockSource {
 }
 
 impl BlockSource {
-    pub async fn new(config: &Config, pctrl: Inspector) -> Result<Self, SourceError> {
-        let start_block = pctrl.get_expected_block_number();
+    pub async fn new(config: &Config, start_block: u64) -> Result<Self, SourceError> {
         let source = match &config.source {
             SourceTypes::Delta(delta_cfg) => {
                 Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block).await?)

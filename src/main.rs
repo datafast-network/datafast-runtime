@@ -42,8 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         manifest.get_sources(),
         config.reorg_threshold,
     );
-    info!(main, "ProgressControl OK");
-    let block_source = BlockSource::new(&config, inspector.clone()).await?;
+    info!(main, "BlockInspector OK");
+    let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
     info!(main, "BlockSource OK");
     let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
     info!(main, "Filter OK");
