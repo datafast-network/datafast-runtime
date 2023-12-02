@@ -37,13 +37,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let valve = Valve::new(&config.valve);
     let db = DatabaseAgent::new(&config.database, manifest.get_schema(), registry).await?;
     info!(main, "Database OK");
-    let mut progress_ctrl = ProgressCtrl::new(
+    let mut inspector = Inspector::new(
         db.get_recent_block_pointers(config.reorg_threshold).await?,
         manifest.get_sources(),
         config.reorg_threshold,
     );
     info!(main, "ProgressControl OK");
-    let block_source = BlockSource::new(&config, progress_ctrl.clone()).await?;
+    let block_source = BlockSource::new(&config, inspector.clone()).await?;
     info!(main, "BlockSource OK");
     let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
     info!(main, "Filter OK");
@@ -79,19 +79,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             for block in blocks {
                 let block_ptr = block.get_block_ptr();
 
-                match progress_ctrl.check_block(block_ptr.clone()) {
-                    ProgressCheckResult::UnexpectedBlock
-                    | ProgressCheckResult::UnrecognizedBlock => {
+                match inspector.check_block(block_ptr.clone()) {
+                    BlockInspectionResult::UnexpectedBlock
+                    | BlockInspectionResult::UnrecognizedBlock => {
                         panic!("Bad block data from source");
                     }
-                    ProgressCheckResult::BlockAlreadyProcessed
-                    | ProgressCheckResult::MaybeReorg => {
+                    BlockInspectionResult::BlockAlreadyProcessed
+                    | BlockInspectionResult::MaybeReorg => {
                         continue;
                     }
-                    ProgressCheckResult::ForkBlock => {
+                    BlockInspectionResult::ForkBlock => {
                         db.revert_from_block(block_ptr.number).await?;
                     }
-                    ProgressCheckResult::OkToProceed => (),
+                    BlockInspectionResult::OkToProceed => (),
                 };
 
                 subgraph.create_sources(&manifest, &db, &rpc).await?;
