@@ -1,5 +1,6 @@
 use crate::common::BlockPtr;
 use crate::common::Source;
+use std::collections::VecDeque;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ProgressCheckResult {
@@ -13,7 +14,7 @@ pub enum ProgressCheckResult {
 
 #[derive(Clone)]
 pub struct ProgressCtrl {
-    recent_block_ptrs: Vec<BlockPtr>,
+    recent_block_ptrs: VecDeque<BlockPtr>,
     sources: Vec<Source>,
     reorg_threshold: u16,
 }
@@ -25,7 +26,7 @@ impl ProgressCtrl {
         reorg_threshold: u16,
     ) -> Self {
         Self {
-            recent_block_ptrs,
+            recent_block_ptrs: VecDeque::from(recent_block_ptrs),
             sources,
             reorg_threshold,
         }
@@ -35,7 +36,7 @@ impl ProgressCtrl {
         let min_start_block = self.sources.iter().filter_map(|s| s.startBlock).min();
         min_start_block.unwrap_or(0).max(
             self.recent_block_ptrs
-                .last()
+                .front()
                 .cloned()
                 .map(|b| b.number + 1)
                 .unwrap_or_default(),
@@ -43,12 +44,12 @@ impl ProgressCtrl {
     }
 
     pub fn check_block(&mut self, new_block_ptr: BlockPtr) -> ProgressCheckResult {
-        match self.recent_block_ptrs.last() {
+        match self.recent_block_ptrs.front() {
             None => {
                 let min_start_block = self.get_min_start_block();
 
                 if new_block_ptr.number == min_start_block {
-                    self.recent_block_ptrs.push(new_block_ptr);
+                    self.recent_block_ptrs.push_front(new_block_ptr);
                     return ProgressCheckResult::OkToProceed;
                 }
 
@@ -59,15 +60,13 @@ impl ProgressCtrl {
             }
             Some(last_processed) => {
                 if last_processed.is_parent(&new_block_ptr) {
-                    self.recent_block_ptrs.push(new_block_ptr);
+                    self.recent_block_ptrs.push_front(new_block_ptr);
                     if self.recent_block_ptrs.len() > self.reorg_threshold as usize {
-                        self.recent_block_ptrs.remove(0);
+                        self.recent_block_ptrs.pop_back();
                     }
                     return ProgressCheckResult::OkToProceed;
                 }
 
-                // reorg or not?
-                // Block gap: 8 - 9 - (missing 10) - 11
                 if new_block_ptr.number > last_processed.number + 1 {
                     return ProgressCheckResult::UnexpectedBlock {
                         expected: last_processed.number + 1,
@@ -75,11 +74,11 @@ impl ProgressCtrl {
                     };
                 }
 
-                if new_block_ptr.number < self.recent_block_ptrs.first().unwrap().number {
+                if new_block_ptr.number < self.recent_block_ptrs.back().unwrap().number {
                     return ProgressCheckResult::UnrecognizedBlock(new_block_ptr.clone());
                 }
 
-                for block in self.recent_block_ptrs.iter().rev() {
+                for block in self.recent_block_ptrs.iter() {
                     if *block == new_block_ptr {
                         return ProgressCheckResult::BlockAlreadyProcessed;
                     }
@@ -130,8 +129,8 @@ mod tests {
                     assert_eq!(result, ProgressCheckResult::OkToProceed);
                 }
                 assert_eq!(pc.recent_block_ptrs.len(), reorg_threshold as usize);
-                assert_eq!(pc.recent_block_ptrs.last().unwrap().number, 19);
-                assert_eq!(pc.recent_block_ptrs.first().unwrap().number, 10);
+                assert_eq!(pc.recent_block_ptrs.front().unwrap().number, 19);
+                assert_eq!(pc.recent_block_ptrs.back().unwrap().number, 10);
 
                 assert_eq!(
                     pc.check_block(BlockPtr {
@@ -234,7 +233,7 @@ mod tests {
                 );
 
                 assert_eq!(
-                    pc.recent_block_ptrs.last().cloned().unwrap(),
+                    pc.recent_block_ptrs.front().cloned().unwrap(),
                     BlockPtr {
                         number: 20,
                         hash: "n=20".to_string(),
@@ -243,7 +242,7 @@ mod tests {
                 );
 
                 assert_eq!(
-                    pc.recent_block_ptrs.first().cloned().unwrap(),
+                    pc.recent_block_ptrs.back().cloned().unwrap(),
                     BlockPtr {
                         number: 11,
                         hash: "n=11".to_string(),

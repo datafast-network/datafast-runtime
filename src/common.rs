@@ -84,6 +84,10 @@ impl BlockPtr {
 
 impl Display for BlockPtr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{number: {}, hash: {}}}", self.number, self.hash)
+        write!(
+            f,
+            "BlockPtr({}, hash=`{}`, parent_hash=`{}`)",
+            self.number, self.hash, self.parent_hash
+        )
     }
 }
