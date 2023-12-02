@@ -5,7 +5,7 @@ mod scylladb;
 mod utils;
 
 use crate::common::BlockPtr;
-use crate::config::Config;
+use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
@@ -15,6 +15,7 @@ use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::native_types::store::Value;
 use crate::schema_lookup::SchemaLookup;
+use crate::warn;
 use extern_db::ExternDB;
 use extern_db::ExternDBTrait;
 use memory_db::MemoryDb;
@@ -31,8 +32,18 @@ pub struct Database {
 }
 
 impl Database {
+    #[cfg(test)]
+    pub fn mock(registry: &Registry) -> Self {
+        Self {
+            mem: MemoryDb::default(),
+            db: ExternDB::default(),
+            metrics: DatabaseMetrics::new(registry),
+            schema: SchemaLookup::default(),
+        }
+    }
+
     pub async fn new(
-        config: &Config,
+        config: &DatabaseConfig,
         schema: SchemaLookup,
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {
@@ -214,8 +225,15 @@ impl From<Database> for DatabaseAgent {
 }
 
 impl DatabaseAgent {
+    #[cfg(test)]
+    pub fn mock(registry: &Registry) -> Self {
+        Self {
+            db: Arc::new(Mutex::new(Database::mock(registry))),
+        }
+    }
+
     pub async fn new(
-        config: &Config,
+        config: &DatabaseConfig,
         schema: SchemaLookup,
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {
@@ -268,7 +286,10 @@ impl DatabaseAgent {
     }
 
     pub async fn revert_from_block(&self, block_number: u64) -> Result<(), DatabaseError> {
-        self.db.lock().await.revert_from_block(block_number).await
+        warn!(Database, "Reverting data (probably due to reorg)"; revert_from_block_number => block_number);
+        self.db.lock().await.revert_from_block(block_number).await?;
+        warn!(Database, "Database reverted OK"; revert_from_block_number => block_number);
+        Ok(())
     }
 
     pub fn empty(registry: &Registry) -> Self {

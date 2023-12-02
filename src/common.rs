@@ -77,13 +77,17 @@ pub struct BlockPtr {
 }
 
 impl BlockPtr {
-    pub fn is_parent(&self, child_block_ptr: BlockPtr) -> bool {
+    pub fn is_parent(&self, child_block_ptr: &BlockPtr) -> bool {
         self.number == child_block_ptr.number - 1 && self.hash == child_block_ptr.parent_hash
     }
 }
 
 impl Display for BlockPtr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{number: {}, hash: {}}}", self.number, self.hash)
+        write!(
+            f,
+            "BlockPtr({}, hash=`{}`, parent_hash=`{}`)",
+            self.number, self.hash, self.parent_hash
+        )
     }
 }
