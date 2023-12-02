@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
     info!(main, "Manifest OK");
     let valve = Valve::new(&config.valve);
-    let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
+    let db = DatabaseAgent::new(&config.database, manifest.get_schema(), registry).await?;
     info!(main, "Database OK");
     let mut progress_ctrl =
         ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;

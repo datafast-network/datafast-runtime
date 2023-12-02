@@ -5,7 +5,7 @@ mod scylladb;
 mod utils;
 
 use crate::common::BlockPtr;
-use crate::config::Config;
+use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
@@ -32,7 +32,7 @@ pub struct Database {
 
 impl Database {
     pub async fn new(
-        config: &Config,
+        config: &DatabaseConfig,
         schema: SchemaLookup,
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {
@@ -215,7 +215,7 @@ impl From<Database> for DatabaseAgent {
 
 impl DatabaseAgent {
     pub async fn new(
-        config: &Config,
+        config: &DatabaseConfig,
         schema: SchemaLookup,
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {

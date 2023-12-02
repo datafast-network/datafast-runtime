@@ -1,6 +1,5 @@
 use super::scylladb::Scylladb;
 use crate::common::BlockPtr;
-use crate::config::Config;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
 use crate::messages::EntityType;
@@ -15,8 +14,10 @@ pub enum ExternDB {
 
 //TODO: impl sql and mongodb
 impl ExternDB {
-    pub async fn new(config: &Config, schema_lookup: SchemaLookup) -> Result<Self, DatabaseError> {
-        let config = config.database.as_ref().unwrap();
+    pub async fn new(
+        config: &DatabaseConfig,
+        schema_lookup: SchemaLookup,
+    ) -> Result<Self, DatabaseError> {
         let db = match config {
             DatabaseConfig::Scylla { uri, keyspace } => {
                 ExternDB::Scylla(Scylladb::new(uri, keyspace, schema_lookup).await?)
