@@ -29,17 +29,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::try_init().unwrap_or_default();
     // TODO: impl CLI
     let config = Config::load();
+    info!(main, "Config OK");
     let registry = default_registry();
     // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
+    info!(main, "Manifest OK");
     let valve = Valve::new(&config.valve);
     let db = DatabaseAgent::new(&config, manifest.get_schema(), registry).await?;
+    info!(main, "Database OK");
     let mut progress_ctrl =
         ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
+    info!(main, "ProgressControl OK");
     let block_source = BlockSource::new(&config, progress_ctrl.clone()).await?;
+    info!(main, "BlockSource OK");
     let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
+    info!(main, "Filter OK");
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
+    info!(main, "Rpc-Client OK");
     let mut subgraph = Subgraph::new_empty(&config, registry);
+    info!(main, "Subgraph OK");
     let source_valve = valve.clone();
 
     let (sender, recv) = kanal::bounded_async::<Vec<SerializedDataMessage>>(1);
