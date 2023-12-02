@@ -15,6 +15,7 @@ use crate::messages::StoreOperationMessage;
 use crate::messages::StoreRequestResult;
 use crate::runtime::asc::native_types::store::Value;
 use crate::schema_lookup::SchemaLookup;
+use crate::warn;
 use extern_db::ExternDB;
 use extern_db::ExternDBTrait;
 use memory_db::MemoryDb;
@@ -285,7 +286,10 @@ impl DatabaseAgent {
     }
 
     pub async fn revert_from_block(&self, block_number: u64) -> Result<(), DatabaseError> {
-        self.db.lock().await.revert_from_block(block_number).await
+        warn!(Database, "Reverting data (probably due to reorg)"; revert_from_block_number => block_number);
+        self.db.lock().await.revert_from_block(block_number).await?;
+        warn!(Database, "Database reverted OK"; revert_from_block_number => block_number);
+        Ok(())
     }
 
     pub fn empty(registry: &Registry) -> Self {

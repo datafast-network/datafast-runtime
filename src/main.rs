@@ -77,8 +77,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let time = std::time::Instant::now();
 
             for block in blocks {
+                let block_ptr = block.get_block_ptr();
+
+                match progress_ctrl.check_block(block_ptr.clone()) {
+                    ProgressCheckResult::UnexpectedBlock
+                    | ProgressCheckResult::UnrecognizedBlock => {
+                        panic!("Bad block data from source");
+                    }
+                    ProgressCheckResult::BlockAlreadyProcessed
+                    | ProgressCheckResult::MaybeReorg => {
+                        continue;
+                    }
+                    ProgressCheckResult::ForkBlock => {
+                        db.revert_from_block(block_ptr.number).await?;
+                    }
+                    ProgressCheckResult::OkToProceed => (),
+                };
+
                 subgraph.create_sources(&manifest, &db, &rpc).await?;
-                progress_ctrl.check_block(block.get_block_ptr());
                 subgraph.process(block, &db, &rpc, &valve).await?;
             }
 

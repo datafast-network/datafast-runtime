@@ -63,7 +63,7 @@ impl ProgressCtrl {
                     expected_block_number => min_start_block,
                     received_block_number => new_block_ptr.number
                 );
-                return ProgressCheckResult::UnexpectedBlock;
+                ProgressCheckResult::UnexpectedBlock
             }
             Some(last_processed) => {
                 if last_processed.is_parent(&new_block_ptr) {
@@ -131,7 +131,7 @@ Please check your setup - as it can be either:
                     }
                 }
 
-                return ProgressCheckResult::MaybeReorg;
+                ProgressCheckResult::MaybeReorg
             }
         }
     }
