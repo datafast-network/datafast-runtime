@@ -37,8 +37,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let valve = Valve::new(&config.valve);
     let db = DatabaseAgent::new(&config.database, manifest.get_schema(), registry).await?;
     info!(main, "Database OK");
-    let mut progress_ctrl =
-        ProgressCtrl::new(db.clone(), manifest.get_sources(), config.reorg_threshold).await?;
+    let mut progress_ctrl = ProgressCtrl::new(
+        db.get_recent_block_pointers(config.reorg_threshold).await?,
+        manifest.get_sources(),
+        config.reorg_threshold,
+    );
     info!(main, "ProgressControl OK");
     let block_source = BlockSource::new(&config, progress_ctrl.clone()).await?;
     info!(main, "BlockSource OK");
@@ -75,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             for block in blocks {
                 subgraph.create_sources(&manifest, &db, &rpc).await?;
-                progress_ctrl.check_block(block.get_block_ptr()).await?;
+                progress_ctrl.check_block(block.get_block_ptr());
                 subgraph.process(block, &db, &rpc, &valve).await?;
             }
 

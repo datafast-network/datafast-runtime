@@ -1,31 +1,34 @@
 use crate::common::BlockPtr;
 use crate::common::Source;
-use crate::database::DatabaseAgent;
-use crate::errors::ProgressCtrlError;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ProgressCheckResult {
+    OkToProceed,
+    BlockAlreadyProcessed,
+    UnexpectedBlock { expected: u64, received: u64 },
+    MaybeReorg,
+    ForkBlock,
+    UnrecognizedBlock(BlockPtr),
+}
 
 #[derive(Clone)]
 pub struct ProgressCtrl {
-    db: DatabaseAgent,
     recent_block_ptrs: Vec<BlockPtr>,
     sources: Vec<Source>,
+    reorg_threshold: u16,
 }
 
 impl ProgressCtrl {
-    pub async fn new(
-        db: DatabaseAgent,
+    pub fn new(
+        recent_block_ptrs: Vec<BlockPtr>,
         sources: Vec<Source>,
         reorg_threshold: u16,
-    ) -> Result<Self, ProgressCtrlError> {
-        let recent_block_ptrs = db
-            .get_recent_block_pointers(reorg_threshold)
-            .await
-            .map_err(ProgressCtrlError::LoadLastBlockPtrFail)?;
-        let this = Self {
-            db,
+    ) -> Self {
+        Self {
             recent_block_ptrs,
             sources,
-        };
-        Ok(this)
+            reorg_threshold,
+        }
     }
 
     pub fn get_min_start_block(&self) -> u64 {
@@ -39,61 +42,54 @@ impl ProgressCtrl {
         )
     }
 
-    pub async fn check_block(&mut self, new_block_ptr: BlockPtr) -> Result<(), ProgressCtrlError> {
-        match &self.recent_block_ptrs.last() {
+    pub fn check_block(&mut self, new_block_ptr: BlockPtr) -> ProgressCheckResult {
+        match self.recent_block_ptrs.last() {
             None => {
                 let min_start_block = self.get_min_start_block();
 
                 if new_block_ptr.number == min_start_block {
                     self.recent_block_ptrs.push(new_block_ptr);
-                    return Ok(());
+                    return ProgressCheckResult::OkToProceed;
                 }
 
-                Err(ProgressCtrlError::InvalidStartBlock(
-                    min_start_block,
-                    new_block_ptr.number,
-                ))
+                return ProgressCheckResult::UnexpectedBlock {
+                    expected: min_start_block,
+                    received: new_block_ptr.number,
+                };
             }
-            Some(recent_block_ptrs) => {
-                if recent_block_ptrs.is_parent(new_block_ptr.clone()) {
+            Some(last_processed) => {
+                if last_processed.is_parent(&new_block_ptr) {
                     self.recent_block_ptrs.push(new_block_ptr);
-                    self.recent_block_ptrs.remove(0);
-                    return Ok(());
+                    if self.recent_block_ptrs.len() > self.reorg_threshold as usize {
+                        self.recent_block_ptrs.remove(0);
+                    }
+                    return ProgressCheckResult::OkToProceed;
                 }
 
                 // reorg or not?
                 // Block gap: 8 - 9 - (missing 10) - 11
-                if recent_block_ptrs.number + 1 < new_block_ptr.number {
-                    return Err(ProgressCtrlError::BlockGap(
-                        recent_block_ptrs.number,
-                        new_block_ptr.number,
-                    ));
+                if new_block_ptr.number > last_processed.number + 1 {
+                    return ProgressCheckResult::UnexpectedBlock {
+                        expected: last_processed.number + 1,
+                        received: new_block_ptr.number,
+                    };
                 }
 
-                // reorg happen some where...
-                // First, check if the new block's parent-hash is hash of any block
-                // in the current chain within threshold
-                let maybe_parent_block = self
-                    .recent_block_ptrs
-                    .iter()
-                    .find(|b| b.hash == new_block_ptr.parent_hash)
-                    .cloned();
+                if new_block_ptr.number < self.recent_block_ptrs.first().unwrap().number {
+                    return ProgressCheckResult::UnrecognizedBlock(new_block_ptr.clone());
+                }
 
-                match maybe_parent_block {
-                    None => {
-                        // Reorg happened somewhere before this new-block, we should be waiting
-                        Err(ProgressCtrlError::PossibleReorg)
+                for block in self.recent_block_ptrs.iter().rev() {
+                    if *block == new_block_ptr {
+                        return ProgressCheckResult::BlockAlreadyProcessed;
                     }
-                    Some(parent_block) => {
-                        // This new-block is the reorg block,
-                        // We will process this block after having discarded all the obsolete blocks
-                        self.db.revert_from_block(new_block_ptr.number).await?;
-                        self.recent_block_ptrs
-                            .retain(|b| b.number > parent_block.number);
-                        self.recent_block_ptrs.push(new_block_ptr);
-                        Ok(())
+
+                    if block.is_parent(&new_block_ptr) {
+                        return ProgressCheckResult::ForkBlock;
                     }
                 }
+
+                return ProgressCheckResult::MaybeReorg;
             }
         }
     }
@@ -102,33 +98,160 @@ impl ProgressCtrl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use log::info;
-    use prometheus::default_registry;
     use rstest::rstest;
 
     #[rstest]
-    fn test_progress_ctrl(#[values(None, Some(0), Some(1), Some(2))] start_block: Option<u64>) {
+    fn test_progress(#[values(None, Some(0), Some(1), Some(2))] start_block: Option<u64>) {
         env_logger::try_init().unwrap_or_default();
-
-        let registry = default_registry();
-        let db = DatabaseAgent::mock(registry);
         let sources = vec![Source {
             address: None,
             abi: "".to_owned(),
             startBlock: start_block,
         }];
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .build()
-            .unwrap();
-        rt.block_on(async move {
-            let pc = ProgressCtrl::new(db, sources, 100).await.unwrap();
-            assert!(pc.recent_block_ptrs.is_empty());
-            let actual_start_block = pc.get_min_start_block();
+        let reorg_threshold = 10;
+        let mut pc = ProgressCtrl::new(vec![], sources, reorg_threshold);
+        assert!(pc.recent_block_ptrs.is_empty());
 
-            match start_block {
-                None => assert_eq!(actual_start_block, 0),
-                Some(block_number) => assert_eq!(actual_start_block, block_number),
+        let actual_start_block = pc.get_min_start_block();
+
+        match start_block {
+            None => {
+                assert_eq!(actual_start_block, 0);
+                for n in 0..20 {
+                    let result = pc.check_block(BlockPtr {
+                        number: n,
+                        hash: format!("n={n}"),
+                        parent_hash: if n > 0 {
+                            format!("n={}", n - 1)
+                        } else {
+                            "".to_string()
+                        },
+                    });
+                    assert_eq!(result, ProgressCheckResult::OkToProceed);
+                }
+                assert_eq!(pc.recent_block_ptrs.len(), reorg_threshold as usize);
+                assert_eq!(pc.recent_block_ptrs.last().unwrap().number, 19);
+                assert_eq!(pc.recent_block_ptrs.first().unwrap().number, 10);
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 22,
+                        hash: "".to_string(),
+                        parent_hash: "".to_string()
+                    }),
+                    ProgressCheckResult::UnexpectedBlock {
+                        expected: 20,
+                        received: 22
+                    }
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 21,
+                        hash: "".to_string(),
+                        parent_hash: "".to_string()
+                    }),
+                    ProgressCheckResult::UnexpectedBlock {
+                        expected: 20,
+                        received: 21
+                    }
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 20,
+                        hash: "".to_string(),
+                        parent_hash: "".to_string()
+                    }),
+                    ProgressCheckResult::MaybeReorg,
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 19,
+                        hash: "".to_string(),
+                        parent_hash: "".to_string()
+                    }),
+                    ProgressCheckResult::MaybeReorg,
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 15,
+                        hash: "n=15".to_string(),
+                        parent_hash: "n=some-fork-block".to_string()
+                    }),
+                    ProgressCheckResult::MaybeReorg,
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 9,
+                        hash: "".to_string(),
+                        parent_hash: "".to_string(),
+                    }),
+                    ProgressCheckResult::UnrecognizedBlock(BlockPtr {
+                        number: 9,
+                        hash: "".to_string(),
+                        parent_hash: "".to_string(),
+                    }),
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 10,
+                        hash: "n=10".to_string(),
+                        parent_hash: "n=9".to_string(),
+                    }),
+                    ProgressCheckResult::BlockAlreadyProcessed
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 19,
+                        hash: "n=19".to_string(),
+                        parent_hash: "n=18".to_string(),
+                    }),
+                    ProgressCheckResult::BlockAlreadyProcessed
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 15,
+                        hash: "n=15".to_string(),
+                        parent_hash: "n=14".to_string(),
+                    }),
+                    ProgressCheckResult::BlockAlreadyProcessed
+                );
+
+                assert_eq!(
+                    pc.check_block(BlockPtr {
+                        number: 20,
+                        hash: "n=20".to_string(),
+                        parent_hash: "n=19".to_string(),
+                    }),
+                    ProgressCheckResult::OkToProceed
+                );
+
+                assert_eq!(
+                    pc.recent_block_ptrs.last().cloned().unwrap(),
+                    BlockPtr {
+                        number: 20,
+                        hash: "n=20".to_string(),
+                        parent_hash: "n=19".to_string(),
+                    }
+                );
+
+                assert_eq!(
+                    pc.recent_block_ptrs.first().cloned().unwrap(),
+                    BlockPtr {
+                        number: 11,
+                        hash: "n=11".to_string(),
+                        parent_hash: "n=10".to_string(),
+                    }
+                );
             }
-        });
+            Some(block_number) => assert_eq!(actual_start_block, block_number),
+        }
     }
 }
