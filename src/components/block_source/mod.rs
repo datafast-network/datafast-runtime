@@ -32,7 +32,7 @@ impl BlockSource {
         })
     }
 
-    pub async fn run_async(
+    pub async fn run(
         self,
         sender: AsyncSender<Vec<SerializedDataMessage>>,
         valve: Valve,

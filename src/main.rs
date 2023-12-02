@@ -111,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     tokio::select!(
-        r = block_source.run_async(sender, source_valve) => handle_task_result(r, "block-source"),
+        r = block_source.run(sender, source_valve) => handle_task_result(r, "block-source"),
         r = main_flow => handle_task_result(r, "Main flow stopped"),
         _ = run_metric_server(config.metric_port.unwrap_or(8081)) => ()
     );
