@@ -20,7 +20,7 @@ pub fn log_log(
     let message: String = asc_get(&fenv, msg_ptr, 0)?;
     match log_level {
         0 => {
-            critical!(wasm_host, message; datasource => datasource_name);
+            critical!(WasmHost, message; datasource => datasource_name);
             if env::var("SUBGRAPH_WASM_RUNTIME_TEST").is_ok() {
                 // NOTE: if testing, just don't throw anything
                 return Ok(());
@@ -31,16 +31,16 @@ pub fn log_log(
             ));
         }
         1 => {
-            error!(wasm_host, message; datasource => datasource_name);
+            error!(WasmHost, message; datasource => datasource_name);
         }
         2 => {
-            warn!(wasm_host, message; datasource => datasource_name);
+            warn!(WasmHost, message; datasource => datasource_name);
         }
         3 => {
-            info!(wasm_host, message; datasource => datasource_name);
+            info!(WasmHost, message; datasource => datasource_name);
         }
         4 => {
-            debug!(wasm_host, message; datasource => datasource_name);
+            debug!(WasmHost, message; datasource => datasource_name);
         }
         _ => return Err(RuntimeError::new("Invalid log level!!")),
     }

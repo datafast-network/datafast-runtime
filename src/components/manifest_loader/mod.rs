@@ -47,7 +47,7 @@ impl ManifestLoader {
                 info!(
                     ManifestLoader,
                     "Using LocalFile Loader, loading subgraph build bundle";
-                    local_path => local_path
+                    build_bundle_path => local_path
                 );
                 let loader = LocalFileLoader::new(&local_path).await?;
                 Ok(ManifestLoader::Local(loader))
