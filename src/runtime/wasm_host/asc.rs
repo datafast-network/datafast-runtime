@@ -128,7 +128,6 @@ pub struct AscHost {
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub memory_allocate: Option<TypedFunction<i32, i32>>,
     pub arena_start_ptr: Arc<Mutex<i32>>,
-    pub arena_free_size: Arc<Mutex<i32>>,
     pub db_agent: DatabaseAgent,
     pub rpc_agent: RpcAgent,
 }
