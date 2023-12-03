@@ -32,7 +32,7 @@ impl DataFilter {
 
     pub fn new(chain: Chain, datasources: Vec<Datasource>) -> Result<Self, FilterError> {
         let filter = match chain {
-            Chain::Ethereum => DataFilter::Ethereum(EthereumFilter::new(datasources)?),
+            Chain::Ethereum => DataFilter::Ethereum(EthereumFilter::new(datasources)),
         };
         Ok(filter)
     }

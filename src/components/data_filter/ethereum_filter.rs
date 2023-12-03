@@ -23,7 +23,7 @@ pub struct EthereumFilter {
 }
 
 impl EthereumFilter {
-    pub fn new(datasources: Vec<Datasource>) -> Result<Self, FilterError> {
+    pub fn new(datasources: Vec<Datasource>) -> Self {
         let ds = datasources
             .into_iter()
             .map(|ds| DatasourceWithContract {
@@ -31,7 +31,7 @@ impl EthereumFilter {
                 contract: serde_json::from_str(&ds.source.abi).unwrap(),
             })
             .collect::<Vec<_>>();
-        Ok(Self { ds })
+        Self { ds }
     }
 
     fn parse_event(
@@ -267,7 +267,7 @@ mod test {
             // USDT Contract datasource
             .take(1)
             .collect();
-        let mut filter = EthereumFilter::new(datasources_1.clone()).unwrap();
+        let mut filter = EthereumFilter::new(datasources_1.clone());
         let header = EthereumBlockData::default();
         let txs = vec![EthereumTransactionData::default()];
 
@@ -285,6 +285,13 @@ mod test {
             .filter_events(header.clone(), txs.clone(), logs.clone())
             .unwrap();
         assert_eq!(events.len(), 1);
+
+        // Use no Address
+        filter.ds[0].ds.source.address = None;
+        let events = filter
+            .filter_events(header.clone(), txs.clone(), logs.clone())
+            .unwrap();
+        assert_eq!(events.len(), 4);
 
         // Use Paxos:USDP Address to filter
         filter.ds[0].ds.source.address =
