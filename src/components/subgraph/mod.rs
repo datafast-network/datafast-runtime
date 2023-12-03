@@ -48,7 +48,7 @@ impl Subgraph {
         db: &DatabaseAgent,
         rpc: &RpcAgent,
     ) -> Result<(), SubgraphError> {
-        self.sources = HashMap::new();
+        self.sources.clear();
         for datasource in manifest.datasources() {
             let api_version = datasource.mapping.apiVersion.to_owned();
             let wasm_bytes = manifest
