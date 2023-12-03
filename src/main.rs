@@ -94,7 +94,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                subgraph.create_sources(&manifest, &db, &rpc).await?;
+                if !subgraph.has_wasm_hosts() || block_ptr.number % 100 == 0 {
+                    subgraph.create_sources(&manifest, &db, &rpc).await?;
+                }
+
                 subgraph.process(block, &db, &rpc, &valve).await?;
             }
 
