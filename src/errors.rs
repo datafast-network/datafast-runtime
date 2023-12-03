@@ -140,18 +140,7 @@ pub enum DatabaseError {
 }
 
 #[derive(Debug, Error)]
-pub enum FilterError {
-    #[error(transparent)]
-    EthAbiError(#[from] ethabi::Error),
-    #[error(transparent)]
-    Web3Error(#[from] web3::Error),
-    #[error(transparent)]
-    SendReplyFailed(#[from] SendError),
-    #[error(transparent)]
-    JsonParseError(#[from] serde_json::Error),
-    #[error(transparent)]
-    ManifestLoaderError(#[from] ManifestLoaderError),
-}
+pub enum FilterError {}
 
 #[derive(Debug, Error)]
 pub enum SerializerError {

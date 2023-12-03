@@ -11,6 +11,13 @@ use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
 use rayon::slice::ParallelSliceMut;
 
+pub trait DataFilterTrait: Sized {
+    fn handle_serialize_message(
+        &self,
+        data: BlockDataMessage,
+    ) -> Result<FilteredDataMessage, FilterError>;
+}
+
 #[derive(Debug)]
 pub enum DataFilter {
     Ethereum(EthereumFilter),
@@ -36,13 +43,6 @@ impl DataFilter {
         };
         Ok(filter)
     }
-}
-
-pub trait DataFilterTrait: Sized {
-    fn handle_serialize_message(
-        &self,
-        data: BlockDataMessage,
-    ) -> Result<FilteredDataMessage, FilterError>;
 }
 
 impl DataFilterTrait for DataFilter {
