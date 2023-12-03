@@ -27,31 +27,40 @@ fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::try_init().unwrap_or_default();
-    // TODO: impl CLI
+
     let config = Config::load();
-    info!(main, "Config OK");
+    info!(main, "Config loaded");
+
     let registry = default_registry();
+
     // TODO: impl IPFS Loader
     let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
-    info!(main, "Manifest OK");
+    info!(main, "Manifest loaded");
+
     let valve = Valve::new(&config.valve);
+    let source_valve = valve.clone();
+
     let db = DatabaseAgent::new(&config.database, manifest.get_schema(), registry).await?;
-    info!(main, "Database OK");
+    info!(main, "Database set up");
+
     let mut inspector = Inspector::new(
         db.get_recent_block_pointers(config.reorg_threshold).await?,
         manifest.get_sources(),
         config.reorg_threshold,
     );
-    info!(main, "BlockInspector OK"; next_start_block => inspector.get_expected_block_number());
+    info!(main, "BlockInspector ready"; next_start_block => inspector.get_expected_block_number());
+
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
-    info!(main, "BlockSource OK");
-    let filter = DataFilter::new(config.chain.clone(), &manifest)?;
-    info!(main, "Filter OK");
+    info!(main, "BlockSource ready");
+
+    let filter = DataFilter::new(config.chain.clone(), manifest.datasources())?;
+    info!(main, "DataFilter ready");
+
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
-    info!(main, "Rpc-Client OK");
+    info!(main, "Rpc-Client ready");
+
     let mut subgraph = Subgraph::new_empty(&config, registry);
-    info!(main, "Subgraph OK");
-    let source_valve = valve.clone();
+    info!(main, "Subgraph ready");
 
     let (sender, recv) = kanal::bounded_async::<Vec<BlockDataMessage>>(1);
 
@@ -70,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             info!(
                 MainFlow,
-                "filter processed OK";
+                "block data got filtered";
                 exec_time => format!("{:?}", time.elapsed()),
                 count_blocks => count_blocks
             );
@@ -104,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             info!(
                 MainFlow,
-                "block batch processed OK";
+                "block batch processed done";
                 exec_time => format!("{:?}", time.elapsed()),
                 count => count_blocks
             );

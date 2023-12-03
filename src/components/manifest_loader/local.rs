@@ -67,7 +67,7 @@ impl LoaderTrait for LocalFileLoader {
     }
 
     async fn load_abis(&mut self) -> Result<(), ManifestLoaderError> {
-        for datasource in self.subgraph_yaml.dataSources.iter() {
+        for datasource in self.subgraph_yaml.dataSources.iter_mut() {
             let datasource_name = datasource.name.to_owned();
             let abi_name = datasource.source.abi.clone();
             let abi_path = datasource
@@ -83,6 +83,7 @@ impl LoaderTrait for LocalFileLoader {
                 .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
             let value = serde_json::from_reader(abi_file)
                 .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
+            datasource.source.abi = serde_json::to_string(&value).unwrap();
             self.abis.insert(datasource_name, value);
         }
         Ok(())

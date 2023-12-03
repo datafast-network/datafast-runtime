@@ -136,19 +136,19 @@ impl Subgraph {
         if block_ptr.number % 1000 == 0 {
             info!(
                 Subgraph,
-                "Finished processing block";
+                "finished processing block";
                 block_number => block_ptr.number,
                 block_hash => block_ptr.hash
             );
             valve.set_finished(block_ptr.number);
         }
 
-        if block_ptr.number % 1000 == 0 {
-            info!(Subgraph, "Commiting data to DB"; block_number => block_ptr.number);
+        if block_ptr.number % 2000 == 0 {
+            info!(Subgraph, "commiting data to DB"; block_number => block_ptr.number);
             let time = Instant::now();
             db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
                 error!(
-                    Subgraph, "Failed to commit data to db";
+                    Subgraph, "Failed to commit data to DB";
                     error => e.to_string(),
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
@@ -156,15 +156,15 @@ impl Subgraph {
                 SubgraphError::MigrateDbError
             })?;
 
-            info!(Subgraph, "Db commit OK"; execution_time => format!("{:?}", time.elapsed()));
+            info!(Subgraph, "data committed to database"; execution_time => format!("{:?}", time.elapsed()));
         }
 
-        if block_ptr.number % 10000 == 0 {
-            info!(Subgraph, "Flush db cache"; block_number => block_ptr.number);
+        if block_ptr.number % 5000 == 0 {
             db_agent
                 .clear_in_memory()
                 .await
                 .map_err(|_| SubgraphError::MigrateDbError)?;
+            info!(Subgraph, "flushed entity cache"; block_number => block_ptr.number);
         }
 
         Ok(())
