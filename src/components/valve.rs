@@ -1,5 +1,6 @@
 use crate::config::ValveConfig;
 use crate::info;
+use crate::messages::SerializedDataMessage;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -24,10 +25,6 @@ impl Valve {
 
     pub fn get_wait(&self) -> u64 {
         self.0.read().unwrap().cfg.wait_time
-    }
-
-    pub fn get_downloaded(&self) -> u64 {
-        self.0.read().unwrap().downloaded
     }
 
     pub fn should_continue(&self) -> bool {
@@ -61,8 +58,13 @@ impl Valve {
         this.finished = finished_block;
     }
 
-    pub fn set_downloaded(&self, downloaded_block: u64) {
+    pub fn set_downloaded(&self, blocks: &[SerializedDataMessage]) {
         let mut this = self.0.write().unwrap();
-        this.downloaded = downloaded_block;
+        if let Some(last_block) = blocks.last() {
+            let last_block_number = last_block.get_block_ptr().number;
+            if last_block_number > this.downloaded {
+                this.downloaded = last_block_number;
+            }
+        }
     }
 }

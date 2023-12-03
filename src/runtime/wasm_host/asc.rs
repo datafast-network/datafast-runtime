@@ -19,11 +19,8 @@ use wasmer::Store;
 use wasmer::TypedFunction;
 use wasmer::Value;
 
-const MIN_ARENA_SIZE: i32 = 10_000;
-
 impl AscHeap for FunctionEnvMut<'_, Env> {
     fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
-        let require_length = bytes.len() as u64;
         let (env, mut store) = self.data_and_store_mut();
         let size = i32::try_from(bytes.len()).unwrap();
 
@@ -31,58 +28,37 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
             .arena_start_ptr
             .lock()
             .expect("lock arena-start-ptr failed");
-        let mut arena_free_size = env
-            .arena_free_size
-            .lock()
-            .expect("lock arena-free-size failed");
 
-        if size > *arena_free_size {
-            // Allocate a new arena. Any free space left in the previous arena is left unused. This
-            // causes at most half of memory to be wasted, which is acceptable.
-            let arena_size = size.max(MIN_ARENA_SIZE);
+        let arena_size = size;
 
-            // Unwrap: This may panic if more memory needs to be requested from the OS and that
-            // fails. This error is not deterministic since it depends on the operating conditions
-            // of the node.
-            if let Some(memory_allocate) = env.memory_allocate.as_ref() {
-                let new_arena_ptr = memory_allocate.call(&mut store, arena_size).unwrap();
-                *arena_start_ptr = new_arena_ptr;
+        // Unwrap: This may panic if more memory needs to be requested from the OS and that
+        // fails. This error is not deterministic since it depends on the operating conditions
+        // of the node.
+        if let Some(memory_allocate) = env.memory_allocate.as_ref() {
+            let new_arena_ptr = memory_allocate.call(&mut store, arena_size).unwrap();
+            *arena_start_ptr = new_arena_ptr;
+        }
+
+        match &env.api_version {
+            version if *version <= Version::new(0, 0, 4) => {}
+            _ => {
+                // This arithmetic is done because when you call AssemblyScripts's `__alloc`
+                // function, it isn't typed and it just returns `mmInfo` on it's header,
+                // differently from allocating on regular types (`__new` for example).
+                // `mmInfo` has size of 4, and everything allocated on AssemblyScript memory
+                // should have alignment of 16, this means we need to do a 12 offset on these
+                // big chunks of untyped allocation.
+                *arena_start_ptr += 12;
             }
-
-            *arena_free_size = arena_size;
-
-            match &env.api_version {
-                version if *version <= Version::new(0, 0, 4) => {}
-                _ => {
-                    // This arithmetic is done because when you call AssemblyScripts's `__alloc`
-                    // function, it isn't typed and it just returns `mmInfo` on it's header,
-                    // differently from allocating on regular types (`__new` for example).
-                    // `mmInfo` has size of 4, and everything allocated on AssemblyScript memory
-                    // should have alignment of 16, this means we need to do a 12 offset on these
-                    // big chunks of untyped allocation.
-                    *arena_start_ptr += 12;
-                    *arena_free_size -= 12;
-                }
-            };
         };
 
         let memory = env.memory.as_ref().unwrap();
         let view = memory.view(&store);
-        let available_length = view.data_size();
-
-        // For now, not allow increase memory size
-        if available_length < require_length {
-            return Err(AscError::SizeNotFit);
-        }
-
         // NOTE: write to page's footer
         let ptr = *arena_start_ptr as usize;
-
         view.write(ptr as u64, bytes)?;
-
         // Unwrap: We have just allocated enough space for `bytes`.
         *arena_start_ptr += size;
-        *arena_free_size -= size;
 
         Ok(ptr as u32)
     }
@@ -152,7 +128,6 @@ pub struct AscHost {
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub memory_allocate: Option<TypedFunction<i32, i32>>,
     pub arena_start_ptr: Arc<Mutex<i32>>,
-    pub arena_free_size: Arc<Mutex<i32>>,
     pub db_agent: DatabaseAgent,
     pub rpc_agent: RpcAgent,
 }
@@ -163,45 +138,26 @@ impl AscHeap for AscHost {
             .arena_start_ptr
             .lock()
             .expect("lock arena-start-ptr failed");
-        let mut arena_free_size = self
-            .arena_free_size
-            .lock()
-            .expect("lock arena-free-size failed");
 
-        let require_length = bytes.len() as u64;
         let size = i32::try_from(bytes.len()).unwrap();
+        let arena_size = size;
 
-        if size > *arena_free_size {
-            let arena_size = size.max(MIN_ARENA_SIZE);
+        if let Some(memory_allocate) = self.memory_allocate.clone() {
+            let new_arena_ptr = memory_allocate.call(&mut self.store, arena_size).unwrap();
+            *arena_start_ptr = new_arena_ptr;
+        }
 
-            if let Some(memory_allocate) = self.memory_allocate.clone() {
-                let new_arena_ptr = memory_allocate.call(&mut self.store, arena_size).unwrap();
-                *arena_start_ptr = new_arena_ptr;
+        match &self.api_version {
+            version if *version <= Version::new(0, 0, 4) => {}
+            _ => {
+                *arena_start_ptr += 12;
             }
-
-            *arena_free_size = arena_size;
-
-            match &self.api_version {
-                version if *version <= Version::new(0, 0, 4) => {}
-                _ => {
-                    *arena_start_ptr += 12;
-                    *arena_free_size -= 12;
-                }
-            };
         };
 
         let view = self.memory.view(&self.store);
-        let available_length = view.data_size();
-
-        if available_length < require_length {
-            return Err(AscError::SizeNotFit);
-        }
-
         let ptr = *arena_start_ptr as usize;
         view.write(ptr as u64, bytes)?;
-
         *arena_start_ptr += size;
-        *arena_free_size -= size;
 
         Ok(ptr as u32)
     }

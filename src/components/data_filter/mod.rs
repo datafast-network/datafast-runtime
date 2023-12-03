@@ -12,11 +12,11 @@ use rayon::prelude::ParallelIterator;
 use rayon::slice::ParallelSliceMut;
 
 #[derive(Debug)]
-pub enum SubgraphFilter {
+pub enum DataFilter {
     Ethereum(EthereumFilter),
 }
 
-impl SubgraphFilter {
+impl DataFilter {
     pub fn filter_multi(
         &self,
         messages: Vec<SerializedDataMessage>,
@@ -32,26 +32,26 @@ impl SubgraphFilter {
 
     pub fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
         let filter = match chain {
-            Chain::Ethereum => SubgraphFilter::Ethereum(EthereumFilter::new(chain, manifest)?),
+            Chain::Ethereum => DataFilter::Ethereum(EthereumFilter::new(chain, manifest)?),
         };
         Ok(filter)
     }
 }
 
-pub trait SubgraphFilterTrait: Sized {
+pub trait DataFilterTrait: Sized {
     fn handle_serialize_message(
         &self,
         data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError>;
 }
 
-impl SubgraphFilterTrait for SubgraphFilter {
+impl DataFilterTrait for DataFilter {
     fn handle_serialize_message(
         &self,
         data: SerializedDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match self {
-            SubgraphFilter::Ethereum(filter) => filter.handle_serialize_message(data),
+            DataFilter::Ethereum(filter) => filter.handle_serialize_message(data),
         }
     }
 }

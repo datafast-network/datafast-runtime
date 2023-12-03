@@ -1,7 +1,7 @@
 use super::utils::check_log_matches;
 use super::utils::get_address;
 use super::utils::get_handler_for_log;
-use super::SubgraphFilterTrait;
+use super::DataFilterTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
@@ -137,7 +137,7 @@ impl EthereumFilter {
     // TODO: implement filter_call_function
 }
 
-impl SubgraphFilterTrait for EthereumFilter {
+impl DataFilterTrait for EthereumFilter {
     fn handle_serialize_message(
         &self,
         data: SerializedDataMessage,

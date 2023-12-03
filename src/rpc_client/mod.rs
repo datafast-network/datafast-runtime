@@ -138,7 +138,7 @@ pub mod tests {
     use tokio::sync::Mutex;
 
     pub async fn create_rpc_client_test(version: &str) -> RpcAgent {
-        let rpc = "https://eth.llamarpc.com";
+        let rpc = "https://eth.merkle.io";
         let abi_file = File::open(format!(
             "../subgraph-testing/packages/v{version}/abis/ERC20.json"
         ))

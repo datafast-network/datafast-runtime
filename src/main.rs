@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(main, "BlockInspector OK");
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
     info!(main, "BlockSource OK");
-    let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
+    let filter = DataFilter::new(config.chain.clone(), &manifest)?;
     info!(main, "Filter OK");
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
     info!(main, "Rpc-Client OK");
@@ -63,6 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_block => blocks.len()
             );
 
+            valve.set_downloaded(&blocks);
             let time = std::time::Instant::now();
             let blocks = filter.filter_multi(blocks)?;
             let count_blocks = blocks.len();
@@ -94,7 +95,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                subgraph.create_sources(&manifest, &db, &rpc).await?;
+                if !subgraph.has_wasm_hosts() || block_ptr.number % 100 == 0 {
+                    subgraph.create_sources(&manifest, &db, &rpc).await?;
+                }
+
                 subgraph.process(block, &db, &rpc, &valve).await?;
             }
 

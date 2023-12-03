@@ -38,6 +38,10 @@ impl Subgraph {
         }
     }
 
+    pub fn has_wasm_hosts(&self) -> bool {
+        !self.sources.is_empty()
+    }
+
     pub async fn create_sources(
         &mut self,
         manifest: &ManifestLoader,
