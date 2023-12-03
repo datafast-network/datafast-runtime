@@ -96,13 +96,7 @@ impl DeltaClient {
                 let time = std::time::Instant::now();
                 let blocks = R::try_from(batch)?;
                 let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
-                let first_block_number = messages.first().map(|b| b.get_block_ptr().number);
-
-                if let Some(number) = first_block_number {
-                    if number > valve.get_downloaded() {
-                        valve.set_downloaded(number);
-                    }
-                }
+                valve.set_downloaded(&messages);
 
                 info!(
                     DeltaClient,
