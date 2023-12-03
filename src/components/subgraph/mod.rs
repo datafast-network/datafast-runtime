@@ -38,10 +38,6 @@ impl Subgraph {
         }
     }
 
-    pub fn has_wasm_hosts(&self) -> bool {
-        !self.sources.is_empty()
-    }
-
     pub async fn create_sources(
         &mut self,
         manifest: &ManifestLoader,
@@ -159,7 +155,7 @@ impl Subgraph {
             info!(Subgraph, "data committed to database"; execution_time => format!("{:?}", time.elapsed()));
         }
 
-        if block_ptr.number % 3000 == 0 {
+        if block_ptr.number % 10000 == 0 {
             db_agent
                 .clear_in_memory()
                 .await
