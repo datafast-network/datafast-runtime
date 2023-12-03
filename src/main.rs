@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         manifest.get_sources(),
         config.reorg_threshold,
     );
-    info!(main, "BlockInspector OK");
+    info!(main, "BlockInspector OK"; next_start_block => inspector.get_expected_block_number());
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
     info!(main, "BlockSource OK");
     let filter = DataFilter::new(config.chain.clone(), &manifest)?;

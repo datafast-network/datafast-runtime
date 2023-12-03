@@ -46,8 +46,6 @@ impl Inspector {
             .min()
             .unwrap_or(0);
         let last_processed_block = self.recent_block_ptrs.front().cloned();
-
-        info!(Inspector, "last processed block"; block => format!("{:?}", last_processed_block));
         last_processed_block
             .map(|b| b.number + 1)
             .unwrap_or(0)
