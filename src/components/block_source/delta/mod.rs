@@ -11,6 +11,8 @@ use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
+use rayon::prelude::IntoParallelIterator;
+use rayon::prelude::ParallelIterator;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -90,30 +92,39 @@ impl DeltaClient {
                 tokio::time::sleep(Duration::from_secs(sleep_tine)).await;
             }
 
-            let mut collect_msg = vec![];
+            let batches = self.query_blocks(start_block).await?;
+            let all_serde_time = std::time::Instant::now();
 
-            for batch in self.query_blocks(start_block).await? {
-                let time = std::time::Instant::now();
-                let blocks = R::try_from(batch)?;
-                let messages = Into::<Vec<BlockDataMessage>>::into(blocks);
-                valve.set_downloaded(&messages);
+            let blocks = batches
+                .into_par_iter()
+                .flat_map(|batch| {
+                    let time = std::time::Instant::now();
+                    let blocks = R::try_from(batch).unwrap();
+                    let messages = Into::<Vec<BlockDataMessage>>::into(blocks);
+                    valve.set_downloaded(&messages);
+                    info!(
+                        DeltaClient,
+                        "batches received & serialized";
+                        serialize_time => format!("{:?}", time.elapsed()),
+                        number_of_blocks => messages.len()
+                    );
+                    messages
+                })
+                .collect::<Vec<_>>();
 
-                info!(
-                    DeltaClient,
-                    "batches received & serialized";
-                    serialize_time => format!("{:?}", time.elapsed()),
-                    number_of_blocks => messages.len()
-                );
+            info!(
+                DeltaClient,
+                "All record-batches serde finished";
+                serialize_time => format!("{:?}", all_serde_time.elapsed()),
+                number_of_blocks => blocks.len()
+            );
 
-                collect_msg.extend(messages);
-            }
-
-            if collect_msg.is_empty() {
+            if blocks.is_empty() {
                 warn!(DeltaClient, "No more block to query...");
                 return Ok(());
             }
 
-            sender.send(collect_msg).await?;
+            sender.send(blocks).await?;
             start_block += self.query_step;
         }
     }
