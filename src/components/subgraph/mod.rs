@@ -39,7 +39,7 @@ impl Subgraph {
     }
 
     pub fn has_wasm_hosts(&self) -> bool {
-        self.sources.len() > 0
+        !self.sources.is_empty()
     }
 
     pub async fn create_sources(

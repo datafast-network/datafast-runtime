@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(main, "BlockInspector OK");
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
     info!(main, "BlockSource OK");
-    let filter = SubgraphFilter::new(config.chain.clone(), &manifest)?;
+    let filter = DataFilter::new(config.chain.clone(), &manifest)?;
     info!(main, "Filter OK");
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
     info!(main, "Rpc-Client OK");
