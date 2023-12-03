@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                if !subgraph.has_wasm_hosts() || block_ptr.number % 100 == 0 {
+                if !subgraph.has_wasm_hosts() || block_ptr.number % 10 == 0 {
                     subgraph.create_sources(&manifest, &db, &rpc).await?;
                 }
 
@@ -115,7 +115,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 MainFlow,
                 "block batch processed done";
                 exec_time => format!("{:?}", time.elapsed()),
-                count => count_blocks
+                number_of_blocks => count_blocks,
+                avg_speed => format!("{:?} blocks/min", (count_blocks as u64 / time.elapsed().as_secs() / 60) as u64)
             );
         }
 

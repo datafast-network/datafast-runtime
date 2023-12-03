@@ -159,7 +159,7 @@ impl Subgraph {
             info!(Subgraph, "data committed to database"; execution_time => format!("{:?}", time.elapsed()));
         }
 
-        if block_ptr.number % 5000 == 0 {
+        if block_ptr.number % 3000 == 0 {
             db_agent
                 .clear_in_memory()
                 .await
