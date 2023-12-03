@@ -29,6 +29,7 @@ fn parse_topic0_event(handler: &str) -> H256 {
 mod tests {
     use super::*;
     use std::str::FromStr;
+
     #[test]
     fn test_convert_event_name_to_topic0() {
         env_logger::try_init().unwrap_or_default();
