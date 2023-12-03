@@ -25,10 +25,12 @@ pub struct Inspector {
 
 impl Inspector {
     pub fn new(
-        recent_block_ptrs: Vec<BlockPtr>,
+        mut recent_block_ptrs: Vec<BlockPtr>,
         sources: Vec<Source>,
         reorg_threshold: u16,
     ) -> Self {
+        recent_block_ptrs.sort_by_key(|b| b.number);
+        recent_block_ptrs.reverse();
         Self {
             recent_block_ptrs: VecDeque::from(recent_block_ptrs),
             sources,
@@ -37,14 +39,19 @@ impl Inspector {
     }
 
     pub fn get_expected_block_number(&self) -> u64 {
-        let min_start_block = self.sources.iter().filter_map(|s| s.startBlock).min();
-        min_start_block.unwrap_or(0).max(
-            self.recent_block_ptrs
-                .front()
-                .cloned()
-                .map(|b| b.number + 1)
-                .unwrap_or_default(),
-        )
+        let min_start_block = self
+            .sources
+            .iter()
+            .filter_map(|s| s.startBlock)
+            .min()
+            .unwrap_or(0);
+        let last_processed_block = self.recent_block_ptrs.front().cloned();
+
+        info!(Inspector, "last processed block"; block => format!("{:?}", last_processed_block));
+        last_processed_block
+            .map(|b| b.number + 1)
+            .unwrap_or(0)
+            .max(min_start_block)
     }
 
     pub fn check_block(&mut self, new_block_ptr: BlockPtr) -> BlockInspectionResult {

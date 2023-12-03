@@ -37,11 +37,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let valve = Valve::new(&config.valve);
     let db = DatabaseAgent::new(&config.database, manifest.get_schema(), registry).await?;
     info!(main, "Database OK");
+    let recent_blocks = db.get_recent_block_pointers(config.reorg_threshold).await?;
+    info!(main, "Recent blocks"; blocks => format!("{:#?}", recent_blocks));
     let mut inspector = Inspector::new(
-        db.get_recent_block_pointers(config.reorg_threshold).await?,
+        recent_blocks,
         manifest.get_sources(),
         config.reorg_threshold,
     );
+    info!(main, "Next start block"; blocks => format!("{:#?}", inspector.get_expected_block_number()));
     info!(main, "BlockInspector OK");
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
     info!(main, "BlockSource OK");
