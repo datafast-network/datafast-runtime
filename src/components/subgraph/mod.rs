@@ -153,14 +153,12 @@ impl Subgraph {
             })?;
 
             info!(Subgraph, "data committed to database"; execution_time => format!("{:?}", time.elapsed()));
-        }
 
-        if block_ptr.number % 10000 == 0 {
             db_agent
                 .clear_in_memory()
                 .await
                 .map_err(|_| SubgraphError::MigrateDbError)?;
-            info!(Subgraph, "flushed entity cache"; block_number => block_ptr.number);
+            info!(Subgraph, "flushed entity cache");
         }
 
         Ok(())
