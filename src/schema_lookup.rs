@@ -209,7 +209,6 @@ impl SchemaLookup {
 #[cfg(test)]
 mod test {
     use super::*;
-    use log::info;
     use std::fs::read_to_string;
 
     #[tokio::test]
@@ -221,7 +220,6 @@ mod test {
 
         let schema_lookup = SchemaLookup::new_from_graphql_schema(&gql);
         let entity_type = "Pool";
-        let token = schema_lookup.schema.get(entity_type).unwrap();
-        info!("Token: {:?}", token);
+        let _token = schema_lookup.schema.get(entity_type).unwrap();
     }
 }

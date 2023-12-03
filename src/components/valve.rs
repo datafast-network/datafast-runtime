@@ -1,6 +1,6 @@
 use crate::config::ValveConfig;
 use crate::info;
-use crate::messages::SerializedDataMessage;
+use crate::messages::BlockDataMessage;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -58,7 +58,7 @@ impl Valve {
         this.finished = finished_block;
     }
 
-    pub fn set_downloaded(&self, blocks: &[SerializedDataMessage]) {
+    pub fn set_downloaded(&self, blocks: &[BlockDataMessage]) {
         let mut this = self.0.write().unwrap();
         if let Some(last_block) = blocks.last() {
             let last_block_number = last_block.get_block_ptr().number;

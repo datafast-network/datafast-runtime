@@ -5,7 +5,7 @@ use crate::common::Chain;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
-use crate::messages::SerializedDataMessage;
+use crate::messages::BlockDataMessage;
 use delta::DeltaClient;
 use delta::DeltaEthereumBlocks;
 use kanal::AsyncSender;
@@ -34,7 +34,7 @@ impl BlockSource {
 
     pub async fn run(
         self,
-        sender: AsyncSender<Vec<SerializedDataMessage>>,
+        sender: AsyncSender<Vec<BlockDataMessage>>,
         valve: Valve,
     ) -> Result<(), SourceError> {
         match self.source {

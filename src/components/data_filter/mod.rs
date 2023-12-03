@@ -4,8 +4,8 @@ mod utils;
 use super::manifest_loader::ManifestLoader;
 use crate::common::Chain;
 use crate::errors::FilterError;
+use crate::messages::BlockDataMessage;
 use crate::messages::FilteredDataMessage;
-use crate::messages::SerializedDataMessage;
 use ethereum_filter::EthereumFilter;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
@@ -19,7 +19,7 @@ pub enum DataFilter {
 impl DataFilter {
     pub fn filter_multi(
         &self,
-        messages: Vec<SerializedDataMessage>,
+        messages: Vec<BlockDataMessage>,
     ) -> Result<Vec<FilteredDataMessage>, FilterError> {
         let mut result = messages
             .into_par_iter()
@@ -41,14 +41,14 @@ impl DataFilter {
 pub trait DataFilterTrait: Sized {
     fn handle_serialize_message(
         &self,
-        data: SerializedDataMessage,
+        data: BlockDataMessage,
     ) -> Result<FilteredDataMessage, FilterError>;
 }
 
 impl DataFilterTrait for DataFilter {
     fn handle_serialize_message(
         &self,
-        data: SerializedDataMessage,
+        data: BlockDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match self {
             DataFilter::Ethereum(filter) => filter.handle_serialize_message(data),

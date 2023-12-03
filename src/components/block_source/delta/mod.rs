@@ -4,7 +4,7 @@ use crate::components::Valve;
 use crate::config::DeltaConfig;
 use crate::errors::SourceError;
 use crate::info;
-use crate::messages::SerializedDataMessage;
+use crate::messages::BlockDataMessage;
 use crate::warn;
 use deltalake::datafusion::common::arrow::array::RecordBatch;
 use deltalake::datafusion::prelude::DataFrame;
@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub trait DeltaBlockTrait:
-    TryFrom<RecordBatch, Error = SourceError> + Into<Vec<SerializedDataMessage>>
+    TryFrom<RecordBatch, Error = SourceError> + Into<Vec<BlockDataMessage>>
 {
 }
 
@@ -77,7 +77,7 @@ impl DeltaClient {
 
     pub async fn get_block_stream<R: DeltaBlockTrait>(
         &self,
-        sender: AsyncSender<Vec<SerializedDataMessage>>,
+        sender: AsyncSender<Vec<BlockDataMessage>>,
         valve: Valve,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
@@ -95,7 +95,7 @@ impl DeltaClient {
             for batch in self.query_blocks(start_block).await? {
                 let time = std::time::Instant::now();
                 let blocks = R::try_from(batch)?;
-                let messages = Into::<Vec<SerializedDataMessage>>::into(blocks);
+                let messages = Into::<Vec<BlockDataMessage>>::into(blocks);
                 valve.set_downloaded(&messages);
 
                 info!(
@@ -130,7 +130,7 @@ mod test {
 
         let cfg = DeltaConfig {
             table_path: "s3://ethereum/blocks_01/".to_owned(),
-            query_step: 10000,
+            query_step: 10,
             version: None,
         };
 

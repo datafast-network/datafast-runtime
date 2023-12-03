@@ -11,9 +11,9 @@ use crate::components::manifest_loader::ManifestLoader;
 use crate::error;
 use crate::errors::FilterError;
 use crate::info;
+use crate::messages::BlockDataMessage;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
-use crate::messages::SerializedDataMessage;
 use ethabi::Contract;
 use std::collections::HashMap;
 use web3::types::Log;
@@ -140,10 +140,10 @@ impl EthereumFilter {
 impl DataFilterTrait for EthereumFilter {
     fn handle_serialize_message(
         &self,
-        data: SerializedDataMessage,
+        data: BlockDataMessage,
     ) -> Result<FilteredDataMessage, FilterError> {
         match data {
-            SerializedDataMessage::Ethereum {
+            BlockDataMessage::Ethereum {
                 block,
                 logs,
                 transactions,

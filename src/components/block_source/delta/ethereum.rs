@@ -2,7 +2,7 @@ use super::DeltaBlockTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::errors::SourceError;
-use crate::messages::SerializedDataMessage;
+use crate::messages::BlockDataMessage;
 use deltalake::arrow::array::Array;
 use deltalake::arrow::array::BooleanArray;
 use deltalake::arrow::array::Int64Array;
@@ -176,9 +176,9 @@ impl From<&DeltaEthereumBlock> for Vec<Web3Log> {
     }
 }
 
-impl From<DeltaEthereumBlock> for SerializedDataMessage {
+impl From<DeltaEthereumBlock> for BlockDataMessage {
     fn from(value: DeltaEthereumBlock) -> Self {
-        SerializedDataMessage::Ethereum {
+        BlockDataMessage::Ethereum {
             block: EthereumBlockData::from(&value),
             transactions: Vec::<EthereumTransactionData>::from(&value),
             logs: Vec::<Web3Log>::from(&value),
@@ -802,13 +802,10 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
     }
 }
 
-impl From<DeltaEthereumBlocks> for Vec<SerializedDataMessage> {
+impl From<DeltaEthereumBlocks> for Vec<BlockDataMessage> {
     fn from(value: DeltaEthereumBlocks) -> Self {
         let inner = value.0;
-        inner
-            .into_par_iter()
-            .map(SerializedDataMessage::from)
-            .collect()
+        inner.into_par_iter().map(BlockDataMessage::from).collect()
     }
 }
 

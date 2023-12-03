@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use web3::types::Log;
 
 #[derive(Debug)]
-pub enum SerializedDataMessage {
+pub enum BlockDataMessage {
     Ethereum {
         block: EthereumBlockData,
         transactions: Vec<EthereumTransactionData>,
@@ -15,7 +15,7 @@ pub enum SerializedDataMessage {
     },
 }
 
-impl SerializedDataMessage {
+impl BlockDataMessage {
     pub fn get_block_ptr(&self) -> BlockPtr {
         match self {
             Self::Ethereum { block, .. } => BlockPtr {

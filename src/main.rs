@@ -14,7 +14,7 @@ mod schema_lookup;
 use components::*;
 use config::Config;
 use database::DatabaseAgent;
-use messages::SerializedDataMessage;
+use messages::BlockDataMessage;
 use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(main, "Subgraph OK");
     let source_valve = valve.clone();
 
-    let (sender, recv) = kanal::bounded_async::<Vec<SerializedDataMessage>>(1);
+    let (sender, recv) = kanal::bounded_async::<Vec<BlockDataMessage>>(1);
 
     let main_flow = async move {
         while let Ok(blocks) = recv.recv().await {
@@ -65,8 +65,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             valve.set_downloaded(&blocks);
             let time = std::time::Instant::now();
-            let blocks = filter.filter_multi(blocks)?;
-            let count_blocks = blocks.len();
+            let sorted_blocks = filter.filter_multi(blocks)?;
+            let count_blocks = sorted_blocks.len();
 
             info!(
                 MainFlow,
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let time = std::time::Instant::now();
 
-            for block in blocks {
+            for block in sorted_blocks {
                 let block_ptr = block.get_block_ptr();
 
                 match inspector.check_block(block_ptr.clone()) {
