@@ -49,9 +49,7 @@ impl EthereumFilter {
             .events()
             .find(|event| event.signature() == log.topics[0]);
 
-        if event.is_none() {
-            return None;
-        }
+        event?;
 
         let event = event.unwrap();
 
@@ -93,7 +91,7 @@ impl EthereumFilter {
 
                 if let Some(DatasourceWithContract { ds, contract }) = source {
                     let event_handler =
-                        get_handler_for_log(&ds, &log.topics[0]).expect("No Handlers!");
+                        get_handler_for_log(ds, &log.topics[0]).expect("No Handlers!");
 
                     //Parse the event
                     let tx = txs
@@ -102,7 +100,7 @@ impl EthereumFilter {
                         .expect("No Tx found for log");
 
                     let event = self
-                        .parse_event(&contract, log, block_header.to_owned(), tx)
+                        .parse_event(contract, log, block_header.to_owned(), tx)
                         .map(|e| EthereumFilteredEvent {
                             event: e,
                             handler: event_handler.handler,
@@ -277,8 +275,7 @@ mod test {
         let events = logs
             .clone()
             .into_iter()
-            .map(|log| filter.parse_event(&contract, log, header.clone(), txs[0].clone()))
-            .flatten()
+            .filter_map(|log| filter.parse_event(&contract, log, header.clone(), txs[0].clone()))
             .collect::<Vec<_>>();
 
         assert_eq!(events.len(), 4);

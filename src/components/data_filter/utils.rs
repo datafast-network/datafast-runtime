@@ -8,13 +8,12 @@ pub fn get_handler_for_log(source: &Datasource, topic0: &H256) -> Option<EventHa
         .mapping
         .eventHandlers
         .clone()
-        .map(|event_handlers| {
+        .and_then(|event_handlers| {
             event_handlers
                 .iter()
                 .find(|handler| &parse_topic0_event(&handler.event) == topic0)
                 .cloned()
         })
-        .flatten()
 }
 
 fn parse_topic0_event(handler: &str) -> H256 {
