@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "block batch processed done";
                 exec_time => format!("{:?}", time.elapsed()),
                 number_of_blocks => count_blocks,
-                avg_speed => format!("{:?} blocks/min", (count_blocks as u64 / time.elapsed().as_secs() / 60) as u64)
+                avg_speed => format!("~{:?} blocks/sec", (count_blocks as u64 / time.elapsed().as_secs()) as u64)
             );
         }
 
