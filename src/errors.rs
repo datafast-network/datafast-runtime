@@ -143,8 +143,6 @@ pub enum DatabaseError {
 pub enum FilterError {
     #[error(transparent)]
     EthAbiError(#[from] ethabi::Error),
-    #[error("Parse error: {0}")]
-    ParseError(String),
     #[error(transparent)]
     Web3Error(#[from] web3::Error),
     #[error(transparent)]
@@ -153,8 +151,6 @@ pub enum FilterError {
     JsonParseError(#[from] serde_json::Error),
     #[error(transparent)]
     ManifestLoaderError(#[from] ManifestLoaderError),
-    #[error("Find log's transaction failed")]
-    TxNotFound,
 }
 
 #[derive(Debug, Error)]

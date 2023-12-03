@@ -87,19 +87,4 @@ impl ManifestLoader {
             Self::Local(loader) => loader.subgraph_yaml.dataSources.to_vec(),
         }
     }
-
-    pub fn load_ethereum_contracts(
-        &self,
-    ) -> Result<HashMap<String, ethabi::Contract>, ManifestLoaderError> {
-        let abis = self.get_abis();
-        let contracts = abis
-            .into_iter()
-            .map(|(source_name, abi)| {
-                let contract = serde_json::from_value(abi.clone()).unwrap();
-                (source_name, contract)
-            })
-            .collect();
-
-        Ok(contracts)
-    }
 }

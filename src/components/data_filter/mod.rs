@@ -1,8 +1,8 @@
 mod ethereum_filter;
 mod utils;
 
-use super::manifest_loader::ManifestLoader;
 use crate::common::Chain;
+use crate::common::Datasource;
 use crate::errors::FilterError;
 use crate::messages::BlockDataMessage;
 use crate::messages::FilteredDataMessage;
@@ -30,9 +30,9 @@ impl DataFilter {
         Ok(result)
     }
 
-    pub fn new(chain: Chain, manifest: &ManifestLoader) -> Result<Self, FilterError> {
+    pub fn new(chain: Chain, datasources: Vec<Datasource>) -> Result<Self, FilterError> {
         let filter = match chain {
-            Chain::Ethereum => DataFilter::Ethereum(EthereumFilter::new(chain, manifest)?),
+            Chain::Ethereum => DataFilter::Ethereum(EthereumFilter::new(datasources)?),
         };
         Ok(filter)
     }

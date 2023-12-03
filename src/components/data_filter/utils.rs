@@ -1,42 +1,20 @@
 use crate::common::Datasource;
 use crate::common::EventHandler;
 use tiny_keccak::Hasher;
-use web3::types::Address;
-use web3::types::Log;
 use web3::types::H256;
-use web3::types::U64;
-
-pub fn check_log_matches(source: &Datasource, raw_log: &Log) -> bool {
-    if get_start_block(source) > raw_log.block_number {
-        return false;
-    }
-
-    //Check topic0 matches event handler
-    match raw_log.topics.first() {
-        None => false,
-        Some(topic) => get_handler_for_log(source, topic).is_some(),
-    }
-}
 
 pub fn get_handler_for_log(source: &Datasource, topic0: &H256) -> Option<EventHandler> {
-    if let Some(event_handlers) = source.mapping.eventHandlers.clone() {
-        return event_handlers
-            .iter()
-            .find(|handler| &parse_topic0_event(&handler.event) == topic0)
-            .cloned();
-    }
-    None
-}
-
-fn get_start_block(source: &Datasource) -> Option<U64> {
-    source.source.startBlock.map(U64::from)
-}
-
-pub fn get_address(source: &Datasource) -> Option<Address> {
-    match source.source.address.clone() {
-        None => None,
-        Some(address) => address.parse().ok(),
-    }
+    source
+        .mapping
+        .eventHandlers
+        .clone()
+        .map(|event_handlers| {
+            event_handlers
+                .iter()
+                .find(|handler| &parse_topic0_event(&handler.event) == topic0)
+                .cloned()
+        })
+        .flatten()
 }
 
 fn parse_topic0_event(handler: &str) -> H256 {

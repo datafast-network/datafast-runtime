@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(main, "BlockInspector ready"; next_start_block => inspector.get_expected_block_number());
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
     info!(main, "BlockSource ready");
-    let filter = DataFilter::new(config.chain.clone(), &manifest)?;
+    let filter = DataFilter::new(config.chain.clone(), manifest.datasources())?;
     info!(main, "DataFilter ready");
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
     info!(main, "Rpc-Client ready");
