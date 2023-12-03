@@ -90,8 +90,11 @@ impl EthereumFilter {
                 });
 
                 if let Some(DatasourceWithContract { ds, contract }) = source {
-                    let event_handler =
-                        get_handler_for_log(ds, &log.topics[0]).expect("No Handlers!");
+                    let event_handler = get_handler_for_log(ds, &log.topics[0]);
+
+                    event_handler.as_ref()?;
+
+                    let event_handler = event_handler.unwrap();
 
                     //Parse the event
                     let tx = txs
