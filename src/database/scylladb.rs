@@ -21,6 +21,8 @@ use scylla::QueryResult;
 use scylla::SessionBuilder;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio_retry::strategy::ExponentialBackoff;
+use tokio_retry::Retry;
 
 impl From<Value> for CqlValue {
     fn from(value: Value) -> Self {
@@ -455,8 +457,10 @@ impl ExternDBTrait for Scylladb {
 
             let st = session.prepare_batch(&batch_queries).await?;
             let insert = tokio::spawn(async move {
-                session.batch(&st, batch_values).await?;
-                Ok::<(), DatabaseError>(())
+                Retry::spawn(ExponentialBackoff::from_millis(100), || {
+                    session.batch(&st, batch_values.clone())
+                })
+                .await
             });
 
             inserts.push(insert);

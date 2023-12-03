@@ -38,17 +38,13 @@ impl Subgraph {
         }
     }
 
-    pub fn has_wasm_hosts(&self) -> bool {
-        !self.sources.is_empty()
-    }
-
     pub async fn create_sources(
         &mut self,
         manifest: &ManifestLoader,
         db: &DatabaseAgent,
         rpc: &RpcAgent,
     ) -> Result<(), SubgraphError> {
-        self.sources = HashMap::new();
+        self.sources.clear();
         for datasource in manifest.datasources() {
             let api_version = datasource.mapping.apiVersion.to_owned();
             let wasm_bytes = manifest
@@ -157,14 +153,12 @@ impl Subgraph {
             })?;
 
             info!(Subgraph, "data committed to database"; execution_time => format!("{:?}", time.elapsed()));
-        }
 
-        if block_ptr.number % 5000 == 0 {
             db_agent
                 .clear_in_memory()
                 .await
                 .map_err(|_| SubgraphError::MigrateDbError)?;
-            info!(Subgraph, "flushed entity cache"; block_number => block_ptr.number);
+            info!(Subgraph, "flushed entity cache");
         }
 
         Ok(())
