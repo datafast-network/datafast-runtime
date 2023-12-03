@@ -136,6 +136,7 @@ impl EthereumFilter {
                 }
             })
             .collect::<Vec<_>>();
+
         Ok(result)
     }
 
