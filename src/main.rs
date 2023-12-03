@@ -63,6 +63,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_block => blocks.len()
             );
 
+            if let Some(last_block) = blocks.last() {
+                valve.set_downloaded(last_block.get_block_ptr().number);
+            }
+
             let time = std::time::Instant::now();
             let blocks = filter.filter_multi(blocks)?;
             let count_blocks = blocks.len();
@@ -94,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                if !subgraph.has_wasm_hosts() || block_ptr.number % 100 == 0 {
+                if !subgraph.has_wasm_hosts() || block_ptr.number % 1000 == 0 {
                     subgraph.create_sources(&manifest, &db, &rpc).await?;
                 }
 
