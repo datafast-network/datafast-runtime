@@ -108,12 +108,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 subgraph.create_sources(&manifest, &db, &rpc).await?;
                 subgraph.process(block).await?;
+                valve.set_finished(block_ptr.number);
             }
 
             if let Some(block_ptr) = last_block {
                 db.commit_data(block_ptr.clone()).await?;
                 db.flush_cache().await?;
-                valve.set_finished(block_ptr.number);
             }
 
             info!(
