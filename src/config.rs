@@ -10,6 +10,7 @@ pub struct DeltaConfig {
     pub table_path: String,
     pub query_step: u64,
     pub version: Option<u64>,
+    pub block_per_file: u32,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -36,7 +37,6 @@ pub struct Config {
     pub chain: Chain,
     pub source: SourceTypes,
     pub subgraph_name: String,
-    pub subgraph_id: Option<String>,
     pub subgraph_dir: String,
     pub database: DatabaseConfig,
     pub reorg_threshold: u16,
@@ -53,13 +53,6 @@ impl Config {
             .merge(Env::prefixed("SWR_"))
             .extract()
             .expect("Load config failed")
-    }
-
-    pub fn get_subgraph_id(&self) -> String {
-        self.subgraph_id
-            .clone()
-            .unwrap_or(self.subgraph_name.to_owned())
-            .to_owned()
     }
 }
 

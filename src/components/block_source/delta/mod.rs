@@ -25,6 +25,7 @@ pub struct DeltaClient {
     ctx: SessionContext,
     start_block: u64,
     query_step: u64,
+    block_per_file: u32,
 }
 
 impl DeltaClient {
@@ -57,6 +58,7 @@ impl DeltaClient {
             ctx,
             start_block,
             query_step: cfg.query_step,
+            block_per_file: cfg.block_per_file,
         })
     }
 
@@ -82,13 +84,12 @@ impl DeltaClient {
         sender: AsyncSender<Vec<BlockDataMessage>>,
         valve: Valve,
     ) -> Result<(), SourceError> {
-        let mut start_block = self.start_block;
+        let mut start_block = self.start_block - (self.start_block % self.block_per_file as u64);
         info!(DeltaClient, "source start collecting data");
 
         loop {
             while !valve.should_continue() {
                 let sleep_tine = valve.get_wait();
-                info!(DeltaClient, "source sleeping"; sleep_time => sleep_tine);
                 tokio::time::sleep(Duration::from_secs(sleep_tine)).await;
             }
 
@@ -135,6 +136,14 @@ mod test {
     use super::*;
     use crate::config::ValveConfig;
 
+    #[test]
+    fn test_adjust_start_block() {
+        let actual_start_block = 10_124_125;
+        let block_per_file = 2000;
+        let adjusted_start_block = actual_start_block - (actual_start_block % block_per_file);
+        assert_eq!(adjusted_start_block, 10_124_000);
+    }
+
     #[tokio::test]
     async fn test_delta() {
         env_logger::try_init().unwrap_or_default();
@@ -143,6 +152,7 @@ mod test {
             table_path: "s3://ethereum/blocks_01/".to_owned(),
             query_step: 10,
             version: None,
+            block_per_file: 2,
         };
 
         let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();

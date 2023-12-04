@@ -2,12 +2,10 @@ mod datasource_wasm_instance;
 mod metrics;
 
 use super::ManifestLoader;
-use super::Valve;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::HandlerTypes;
 use crate::config::Config;
 use crate::database::DatabaseAgent;
-use crate::error;
 use crate::errors::SubgraphError;
 use crate::info;
 use crate::messages::EthereumFilteredEvent;
@@ -18,11 +16,9 @@ use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
-use std::time::Instant;
 
 pub struct Subgraph {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
-    pub id: String,
     pub name: String,
     sources: HashMap<String, DatasourceWasmInstance>,
     metrics: SubgraphMetrics,
@@ -33,7 +29,6 @@ impl Subgraph {
         Self {
             sources: HashMap::new(),
             name: config.subgraph_name.clone(),
-            id: config.get_subgraph_id(),
             metrics: SubgraphMetrics::new(registry),
         }
     }
@@ -109,16 +104,8 @@ impl Subgraph {
         }
     }
 
-    pub async fn process(
-        &mut self,
-        msg: FilteredDataMessage,
-        db_agent: &DatabaseAgent,
-        rpc_agent: &RpcAgent,
-        valve: &Valve,
-    ) -> Result<(), SubgraphError> {
+    pub async fn process(&mut self, msg: FilteredDataMessage) -> Result<(), SubgraphError> {
         let block_ptr = msg.get_block_ptr();
-
-        rpc_agent.set_block_ptr(block_ptr.clone()).await;
 
         self.metrics
             .current_block_number
@@ -136,29 +123,6 @@ impl Subgraph {
                 block_number => block_ptr.number,
                 block_hash => block_ptr.hash
             );
-            valve.set_finished(block_ptr.number);
-        }
-
-        if block_ptr.number % 2000 == 0 {
-            info!(Subgraph, "commiting data to DB"; block_number => block_ptr.number);
-            let time = Instant::now();
-            db_agent.migrate(block_ptr.clone()).await.map_err(|e| {
-                error!(
-                    Subgraph, "Failed to commit data to DB";
-                    error => e.to_string(),
-                    block_number => block_ptr.number,
-                    block_hash => block_ptr.hash
-                );
-                SubgraphError::MigrateDbError
-            })?;
-
-            info!(Subgraph, "data committed to database"; execution_time => format!("{:?}", time.elapsed()));
-
-            db_agent
-                .clear_in_memory()
-                .await
-                .map_err(|_| SubgraphError::MigrateDbError)?;
-            info!(Subgraph, "flushed entity cache");
         }
 
         Ok(())

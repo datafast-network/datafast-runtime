@@ -76,6 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let time = std::time::Instant::now();
             let sorted_blocks = filter.filter_multi(blocks)?;
             let count_blocks = sorted_blocks.len();
+            let last_block = sorted_blocks.last().map(|b| b.get_block_ptr());
 
             info!(
                 MainFlow,
@@ -88,6 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             for block in sorted_blocks {
                 let block_ptr = block.get_block_ptr();
+                rpc.set_block_ptr(&block_ptr).await;
 
                 match inspector.check_block(block_ptr.clone()) {
                     BlockInspectionResult::UnexpectedBlock
@@ -105,7 +107,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
 
                 subgraph.create_sources(&manifest, &db, &rpc).await?;
-                subgraph.process(block, &db, &rpc, &valve).await?;
+                subgraph.process(block).await?;
+            }
+
+            if let Some(block_ptr) = last_block {
+                db.commit_data(block_ptr.clone()).await?;
+                db.flush_cache().await?;
+                valve.set_finished(block_ptr.number);
             }
 
             info!(
@@ -113,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "block batch processed done";
                 exec_time => format!("{:?}", time.elapsed()),
                 number_of_blocks => count_blocks,
-                avg_speed => format!("~{:?} blocks/sec", (count_blocks as u64 / time.elapsed().as_secs()) as u64)
+                avg_speed => format!("~{:?} blocks/sec", { count_blocks as u64 / time.elapsed().as_secs() })
             );
         }
 
