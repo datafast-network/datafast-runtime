@@ -4,7 +4,6 @@ use super::DeltaBlockTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::errors::SourceError;
-use crate::info;
 use crate::messages::BlockDataMessage;
 use deltalake::arrow::array::Array;
 use deltalake::arrow::array::BinaryArray;
@@ -124,13 +123,11 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
             .downcast_ref::<BinaryArray>()
             .unwrap();
 
-        log::info!("------> Downcast OK");
-
         let blocks = block_data
             .into_iter()
             .map(|b| PbBlock::decode(b.unwrap()).unwrap())
             .collect::<Vec<PbBlock>>();
-        log::info!("------> serialized OK");
+
         Ok(Self(blocks))
     }
 }
