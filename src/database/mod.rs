@@ -7,6 +7,7 @@ mod utils;
 use crate::common::BlockPtr;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
+use crate::info;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
 use crate::messages::FieldName;
@@ -22,6 +23,7 @@ use memory_db::MemoryDb;
 use metrics::DatabaseMetrics;
 use prometheus::Registry;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Mutex;
 
 pub struct Database {
@@ -257,13 +259,23 @@ impl DatabaseAgent {
             .await
     }
 
-    pub async fn migrate(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+    pub async fn commit_data(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let time = Instant::now();
+        let block_number = block_ptr.number;
         let mut db = self.db.lock().await;
-        db.migrate_from_mem_to_db(block_ptr).await
+        db.migrate_from_mem_to_db(block_ptr).await?;
+        info!(
+            Database,
+            "committed to database";
+            block_number => block_number,
+            exec_time => format!("{:?}", time.elapsed())
+        );
+        Ok(())
     }
 
-    pub async fn clear_in_memory(&self) -> Result<(), DatabaseError> {
+    pub async fn flush_cache(&self) -> Result<(), DatabaseError> {
         self.db.lock().await.mem.clear();
+        info!(Database, "flushed entity cache");
         Ok(())
     }
 

@@ -41,14 +41,16 @@ impl Valve {
 
         let result = this.downloaded - this.finished <= this.cfg.allowed_lag;
 
-        info!(
-            Valve,
-            format!("should continue download? {result}");
-            downloaded => this.downloaded,
-            finished => this.finished,
-            lag => this.downloaded - this.finished,
-            allowed_lag => this.cfg.allowed_lag
-        );
+        if this.cfg.allowed_lag > 0 {
+            info!(
+                Valve,
+                format!("should continue download? {result}");
+                downloaded => this.downloaded,
+                finished => this.finished,
+                lag => this.downloaded - this.finished,
+                allowed_lag => this.cfg.allowed_lag
+            );
+        }
 
         result
     }
