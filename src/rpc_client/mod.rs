@@ -83,8 +83,8 @@ impl RpcClient {
         }
     }
 
-    pub fn set_block_ptr(&mut self, block_ptr: BlockPtr) {
-        self.block_ptr = block_ptr;
+    pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
+        self.block_ptr = block_ptr.clone();
     }
 
     pub fn new_mock() -> Self {
@@ -119,7 +119,7 @@ impl RpcAgent {
         })
     }
 
-    pub async fn set_block_ptr(&self, block_ptr: BlockPtr) {
+    pub async fn set_block_ptr(&self, block_ptr: &BlockPtr) {
         let mut rpc_agent = self.client.lock().await;
         rpc_agent.set_block_ptr(block_ptr);
     }

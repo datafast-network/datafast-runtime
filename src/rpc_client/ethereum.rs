@@ -11,6 +11,8 @@ use crate::info;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::str::FromStr;
+use tokio_retry::strategy::FixedInterval;
+use tokio_retry::Retry;
 use web3::transports::Http;
 use web3::types::BlockId;
 use web3::types::H256;
@@ -188,23 +190,22 @@ impl EthereumRPC {
             transaction_type: None,
         };
 
-        let result = self
-            .client
-            .eth()
-            .call(req, Some(block_id))
-            .await
-            .map_err(|e| {
-                error!(
-                    ethereum_call,
-                    "calling contract function failed";
-                    error => format!("{:?}", e),
-                    contract_address => format!("{:?}", request_data.address),
-                    function_name => format!("{:?}", request_data.function.name),
-                    block_number => block_ptr.number,
-                    block_hash => block_ptr.hash
-                );
-                RPCClientError::RPCClient(e.to_string())
-            })?;
+        let result = Retry::spawn(FixedInterval::from_millis(100).take(5), || {
+            self.client.eth().call(req.clone(), Some(block_id))
+        })
+        .await
+        .map_err(|e| {
+            error!(
+                ethereum_call,
+                "calling contract function failed";
+                error => format!("{:?}", e),
+                contract_address => format!("{:?}", request_data.address),
+                function_name => format!("{:?}", request_data.function.name),
+                block_number => block_ptr.number,
+                block_hash => block_ptr.hash
+            );
+            RPCClientError::RPCClient(e.to_string())
+        })?;
 
         let data_result = request_data
             .function
