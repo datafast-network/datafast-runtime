@@ -1,4 +1,5 @@
 mod ethereum;
+pub mod proto;
 
 use crate::components::Valve;
 use crate::config::DeltaConfig;
@@ -69,7 +70,7 @@ impl DeltaClient {
 
     async fn query_blocks(&self, start_block: u64) -> Result<Vec<RecordBatch>, SourceError> {
         let query = format!(
-            "SELECT * FROM blocks WHERE block_number >= {} AND block_number < {}",
+            "SELECT block_data FROM blocks WHERE block_number >= {} AND block_number < {}",
             start_block,
             start_block + self.query_step
         );
@@ -149,8 +150,8 @@ mod test {
         env_logger::try_init().unwrap_or_default();
 
         let cfg = DeltaConfig {
-            table_path: "s3://ethereum/blocks_01/".to_owned(),
-            query_step: 10,
+            table_path: "s3://ethereum/blocks_proto/".to_owned(),
+            query_step: 4000,
             version: None,
             block_per_file: 2,
         };
