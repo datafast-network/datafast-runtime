@@ -137,6 +137,7 @@ mod test {
     use super::*;
     use crate::config::ValveConfig;
     use log::info;
+    use serde_json::json;
 
     #[test]
     fn test_adjust_start_block() {
@@ -260,9 +261,62 @@ mod test {
                     "0xd69b8ff1888e78d9c337c2f2e6b3bf3e7357800e"
                 );
 
-                // // ---------- Logs
-                // info!("Validating logs...");
-                // assert_eq!(logs.len(), 104);
+                // ---------- Logs
+                info!("Validating logs...");
+                assert_eq!(logs.len(), 135);
+                let log = serde_json::to_value(&logs[0].clone())
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .to_owned();
+                let expected_log = json!({
+                        "address": "0xced4e93198734ddaff8492d525bd258d49eb388e",
+                        "blockHash": "0xaa20f7bde5be60603f11a45fc4923aab7552be775403fc00c2e6b805e6297dbe",
+                        "blockNumber": "0x989680",
+                        "data": "0x0000000000000000000000000000000000000000000000052769477a7d940000",
+                        "logIndex": "0x0",
+                        "removed": false,
+                        "topics": [
+                            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                            "0x000000000000000000000000876eabf441b2ee5b5b0554fd502a8e0600950cfa",
+                            "0x000000000000000000000000566021352eb2f882538bf8d59e5d2ba741b9ec7a"
+                        ],
+                        "transactionHash": "0x1f17943d5dd7053959f1dc092dfad60a7caa084224212b1adbecaf3137efdfdd",
+                        "transactionIndex": "0x5",
+                        "logType": null,
+                        "transactionLogIndex": null
+                    }).as_object().unwrap().to_owned();
+
+                for key in log.keys() {
+                    assert_eq!(log.get(key), expected_log.get(key),);
+                }
+
+                let log = serde_json::to_value(&logs.last().clone())
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .to_owned();
+                let expected_log = json!({
+                    "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                    "blockHash": "0xaa20f7bde5be60603f11a45fc4923aab7552be775403fc00c2e6b805e6297dbe",
+                    "blockNumber": "0x989680",
+                    "data": "0x000000000000000000000000000000000000000000000000000000009f280a06",
+                    "logIndex": "0x86",
+                    "removed": false,
+                    "topics": [
+                        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                        "0x0000000000000000000000009c43d6a63f7fd0ae469ec0aeda2a90be93038f59",
+                        "0x00000000000000000000000096e9a06a22d4445a757dfe9b4ff2c77a12dd60f2"
+                    ],
+                    "transactionHash": "0xf9084755ea9905d54a61b1109626ad3de5e8c2edf3b9f7a42831037ace6f2456",
+                    "transactionIndex": "0x63",
+                    "logType": null,
+                    "transactionLogIndex": null
+                }).as_object().unwrap().to_owned();
+
+                for key in log.keys() {
+                    assert_eq!(log.get(key), expected_log.get(key),);
+                }
 
                 recv.close();
             }
