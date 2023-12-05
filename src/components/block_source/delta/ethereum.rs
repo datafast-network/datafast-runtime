@@ -40,7 +40,7 @@ impl From<&PbBlock> for EthereumBlockData {
             timestamp: U256::from_dec_str(&header.timestamp).unwrap(),
             difficulty: U256::from_dec_str(&header.difficulty).unwrap(),
             total_difficulty: U256::from_dec_str(&header.total_difficulty).unwrap(),
-            size: header.size.map(|s| U256::from(s)),
+            size: header.size.map(U256::from),
             base_fee_per_gas: header
                 .base_fee_per_gas
                 .map(|s| U256::from_dec_str(&s).unwrap()),
@@ -58,7 +58,7 @@ impl From<&PbTransaction> for EthereumTransactionData {
             value: U256::from_dec_str(&tx.value).unwrap(),
             gas_limit: U256::from_dec_str(&tx.gas).unwrap(),
             gas_price: U256::from_dec_str(&tx.gas_price.clone().unwrap_or_default()).unwrap(),
-            input: Bytes::from_hex(&tx.input.replace("0x", "")).unwrap_or_default(),
+            input: Bytes::from_hex(tx.input.replace("0x", "")).unwrap_or_default(),
             nonce: U256::from(tx.nonce),
         }
     }
@@ -125,7 +125,7 @@ impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
 
         let blocks = block_data
             .into_iter()
-            .map(|b| PbBlock::decode(b.unwrap()).unwrap())
+            .map(|b| PbBlock::decode(&mut b.unwrap()).unwrap())
             .collect::<Vec<PbBlock>>();
 
         Ok(Self(blocks))
