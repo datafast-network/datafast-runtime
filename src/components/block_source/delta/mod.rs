@@ -136,6 +136,7 @@ impl DeltaClient {
 mod test {
     use super::*;
     use crate::config::ValveConfig;
+    use log::info;
 
     #[test]
     fn test_adjust_start_block() {
@@ -167,12 +168,109 @@ mod test {
                 while let Ok(b) = recv.recv().await {
                     let first = b.first().map(|f| f.get_block_ptr()).unwrap();
                     let last = b.last().map(|f| f.get_block_ptr()).unwrap();
-                    log::warn!("Received: {:?} msgs, first_block={}, last_block={}", b.len(), first, last);
+                    log::warn!("Received: {:?} msgs, first_block={:#?}, last_block={:#?}", b.len(), first, last);
                     recv.close();
                 }
             } => {
                 log::info!(" DONE RECV");
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_ethereum_serialization() {
+        env_logger::try_init().unwrap_or_default();
+
+        let cfg = DeltaConfig {
+            table_path: "s3://ethereum/blocks_proto/".to_owned(),
+            query_step: 1,
+            version: None,
+            block_per_file: 2,
+        };
+
+        let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
+
+        let (sender, recv) = kanal::bounded_async::<Vec<BlockDataMessage>>(1);
+
+        let assert_block = async move {
+            while let Ok(b) = recv.recv().await {
+                let block = b.first().unwrap();
+
+                let BlockDataMessage::Ethereum {
+                    block,
+                    transactions,
+                    logs,
+                } = block;
+
+                info!("Validating block header...");
+                assert_eq!(
+                    format!("{:?}", block.hash),
+                    "0xaa20f7bde5be60603f11a45fc4923aab7552be775403fc00c2e6b805e6297dbe"
+                );
+                assert_eq!(
+                    format!("{:?}", block.parent_hash),
+                    "0x966bf6849da92ff2a0e3db9a371f5b9f07dd6001e2770a4269a5c134f1bf9c4c"
+                );
+                assert_eq!(
+                    format!("{:?}", block.state_root),
+                    "0x74477eaabece6bce00c346dc12275b2ed74ec9d6c758c4023c2040ba0e72e05d"
+                );
+
+                assert_eq!(block.number.as_u64(), 10_000_000);
+
+                assert_eq!(transactions.len(), 103);
+
+                // -------------- CHECK Transactions
+                let first_tx = transactions.first().cloned().unwrap();
+                let last_tx = transactions.last().cloned().unwrap();
+
+                // ------------------- First tx
+                info!("Validating first Tx in block...");
+                assert_eq!(first_tx.index.as_u64(), 0);
+                assert_eq!(first_tx.nonce.as_u64(), 25936206);
+                assert_eq!(
+                    format!("{:?}", first_tx.hash),
+                    "0x4a1e3e3a2aa4aa79a777d0ae3e2c3a6de158226134123f6c14334964c6ec70cf"
+                );
+                assert_eq!(first_tx.value.to_string(), "384134310464384681");
+                assert_eq!(
+                    format!("{:?}", first_tx.from),
+                    "0xea674fdde714fd979de3edf0f56aa9716b898ec8"
+                );
+                assert_eq!(
+                    format!("{:?}", first_tx.to.clone().unwrap()),
+                    "0x60f18d941f6253e3f7082ea0db3bc3944e7e9d40"
+                );
+
+                // ---------- Last TX
+                info!("Validating last Tx in block...");
+                assert_eq!(last_tx.index.as_u64(), 102);
+                assert_eq!(last_tx.nonce.as_u64(), 47);
+                assert_eq!(
+                    format!("{:?}", last_tx.hash),
+                    "0x5a4bf6970980a9381e6d6c78d96ab278035bbff58c383ffe96a0a2bbc7c02a4b"
+                );
+                assert_eq!(last_tx.value.to_string(), "2000000000000000000");
+                assert_eq!(
+                    format!("{:?}", last_tx.from),
+                    "0x8a9d69aa686fa0f9bbdec21294f67d4d9cfb4a3e"
+                );
+                assert_eq!(
+                    format!("{:?}", last_tx.to.clone().unwrap()),
+                    "0xd69b8ff1888e78d9c337c2f2e6b3bf3e7357800e"
+                );
+
+                // // ---------- Logs
+                // info!("Validating logs...");
+                // assert_eq!(logs.len(), 104);
+
+                recv.close();
+            }
+        };
+
+        tokio::select! {
+            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default())) => (),
+            _ = assert_block => ()
         }
     }
 }
