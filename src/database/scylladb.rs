@@ -262,6 +262,8 @@ impl Scylladb {
             let query = format!(r#"DROP TABLE IF EXISTS {}."{}""#, self.keyspace, table_name);
             self.session.query(query, ()).await?;
         }
+        let query = format!(r#"DROP TABLE IF EXISTS {}.block_ptr"#, self.keyspace);
+        self.session.query(query, ()).await?;
         Ok(())
     }
 
@@ -648,7 +650,7 @@ WHERE sgd = ? AND block_number = {}"#,
         return Ok(serde_json::from_str(&text).ok());
     }
 
-    async fn clean_up_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
+    async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
         let entity_names = self.schema_lookup.get_entity_names();
         let mut batch_queries: Batch = Batch::default();
         let mut batch_values = vec![];
@@ -690,7 +692,6 @@ mod tests {
     use crate::runtime::bignumber::bigint::BigInt;
     use crate::schema;
     use crate::schema_lookup::Schema;
-    use log::info;
     use std::collections::HashSet;
     use std::str::FromStr;
 
@@ -698,7 +699,7 @@ mod tests {
         env_logger::try_init().unwrap_or_default();
 
         let uri = "localhost:9042";
-        let keyspace = "ks";
+        let keyspace = format!("ks_{}", entity_type);
         let mut schema = SchemaLookup::new();
 
         let mut test_schema: Schema = schema!(
@@ -715,7 +716,7 @@ mod tests {
         test_schema.get_mut("users").unwrap().list_inner_kind = Some(StoreValueKind::String);
 
         schema.add_schema(entity_type, test_schema);
-        let db = Scylladb::new(uri, keyspace, schema).await.unwrap();
+        let db = Scylladb::new(uri, &keyspace, schema).await.unwrap();
         db.drop_tables().await.unwrap();
         db.create_block_ptr_table().await.unwrap();
         db.create_entity_tables().await.unwrap();
@@ -749,7 +750,7 @@ mod tests {
             .await
             .unwrap();
 
-        info!("Create test Token OK!");
+        info!(Scylladb, "Create test Token OK!");
 
         let loaded_entity = db
             .load_entity(block_ptr.clone(), &entity_type, "token-id")
@@ -757,8 +758,8 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!("Load test Token OK!");
-        info!("Loaded from db: {:?}", loaded_entity);
+        info!(Scylladb, "Load test Token OK!");
+        info!(Scylladb, "Loaded from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -788,7 +789,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!("Loaded-latest from db: {:?}", loaded_entity);
+        info!(Scylladb, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -809,7 +810,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!("Loaded-latest from db: {:?}", loaded_entity);
+        info!(Scylladb, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -1058,7 +1059,7 @@ mod tests {
             }
             _ => panic!("Not a list"),
         };
-        log::info!("relation: {:?}", relation_ids);
+        info!(Scylla, "describe relation"; relation_ids => format!("{:?}", relation_ids));
         let tokens_relation = db.load_entities(tokens, relation_ids).await.unwrap();
 
         assert_eq!(tokens_relation.len(), 3);
@@ -1112,7 +1113,6 @@ mod tests {
         db.schema_lookup = schema;
 
         let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap();
-        log::info!("----> {:?}", earliest_block_ptr);
         assert!(earliest_block_ptr.is_none());
 
         for i in 0..5 {
@@ -1148,7 +1148,7 @@ mod tests {
 
         assert_eq!(id_set.len(), 2);
 
-        let count = db.clean_up_data_history(2).await.unwrap();
+        let count = db.clean_data_history(2).await.unwrap();
         assert_eq!(count, 2);
 
         let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap().unwrap();

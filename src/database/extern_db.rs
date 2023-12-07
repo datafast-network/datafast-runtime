@@ -86,7 +86,7 @@ pub trait ExternDBTrait: Sized {
 
     async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError>;
 
-    async fn clean_up_data_history(&self, to_block: u64) -> Result<u64, DatabaseError>;
+    async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError>;
 }
 
 #[async_trait]
@@ -209,9 +209,9 @@ impl ExternDBTrait for ExternDB {
         }
     }
 
-    async fn clean_up_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
+    async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
         match self {
-            ExternDB::Scylla(db) => db.clean_up_data_history(to_block).await,
+            ExternDB::Scylla(db) => db.clean_data_history(to_block).await,
             ExternDB::None => Ok(1),
         }
     }

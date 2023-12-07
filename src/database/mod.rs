@@ -312,7 +312,7 @@ impl DatabaseAgent {
         let mut db = self.db.lock().await;
 
         if db.earliest_block < to_block {
-            let removed = db.db.clean_up_data_history(to_block).await?;
+            let removed = db.db.clean_data_history(to_block).await?;
             info!(
                 Database,
                 "cleaned up data history in database";
