@@ -19,6 +19,7 @@ use scylla::batch::Batch;
 use scylla::transport::session::Session;
 use scylla::QueryResult;
 use scylla::SessionBuilder;
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -228,14 +229,14 @@ impl Scylladb {
         Ok(())
     }
 
-    async fn get_ids_from_block(
+    async fn get_ids_by_block_ptr_filter(
         &self,
         entity_type: &str,
-        from_block: u64,
-    ) -> Result<Vec<String>, DatabaseError> {
+        block_filter: &BlockPtrFilter,
+    ) -> Result<HashSet<String>, DatabaseError> {
         let query = format!(
-            r#"SELECT id FROM {}."{}" WHERE block_ptr_number >= {}"#,
-            self.keyspace, entity_type, from_block
+            r#"SELECT id FROM {}."{}" WHERE {}"#,
+            self.keyspace, entity_type, block_filter
         );
         let rows = self.session.query(query, ()).await?.rows().unwrap();
         let ids = rows
@@ -521,16 +522,19 @@ impl ExternDBTrait for Scylladb {
         let entity_names = self.schema_lookup.get_entity_names();
         let mut batch_queries: Batch = Batch::default();
         let mut batch_values = vec![];
+        let block_ptr_filter = BlockPtrFilter::Gte(from_block);
         for entity_type in entity_names {
-            let ids = self.get_ids_from_block(&entity_type, from_block).await?;
+            let ids = self
+                .get_ids_by_block_ptr_filter(&entity_type, &block_ptr_filter)
+                .await?;
             for id in ids {
                 let query = format!(
                     r#"
-                    DELETE FROM {}."{}" WHERE id = ? AND block_ptr_number >= ?"#,
-                    self.keyspace, entity_type,
+                    DELETE FROM {}."{}" WHERE id = ? AND {}"#,
+                    self.keyspace, entity_type, block_ptr_filter
                 );
                 batch_queries.append_statement(query.as_str());
-                batch_values.push((id, from_block as i64));
+                batch_values.push((id,));
             }
         }
         let st_batch = self.session.prepare_batch(&batch_queries).await?;
@@ -613,6 +617,32 @@ impl ExternDBTrait for Scylladb {
 
         Ok(vec![])
     }
+
+    async fn clean_up_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
+        let entity_names = self.schema_lookup.get_entity_names();
+        let mut batch_queries: Batch = Batch::default();
+        let mut batch_values = vec![];
+        let block_ptr_filter = BlockPtrFilter::Lt(to_block);
+        let mut count = 0;
+        for entity_type in entity_names {
+            let ids = self
+                .get_ids_by_block_ptr_filter(&entity_type, &block_ptr_filter)
+                .await?;
+            count += ids.len();
+            for id in ids {
+                let query = format!(
+                    r#"
+                    DELETE FROM {}."{}" WHERE id = ? AND {}"#,
+                    self.keyspace, entity_type, block_ptr_filter
+                );
+                batch_queries.append_statement(query.as_str());
+                batch_values.push((id,));
+            }
+        }
+        let st_batch = self.session.prepare_batch(&batch_queries).await?;
+        self.session.batch(&st_batch, batch_values).await?;
+        Ok(count as u64)
+    }
 }
 
 #[cfg(test)]
@@ -624,8 +654,8 @@ mod tests {
     use crate::runtime::bignumber::bigint::BigInt;
     use crate::schema;
     use crate::schema_lookup::Schema;
-
     use log::info;
+    use std::collections::HashSet;
     use std::str::FromStr;
 
     async fn setup_db(entity_type: &str) -> (Scylladb, String) {
@@ -1018,5 +1048,63 @@ mod tests {
         assert_eq!(recent_block_ptrs.len(), 5);
         assert_eq!(recent_block_ptrs.last().cloned().unwrap().number, 11);
         assert_eq!(recent_block_ptrs.first().cloned().unwrap().number, 7);
+    }
+
+    #[tokio::test]
+    async fn test_scylla_07_clean_up_data() {
+        let (mut db, entity_name) = setup_db("Tokens_07").await;
+
+        let mut schema = SchemaLookup::new();
+        let mut entity_1 = Schema::new();
+        entity_1.insert(
+            "id".to_string(),
+            FieldKind {
+                kind: StoreValueKind::String,
+                relation: None,
+                list_inner_kind: None,
+            },
+        );
+        entity_1.insert(
+            "name".to_string(),
+            FieldKind {
+                kind: StoreValueKind::String,
+                relation: None,
+                list_inner_kind: None,
+            },
+        );
+        schema.add_schema(&entity_name, entity_1);
+        db.schema_lookup = schema;
+
+        for i in 0..5 {
+            let block_ptr = BlockPtr {
+                number: i,
+                hash: "hash={i}".to_string(),
+                parent_hash: "parent_hash".to_string(),
+            };
+            for token in 0..2 {
+                let token: RawEntity = entity! {
+                    id => Value::String(format!("token-id_{}", token)),
+                    name => Value::String(format!("token-name_{}", token)),
+                };
+                db.insert_entity(block_ptr.clone(), &entity_name, token, false)
+                    .await
+                    .unwrap();
+            }
+        }
+
+        let ids = db
+            .get_ids_by_block_ptr_filter(&entity_name, &BlockPtrFilter::Lt(2))
+            .await
+            .unwrap();
+
+        let mut id_set = HashSet::new();
+        for id in ids {
+            id_set.insert(id);
+        }
+
+        assert_eq!(id_set.len(), 2);
+
+        let count = db.clean_up_data_history(2).await.unwrap();
+        assert_eq!(count, 2);
     }
 }

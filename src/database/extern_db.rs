@@ -83,6 +83,8 @@ pub trait ExternDBTrait: Sized {
         &self,
         number_of_blocks: u16,
     ) -> Result<Vec<BlockPtr>, DatabaseError>;
+
+    async fn clean_up_data_history(&self, to_block: u64) -> Result<u64, DatabaseError>;
 }
 
 #[async_trait]
@@ -195,6 +197,13 @@ impl ExternDBTrait for ExternDB {
         match self {
             ExternDB::Scylla(db) => db.load_recent_block_ptrs(number_of_blocks).await,
             ExternDB::None => Ok(vec![]),
+        }
+    }
+
+    async fn clean_up_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
+        match self {
+            ExternDB::Scylla(db) => db.clean_up_data_history(to_block).await,
+            ExternDB::None => Ok(1),
         }
     }
 }

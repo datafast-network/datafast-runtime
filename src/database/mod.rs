@@ -285,4 +285,23 @@ impl DatabaseAgent {
         warn!(Database, "Database reverted OK"; revert_from_block_number => block_number);
         Ok(())
     }
+
+    #[cfg(test)]
+    pub fn empty(registry: &Registry) -> Self {
+        let mem = MemoryDb::default();
+        let db = ExternDB::None;
+        let metrics = DatabaseMetrics::new(registry);
+        let database = Database {
+            mem,
+            db,
+            metrics,
+            schema: SchemaLookup::default(),
+        };
+        DatabaseAgent::from(database)
+    }
+
+    pub async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
+        let db = &self.db.lock().await.db;
+        db.clean_up_data_history(to_block).await
+    }
 }
