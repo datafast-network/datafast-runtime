@@ -285,17 +285,4 @@ impl DatabaseAgent {
         warn!(Database, "Database reverted OK"; revert_from_block_number => block_number);
         Ok(())
     }
-
-    pub fn empty(registry: &Registry) -> Self {
-        let mem = MemoryDb::default();
-        let db = ExternDB::None;
-        let metrics = DatabaseMetrics::new(registry);
-        let database = Database {
-            mem,
-            db,
-            metrics,
-            schema: SchemaLookup::default(),
-        };
-        DatabaseAgent::from(database)
-    }
 }
