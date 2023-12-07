@@ -618,6 +618,36 @@ impl ExternDBTrait for Scylladb {
         Ok(vec![])
     }
 
+    async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+        let min_block_number = self
+            .session
+            .query(
+                format!("SELECT min(block_number) FROM {}.block_ptr", self.keyspace),
+                &[],
+            )
+            .await?;
+        let row = min_block_number.first_row().unwrap();
+        let column = row.columns.get(0).cloned().unwrap();
+
+        if column.is_none() {
+            return Ok(None);
+        }
+
+        let block_number = column.unwrap().as_bigint().unwrap() as u64;
+        let query = format!(
+            r#"
+SELECT JSON block_number as number, block_hash as hash, parent_hash
+FROM {}.block_ptr
+WHERE sgd = ? AND block_number = {}"#,
+            self.keyspace, block_number
+        );
+        let result = self.session.query(query, vec!["swr".to_string()]).await?;
+        let row = result.first_row().unwrap();
+        let data = row.columns.get(0).cloned().unwrap();
+        let text = data.unwrap().into_string().unwrap();
+        return Ok(serde_json::from_str(&text).ok());
+    }
+
     async fn clean_up_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
         let entity_names = self.schema_lookup.get_entity_names();
         let mut batch_queries: Batch = Batch::default();
@@ -639,6 +669,12 @@ impl ExternDBTrait for Scylladb {
                 batch_values.push((id,));
             }
         }
+        let query = format!(
+            "DELETE FROM {}.block_ptr WHERE sgd = ? AND block_number < {to_block}",
+            self.keyspace
+        );
+        batch_queries.append_statement(query.as_str());
+        batch_values.push(("swr".to_string(),));
         let st_batch = self.session.prepare_batch(&batch_queries).await?;
         self.session.batch(&st_batch, batch_values).await?;
         Ok(count as u64)
@@ -1075,6 +1111,10 @@ mod tests {
         schema.add_schema(&entity_name, entity_1);
         db.schema_lookup = schema;
 
+        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap();
+        log::info!("----> {:?}", earliest_block_ptr);
+        assert!(earliest_block_ptr.is_none());
+
         for i in 0..5 {
             let block_ptr = BlockPtr {
                 number: i,
@@ -1090,7 +1130,11 @@ mod tests {
                     .await
                     .unwrap();
             }
+            db.save_block_ptr(block_ptr).await.unwrap();
         }
+
+        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap().unwrap();
+        assert_eq!(earliest_block_ptr.number, 0);
 
         let ids = db
             .get_ids_by_block_ptr_filter(&entity_name, &BlockPtrFilter::Lt(2))
@@ -1106,5 +1150,8 @@ mod tests {
 
         let count = db.clean_up_data_history(2).await.unwrap();
         assert_eq!(count, 2);
+
+        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap().unwrap();
+        assert_eq!(earliest_block_ptr.number, 2);
     }
 }
