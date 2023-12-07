@@ -43,6 +43,7 @@ pub struct Config {
     pub metric_port: Option<u16>,
     pub rpc_endpoint: String,
     pub valve: ValveConfig,
+    pub block_data_retention: Option<u64>,
 }
 
 impl Config {
