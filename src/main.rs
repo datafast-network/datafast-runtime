@@ -67,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let main_flow = async move {
         while let Ok(blocks) = recv.recv().await {
             info!(
-                MainFlow,
+                main,
                 "block batch recevied and about to be processed";
                 total_block => blocks.len()
             );
@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let last_block = sorted_blocks.last().map(|b| b.get_block_ptr());
 
             info!(
-                MainFlow,
+                main,
                 "block data got filtered";
                 exec_time => format!("{:?}", time.elapsed()),
                 count_blocks => count_blocks
@@ -108,7 +108,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 subgraph.create_sources(&manifest, &db, &rpc).await?;
                 subgraph.process(block).await?;
-                valve.set_finished(block_ptr.number);
+
+                if block_ptr.number % 500 == 0 {
+                    valve.set_finished(block_ptr.number);
+                }
             }
 
             if let Some(block_ptr) = last_block {
@@ -124,7 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             info!(
-                MainFlow,
+                main,
                 "block batch processed done";
                 exec_time => format!("{:?}", time.elapsed()),
                 number_of_blocks => count_blocks,
@@ -132,7 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
 
-        warn!(MainFlow, "No more messages returned from block-stream");
+        warn!(main, "No more messages returned from block-stream");
         Ok::<(), Box<dyn std::error::Error>>(())
     };
 

@@ -71,7 +71,7 @@ impl Scylladb {
         keyspace: &str,
         schema_lookup: SchemaLookup,
     ) -> Result<Self, DatabaseError> {
-        info!(Scylladb, "Init db connection");
+        info!(ExternDB, "Init db connection");
         let session: Session = SessionBuilder::new().known_node(uri).build().await?;
         let this = Self {
             session: Arc::new(session),
@@ -79,11 +79,11 @@ impl Scylladb {
             schema_lookup,
         };
         this.create_keyspace().await?;
-        info!(Scylladb, "Keyspace created OK");
+        info!(ExternDB, "Keyspace created OK");
         this.create_entity_tables().await?;
-        info!(Scylladb, "Entities table created OK");
+        info!(ExternDB, "Entities table created OK");
         this.create_block_ptr_table().await?;
-        info!(Scylladb, "Block_Ptr table created OK");
+        info!(ExternDB, "Block_Ptr table created OK");
         Ok(this)
     }
 
@@ -423,7 +423,7 @@ impl ExternDBTrait for Scylladb {
                 Ok(entity)
             }
             Err(err) => {
-                error!(Scylladb,
+                error!(ExternDB,
                     "Load entity latest error";
                     entity_type => entity_type,
                     entity_id => entity_id,
@@ -460,7 +460,7 @@ impl ExternDBTrait for Scylladb {
 
             for (entity_type, data) in chunk.iter().cloned() {
                 if data.get("is_deleted").is_none() {
-                    error!(Scylladb,
+                    error!(ExternDB,
                            "Missing is_deleted field";
                            entity_type => entity_type,
                            entity_data => format!("{:?}", data),
@@ -750,7 +750,7 @@ mod tests {
             .await
             .unwrap();
 
-        info!(Scylladb, "Create test Token OK!");
+        info!(ExternDB, "Create test Token OK!");
 
         let loaded_entity = db
             .load_entity(block_ptr.clone(), &entity_type, "token-id")
@@ -758,8 +758,8 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!(Scylladb, "Load test Token OK!");
-        info!(Scylladb, "Loaded from db"; loaded_entity => format!("{:?}", loaded_entity));
+        info!(ExternDB, "Load test Token OK!");
+        info!(ExternDB, "Loaded from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -789,7 +789,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!(Scylladb, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
+        info!(ExternDB, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -810,7 +810,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!(Scylladb, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
+        info!(ExternDB, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -1059,7 +1059,7 @@ mod tests {
             }
             _ => panic!("Not a list"),
         };
-        info!(Scylla, "describe relation"; relation_ids => format!("{:?}", relation_ids));
+        info!(ExternDB, "describe relation"; relation_ids => format!("{:?}", relation_ids));
         let tokens_relation = db.load_entities(tokens, relation_ids).await.unwrap();
 
         assert_eq!(tokens_relation.len(), 3);

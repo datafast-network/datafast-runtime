@@ -75,7 +75,7 @@ impl DeltaClient {
             start_block + self.query_step
         );
         let df = self.get_dataframe(&query).await?;
-        info!(DeltaClient, "dataframe set up OK"; query => query);
+        info!(BlockSource, "dataframe set up OK"; query => query);
         let batches = df.collect().await?;
         Ok(batches)
     }
@@ -86,7 +86,7 @@ impl DeltaClient {
         valve: Valve,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block - (self.start_block % self.block_per_file as u64);
-        info!(DeltaClient, "source start collecting data");
+        info!(BlockSource, "source start collecting data");
 
         loop {
             while !valve.should_continue() {
@@ -122,7 +122,7 @@ impl DeltaClient {
             );
 
             if blocks.is_empty() {
-                warn!(DeltaClient, "No more block to query...");
+                warn!(BlockSource, "No more block to query...");
                 return Ok(());
             }
 
