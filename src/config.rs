@@ -43,16 +43,26 @@ pub struct Config {
     pub metric_port: Option<u16>,
     pub rpc_endpoint: String,
     pub valve: ValveConfig,
+    pub block_data_retention: Option<u64>,
 }
 
 impl Config {
     pub fn load() -> Self {
         let config_file_path = std::env::var("CONFIG").unwrap_or("config.toml".to_string());
-        Figment::new()
+        let cfg: Config = Figment::new()
             .merge(Toml::file(config_file_path))
             .merge(Env::prefixed("SWR_"))
             .extract()
-            .expect("Load config failed")
+            .expect("Load config failed");
+
+        if let Some(size) = cfg.block_data_retention {
+            assert!(
+                size > 20000,
+                "per-block data should be stored for at least 20_000 blocks"
+            );
+        }
+
+        return cfg;
     }
 }
 

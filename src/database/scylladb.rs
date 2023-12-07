@@ -19,6 +19,8 @@ use scylla::batch::Batch;
 use scylla::transport::session::Session;
 use scylla::QueryResult;
 use scylla::SessionBuilder;
+use std::collections::HashSet;
+use std::fmt::Display;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio_retry::strategy::ExponentialBackoff;
@@ -36,6 +38,23 @@ impl From<Value> for CqlValue {
             Value::Bytes(bytes) => CqlValue::Blob(bytes.as_slice().to_vec()),
             Value::BigInt(n) => CqlValue::Text(n.to_string()),
             Value::Null => CqlValue::Empty,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum BlockPtrFilter {
+    // Gt(u64),
+    Gte(u64),
+    Lt(u64),
+    // Lte(u64),
+}
+
+impl Display for BlockPtrFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Gte(block) => write!(f, "block_ptr_number >= {block}"),
+            Self::Lt(block) => write!(f, "block_ptr_number < {block}"),
         }
     }
 }
@@ -210,14 +229,14 @@ impl Scylladb {
         Ok(())
     }
 
-    async fn get_ids_from_block(
+    async fn get_ids_by_block_ptr_filter(
         &self,
         entity_type: &str,
-        from_block: u64,
-    ) -> Result<Vec<String>, DatabaseError> {
+        block_filter: &BlockPtrFilter,
+    ) -> Result<HashSet<String>, DatabaseError> {
         let query = format!(
-            r#"SELECT id FROM {}."{}" WHERE block_ptr_number >= {}"#,
-            self.keyspace, entity_type, from_block
+            r#"SELECT id FROM {}."{}" WHERE {}"#,
+            self.keyspace, entity_type, block_filter
         );
         let rows = self.session.query(query, ()).await?.rows().unwrap();
         let ids = rows
@@ -243,6 +262,8 @@ impl Scylladb {
             let query = format!(r#"DROP TABLE IF EXISTS {}."{}""#, self.keyspace, table_name);
             self.session.query(query, ()).await?;
         }
+        let query = format!(r#"DROP TABLE IF EXISTS {}.block_ptr"#, self.keyspace);
+        self.session.query(query, ()).await?;
         Ok(())
     }
 
@@ -503,16 +524,19 @@ impl ExternDBTrait for Scylladb {
         let entity_names = self.schema_lookup.get_entity_names();
         let mut batch_queries: Batch = Batch::default();
         let mut batch_values = vec![];
+        let block_ptr_filter = BlockPtrFilter::Gte(from_block);
         for entity_type in entity_names {
-            let ids = self.get_ids_from_block(&entity_type, from_block).await?;
+            let ids = self
+                .get_ids_by_block_ptr_filter(&entity_type, &block_ptr_filter)
+                .await?;
             for id in ids {
                 let query = format!(
                     r#"
-                    DELETE FROM {}."{}" WHERE id = ? AND block_ptr_number >= ?"#,
-                    self.keyspace, entity_type,
+                    DELETE FROM {}."{}" WHERE id = ? AND {}"#,
+                    self.keyspace, entity_type, block_ptr_filter
                 );
                 batch_queries.append_statement(query.as_str());
-                batch_values.push((id, from_block as i64));
+                batch_values.push((id,));
             }
         }
         let st_batch = self.session.prepare_batch(&batch_queries).await?;
@@ -595,6 +619,68 @@ impl ExternDBTrait for Scylladb {
 
         Ok(vec![])
     }
+
+    async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+        let min_block_number = self
+            .session
+            .query(
+                format!("SELECT min(block_number) FROM {}.block_ptr", self.keyspace),
+                &[],
+            )
+            .await?;
+        let row = min_block_number.first_row().unwrap();
+        let column = row.columns.get(0).cloned().unwrap();
+
+        if column.is_none() {
+            return Ok(None);
+        }
+
+        let block_number = column.unwrap().as_bigint().unwrap() as u64;
+        let query = format!(
+            r#"
+SELECT JSON block_number as number, block_hash as hash, parent_hash
+FROM {}.block_ptr
+WHERE sgd = ? AND block_number = {}"#,
+            self.keyspace, block_number
+        );
+        let result = self.session.query(query, vec!["swr".to_string()]).await?;
+        let row = result.first_row().unwrap();
+        let data = row.columns.get(0).cloned().unwrap();
+        let text = data.unwrap().into_string().unwrap();
+        return Ok(serde_json::from_str(&text).ok());
+    }
+
+    async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
+        let entity_names = self.schema_lookup.get_entity_names();
+        let mut batch_queries: Batch = Batch::default();
+        let mut batch_values = vec![];
+        let block_ptr_filter = BlockPtrFilter::Lt(to_block);
+        let mut count = 0;
+        for entity_type in entity_names {
+            let ids = self
+                .get_ids_by_block_ptr_filter(&entity_type, &block_ptr_filter)
+                .await?;
+            count += ids.len();
+            for id in ids {
+                let query = format!(
+                    r#"
+                    DELETE FROM {}."{}" WHERE id = ? AND {}"#,
+                    self.keyspace, entity_type, block_ptr_filter
+                );
+                batch_queries.append_statement(query.as_str());
+                batch_values.push((id,));
+            }
+        }
+        let query = format!(
+            "DELETE FROM {}.block_ptr WHERE sgd = ? AND block_number < {to_block}",
+            self.keyspace
+        );
+        batch_queries.append_statement(query.as_str());
+        batch_values.push(("swr".to_string(),));
+        let st_batch = self.session.prepare_batch(&batch_queries).await?;
+        self.session.batch(&st_batch, batch_values).await?;
+        Ok(count as u64)
+    }
 }
 
 #[cfg(test)]
@@ -606,15 +692,14 @@ mod tests {
     use crate::runtime::bignumber::bigint::BigInt;
     use crate::schema;
     use crate::schema_lookup::Schema;
-
-    use log::info;
+    use std::collections::HashSet;
     use std::str::FromStr;
 
     async fn setup_db(entity_type: &str) -> (Scylladb, String) {
         env_logger::try_init().unwrap_or_default();
 
         let uri = "localhost:9042";
-        let keyspace = "ks";
+        let keyspace = format!("ks_{}", entity_type);
         let mut schema = SchemaLookup::new();
 
         let mut test_schema: Schema = schema!(
@@ -631,7 +716,7 @@ mod tests {
         test_schema.get_mut("users").unwrap().list_inner_kind = Some(StoreValueKind::String);
 
         schema.add_schema(entity_type, test_schema);
-        let db = Scylladb::new(uri, keyspace, schema).await.unwrap();
+        let db = Scylladb::new(uri, &keyspace, schema).await.unwrap();
         db.drop_tables().await.unwrap();
         db.create_block_ptr_table().await.unwrap();
         db.create_entity_tables().await.unwrap();
@@ -665,7 +750,7 @@ mod tests {
             .await
             .unwrap();
 
-        info!("Create test Token OK!");
+        info!(Scylladb, "Create test Token OK!");
 
         let loaded_entity = db
             .load_entity(block_ptr.clone(), &entity_type, "token-id")
@@ -673,8 +758,8 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!("Load test Token OK!");
-        info!("Loaded from db: {:?}", loaded_entity);
+        info!(Scylladb, "Load test Token OK!");
+        info!(Scylladb, "Loaded from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -704,7 +789,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!("Loaded-latest from db: {:?}", loaded_entity);
+        info!(Scylladb, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -725,7 +810,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        info!("Loaded-latest from db: {:?}", loaded_entity);
+        info!(Scylladb, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
         assert_eq!(
             loaded_entity.get("id").cloned(),
             Some(Value::String("token-id".to_string()))
@@ -974,7 +1059,7 @@ mod tests {
             }
             _ => panic!("Not a list"),
         };
-        log::info!("relation: {:?}", relation_ids);
+        info!(Scylla, "describe relation"; relation_ids => format!("{:?}", relation_ids));
         let tokens_relation = db.load_entities(tokens, relation_ids).await.unwrap();
 
         assert_eq!(tokens_relation.len(), 3);
@@ -1000,5 +1085,73 @@ mod tests {
         assert_eq!(recent_block_ptrs.len(), 5);
         assert_eq!(recent_block_ptrs.last().cloned().unwrap().number, 11);
         assert_eq!(recent_block_ptrs.first().cloned().unwrap().number, 7);
+    }
+
+    #[tokio::test]
+    async fn test_scylla_07_clean_up_data() {
+        let (mut db, entity_name) = setup_db("Tokens_07").await;
+
+        let mut schema = SchemaLookup::new();
+        let mut entity_1 = Schema::new();
+        entity_1.insert(
+            "id".to_string(),
+            FieldKind {
+                kind: StoreValueKind::String,
+                relation: None,
+                list_inner_kind: None,
+            },
+        );
+        entity_1.insert(
+            "name".to_string(),
+            FieldKind {
+                kind: StoreValueKind::String,
+                relation: None,
+                list_inner_kind: None,
+            },
+        );
+        schema.add_schema(&entity_name, entity_1);
+        db.schema_lookup = schema;
+
+        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap();
+        assert!(earliest_block_ptr.is_none());
+
+        for i in 0..5 {
+            let block_ptr = BlockPtr {
+                number: i,
+                hash: "hash={i}".to_string(),
+                parent_hash: "parent_hash".to_string(),
+            };
+            for token in 0..2 {
+                let token: RawEntity = entity! {
+                    id => Value::String(format!("token-id_{}", token)),
+                    name => Value::String(format!("token-name_{}", token)),
+                };
+                db.insert_entity(block_ptr.clone(), &entity_name, token, false)
+                    .await
+                    .unwrap();
+            }
+            db.save_block_ptr(block_ptr).await.unwrap();
+        }
+
+        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap().unwrap();
+        assert_eq!(earliest_block_ptr.number, 0);
+
+        let ids = db
+            .get_ids_by_block_ptr_filter(&entity_name, &BlockPtrFilter::Lt(2))
+            .await
+            .unwrap();
+
+        let mut id_set = HashSet::new();
+        for id in ids {
+            id_set.insert(id);
+        }
+
+        assert_eq!(id_set.len(), 2);
+
+        let count = db.clean_data_history(2).await.unwrap();
+        assert_eq!(count, 2);
+
+        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap().unwrap();
+        assert_eq!(earliest_block_ptr.number, 2);
     }
 }

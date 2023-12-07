@@ -29,6 +29,7 @@ use tokio::sync::Mutex;
 pub struct Database {
     pub mem: MemoryDb,
     pub db: ExternDB,
+    pub earliest_block: u64,
     metrics: DatabaseMetrics,
     schema: SchemaLookup,
 }
@@ -41,12 +42,18 @@ impl Database {
     ) -> Result<Self, DatabaseError> {
         let mem = MemoryDb::default();
         let db = ExternDB::new(config, schema.clone()).await?;
+        let earliest_block = db
+            .get_earliest_block_ptr()
+            .await?
+            .map(|b| b.number)
+            .unwrap_or(0);
         let metrics = DatabaseMetrics::new(registry);
         Ok(Database {
             mem,
             db,
             metrics,
             schema,
+            earliest_block,
         })
     }
 
@@ -192,7 +199,7 @@ impl Database {
             .batch_insert_entities(block_ptr.clone(), values)
             .await?;
         self.metrics.extern_db_write.inc();
-        self.db.save_block_ptr(block_ptr).await?;
+        self.db.save_block_ptr(block_ptr.clone()).await?;
         Ok(())
     }
 
@@ -286,6 +293,7 @@ impl DatabaseAgent {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn empty(registry: &Registry) -> Self {
         let mem = MemoryDb::default();
         let db = ExternDB::None;
@@ -295,7 +303,26 @@ impl DatabaseAgent {
             db,
             metrics,
             schema: SchemaLookup::default(),
+            earliest_block: 0,
         };
         DatabaseAgent::from(database)
+    }
+
+    pub async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
+        let mut db = self.db.lock().await;
+
+        if db.earliest_block < to_block {
+            let removed = db.db.clean_data_history(to_block).await?;
+            info!(
+                Database,
+                "cleaned up data history in database";
+                to_block => to_block,
+                removed => format!("{removed} records")
+            );
+            db.earliest_block = to_block;
+            return Ok(removed);
+        }
+
+        Ok(0)
     }
 }
