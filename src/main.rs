@@ -116,8 +116,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 db.flush_cache().await?;
 
                 if let Some(history_size) = config.block_data_retention {
-                    db.clean_data_history(block_ptr.number - history_size)
-                        .await?;
+                    if block_ptr.number > history_size {
+                        db.clean_data_history(block_ptr.number - history_size)
+                            .await?;
+                    }
                 }
             }
 
