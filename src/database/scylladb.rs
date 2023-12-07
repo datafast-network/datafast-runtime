@@ -19,6 +19,7 @@ use scylla::batch::Batch;
 use scylla::transport::session::Session;
 use scylla::QueryResult;
 use scylla::SessionBuilder;
+use std::fmt::Display;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio_retry::strategy::ExponentialBackoff;
@@ -36,6 +37,23 @@ impl From<Value> for CqlValue {
             Value::Bytes(bytes) => CqlValue::Blob(bytes.as_slice().to_vec()),
             Value::BigInt(n) => CqlValue::Text(n.to_string()),
             Value::Null => CqlValue::Empty,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum BlockPtrFilter {
+    // Gt(u64),
+    Gte(u64),
+    Lt(u64),
+    // Lte(u64),
+}
+
+impl Display for BlockPtrFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Gte(block) => write!(f, "block_ptr_number >= {block}"),
+            Self::Lt(block) => write!(f, "block_ptr_number < {block}"),
         }
     }
 }
