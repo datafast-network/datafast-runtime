@@ -14,7 +14,6 @@ mod schema_lookup;
 use components::*;
 use config::Config;
 use database::DatabaseAgent;
-use messages::BlockDataMessage;
 use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
@@ -62,7 +61,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut subgraph = Subgraph::new_empty(&config, registry);
     info!(main, "Subgraph ready");
 
-    let (sender, recv) = kanal::bounded_async::<Vec<BlockDataMessage>>(1);
+    let (sender, recv) = kanal::bounded_async(1);
+
+    let query_blocks = block_source.run(sender, source_valve);
 
     let main_flow = async move {
         while let Ok(blocks) = recv.recv().await {
@@ -116,6 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if let Some(block_ptr) = last_block {
                 db.commit_data(block_ptr.clone()).await?;
+                db.remove_outdated_snapshots(block_ptr.number).await?;
                 db.flush_cache().await?;
 
                 if let Some(history_size) = config.block_data_retention {
@@ -140,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     tokio::select!(
-        r = block_source.run(sender, source_valve) => handle_task_result(r, "block-source"),
+        r = query_blocks => handle_task_result(r, "block-source"),
         r = main_flow => handle_task_result(r, "Main flow stopped"),
         _ = run_metric_server(config.metric_port.unwrap_or(8081)) => ()
     );

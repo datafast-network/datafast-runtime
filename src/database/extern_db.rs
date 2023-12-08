@@ -2,6 +2,7 @@ use super::scylladb::Scylladb;
 use crate::common::BlockPtr;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
+use crate::messages::EntityID;
 use crate::messages::EntityType;
 use crate::messages::RawEntity;
 use crate::schema_lookup::SchemaLookup;
@@ -85,6 +86,12 @@ pub trait ExternDBTrait: Sized {
     ) -> Result<Vec<BlockPtr>, DatabaseError>;
 
     async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError>;
+
+    async fn remove_snapshots(
+        &self,
+        entities: Vec<(EntityType, EntityID)>,
+        to_block: u64,
+    ) -> Result<usize, DatabaseError>;
 
     async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError>;
 }
@@ -206,6 +213,17 @@ impl ExternDBTrait for ExternDB {
         match self {
             ExternDB::Scylla(db) => db.get_earliest_block_ptr().await,
             ExternDB::None => Ok(None),
+        }
+    }
+
+    async fn remove_snapshots(
+        &self,
+        entities: Vec<(EntityType, EntityID)>,
+        to_block: u64,
+    ) -> Result<usize, DatabaseError> {
+        match self {
+            ExternDB::Scylla(db) => db.remove_snapshots(entities, to_block).await,
+            ExternDB::None => Ok(0),
         }
     }
 
