@@ -6,7 +6,7 @@ End-product should be an executable, can be run as CLI or separate Config file.
 
 Example usage:
 ```shell
-$ dfr --manifest ~/my-subgraph-repo --subscribe nats://localhost:9000/blocks --store mystore://localhost:12345/namespace
+$ dfr --manifest ~/my-subgraph-repo --database mystore://localhost:12345/namespace
 ```
 
 
@@ -14,29 +14,33 @@ $ dfr --manifest ~/my-subgraph-repo --subscribe nats://localhost:9000/blocks --s
 ## Architecture
 ```mermaid
 sequenceDiagram
-    participant MessageBus
-    participant Subscriber
-    participant SubgraphWasmHost
-    participant Database
-    participant Database
+    participant RemoteBlockStore;
+    participant BlockSource;
+    participant DataFilter;
+    participant Main;
+    participant BlockInspector;
+    participant Subgraph;
+    participant Database;
 
-    Subscriber-->>MessageBus: binding connection
-    Database-->>ExternalDatabase: binding connection
-    Subscriber-->SubgraphWasmHost: kanal async channel
-    SubgraphWasmHost-->>Database: request (StoreOperationMessage), synchronous
-    Database-->>SubgraphWasmHost: response (StoreRequestResult)
-    MessageBus->>Subscriber: Block/Tx/Event/Log
+    loop
+        BlockSource->>+RemoteBlockStore: query blocks
+        RemoteBlockStore-->>BlockSource: block-batch
+        BlockSource->>BlockSource: serialize
 
-    rect rgb(191, 220, 255, .5)
-    loop on message received
-        note right of Subscriber: each class run in its own tokio-thread
-        Subscriber->> SubgraphWasmHost: SubgraphOperationMessage(Job data)
-        SubgraphWasmHost->>SubgraphWasmHost: processing triggers
-        SubgraphWasmHost->>Database: StoreOperationMessage(Job)
+        BlockSource->>DataFilter: block-data-full
+        DataFilter->>DataFilter: sorting & filtering data
+        DataFilter->>Main: per-block-wrapped data batch
+
+        loop: loop through each block
+            Main->>BlockInspector: validate block-pointer
+            BlockInspector->>Subgraph: valid block
+            Subgraph->>Subgraph: process & save data point to memory
+        end
+
+        Subgraph->>Database: commit
+        Main->>Database: remove outdated snapshots
+        Main->>Database: clean up data-history if needed & flush cache
     end
-    end
-
-    Database->>ExternalDatabase: database read/write
 ```
 
 ## Component usage
