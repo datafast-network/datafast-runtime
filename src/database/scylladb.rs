@@ -75,15 +75,16 @@ impl Scylladb {
     ) -> Result<Self, DatabaseError> {
         info!(ExternDB, "Init db connection");
         let session: Session = SessionBuilder::new().known_node(uri).build().await?;
+        let entities = schema_lookup.get_entity_names();
         let this = Self {
             session: Arc::new(session),
             keyspace: keyspace.to_owned(),
             schema_lookup,
         };
         this.create_keyspace().await?;
-        info!(ExternDB, "Keyspace created OK");
+        info!(ExternDB, "Namespace created OK"; namespace => keyspace);
         this.create_entity_tables().await?;
-        info!(ExternDB, "Entities table created OK");
+        info!(ExternDB, "Entities table created OK"; entities => format!("{:?}", entities));
         this.create_block_ptr_table().await?;
         info!(ExternDB, "Block_Ptr table created OK");
         Ok(this)
@@ -1179,5 +1180,62 @@ mod tests {
 
         let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap().unwrap();
         assert_eq!(earliest_block_ptr.number, 2);
+    }
+
+    #[tokio::test]
+    async fn test_scylla_08_remove_snapshots() {
+        let (db, entity_type) = setup_db("Tokens_08").await;
+        let mut block_ptr = BlockPtr::default();
+        let token: RawEntity = entity! {
+            id => Value::String("vutr".to_string()),
+            name => Value::String("vutr".to_string()),
+            symbol => Value::String("VUTR".to_string()),
+            total_supply => Value::BigInt(BigInt::from(1000)),
+            userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
+            tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
+            users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
+            table => Value::String("dont-matter".to_string()),
+            is_deleted => Value::Bool(false)
+        };
+
+        db.insert_entity(block_ptr.clone(), &entity_type, token.clone(), false)
+            .await
+            .unwrap();
+        // Load at BlockPtr(number=0)
+        db.load_entity(BlockPtr::default(), &entity_type, "vutr")
+            .await
+            .unwrap()
+            .unwrap();
+
+        block_ptr.number = 1;
+        db.insert_entity(block_ptr.clone(), &entity_type, token, false)
+            .await
+            .unwrap();
+        // Load at BlockPtr(number=1) -> exists!
+        db.load_entity(block_ptr.clone(), &entity_type, "vutr")
+            .await
+            .unwrap()
+            .unwrap();
+        // Load at BlockPtr(number=0) -> exists!
+        db.load_entity(BlockPtr::default(), &entity_type, "vutr")
+            .await
+            .unwrap()
+            .unwrap();
+
+        // Remove snapshots at block-ptr=0
+        db.remove_snapshots(vec![("Tokens_08".to_string(), "vutr".to_string())], 1)
+            .await
+            .unwrap();
+        // Load at BlockPtr(number=1) -> exists!
+        db.load_entity(block_ptr, &entity_type, "vutr")
+            .await
+            .unwrap()
+            .unwrap();
+        // Load at BlockPtr(number=0) -> dont exists!
+        assert!(db
+            .load_entity(BlockPtr::default(), &entity_type, "vutr")
+            .await
+            .unwrap()
+            .is_none());
     }
 }
