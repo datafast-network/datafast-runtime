@@ -994,6 +994,44 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2e66c9d817f1720209181c316d28635c050fa304f9c79e47a520882661b7308"
 
 [[package]]
+name = "datafast-runtime"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "apollo-parser",
+ "async-trait",
+ "bigdecimal 0.4.2",
+ "bs58",
+ "convert_case 0.6.0",
+ "deltalake",
+ "env_logger",
+ "ethabi",
+ "figment",
+ "futures-util",
+ "hex",
+ "kanal",
+ "log",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "prometheus",
+ "prost",
+ "rayon",
+ "rstest",
+ "scylla",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+ "tiny-keccak",
+ "tokio",
+ "tokio-retry",
+ "warp",
+ "wasmer",
+ "web3",
+]
+
+[[package]]
 name = "datafusion"
 version = "32.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4108,44 +4146,6 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 2.0.38",
-]
-
-[[package]]
-name = "subgraph-wasm-runtime"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "apollo-parser",
- "async-trait",
- "bigdecimal 0.4.2",
- "bs58",
- "convert_case 0.6.0",
- "deltalake",
- "env_logger",
- "ethabi",
- "figment",
- "futures-util",
- "hex",
- "kanal",
- "log",
- "num-bigint 0.4.4",
- "num-traits",
- "prometheus",
- "prost",
- "rayon",
- "rstest",
- "scylla",
- "semver",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror",
- "tiny-keccak",
- "tokio",
- "tokio-retry",
- "warp",
- "wasmer",
- "web3",
 ]
 
 [[package]]

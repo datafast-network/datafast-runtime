@@ -51,7 +51,7 @@ impl Config {
         let config_file_path = std::env::var("CONFIG").unwrap_or("config.toml".to_string());
         let cfg: Config = Figment::new()
             .merge(Toml::file(config_file_path))
-            .merge(Env::prefixed("SWR_"))
+            .merge(Env::prefixed("DFR_"))
             .extract()
             .expect("Load config failed");
 

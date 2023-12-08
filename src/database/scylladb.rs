@@ -548,7 +548,7 @@ impl ExternDBTrait for Scylladb {
     }
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
-        let partition_key = "swr";
+        let partition_key = "dfr";
         let query = format!(
             r#"
             INSERT INTO {}.block_ptr (sgd, block_number, block_hash, parent_hash) VALUES ('{partition_key}', ?, ?, ?)"#,
@@ -646,7 +646,7 @@ FROM {}.block_ptr
 WHERE sgd = ? AND block_number = {}"#,
             self.keyspace, block_number
         );
-        let result = self.session.query(query, vec!["swr".to_string()]).await?;
+        let result = self.session.query(query, vec!["dfr".to_string()]).await?;
         let row = result.first_row().unwrap();
         let data = row.columns.get(0).cloned().unwrap();
         let text = data.unwrap().into_string().unwrap();
@@ -703,7 +703,7 @@ WHERE sgd = ? AND block_number = {}"#,
             self.keyspace
         );
         batch_queries.append_statement(query.as_str());
-        batch_values.push(("swr".to_string(),));
+        batch_values.push(("dfr".to_string(),));
         let st_batch = self.session.prepare_batch(&batch_queries).await?;
         self.session.batch(&st_batch, batch_values).await?;
         Ok(count as u64)
