@@ -293,19 +293,12 @@ impl DatabaseAgent {
         Ok(())
     }
 
-    #[cfg(test)]
-    pub fn empty(registry: &Registry) -> Self {
-        let mem = MemoryDb::default();
-        let db = ExternDB::None;
-        let metrics = DatabaseMetrics::new(registry);
-        let database = Database {
-            mem,
-            db,
-            metrics,
-            schema: SchemaLookup::default(),
-            earliest_block: 0,
-        };
-        DatabaseAgent::from(database)
+    pub async fn remove_outdated_snapshots(&self, at_block: u64) -> Result<usize, DatabaseError> {
+        let db = self.db.lock().await;
+        let entities = db.mem.get_latest_entity_ids();
+        let count = db.db.remove_snapshots(entities, at_block).await?;
+        info!(Database, "entities' snapshot removed"; number_of_entity => count);
+        Ok(count)
     }
 
     pub async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
@@ -324,5 +317,20 @@ impl DatabaseAgent {
         }
 
         Ok(0)
+    }
+
+    #[cfg(test)]
+    pub fn empty(registry: &Registry) -> Self {
+        let mem = MemoryDb::default();
+        let db = ExternDB::None;
+        let metrics = DatabaseMetrics::new(registry);
+        let database = Database {
+            mem,
+            db,
+            metrics,
+            schema: SchemaLookup::default(),
+            earliest_block: 0,
+        };
+        DatabaseAgent::from(database)
     }
 }

@@ -4,6 +4,8 @@ use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
 use crate::info;
+use crate::messages::EntityID;
+use crate::messages::EntityType;
 use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;
@@ -648,6 +650,30 @@ WHERE sgd = ? AND block_number = {}"#,
         let data = row.columns.get(0).cloned().unwrap();
         let text = data.unwrap().into_string().unwrap();
         return Ok(serde_json::from_str(&text).ok());
+    }
+
+    async fn remove_snapshots(
+        &self,
+        entities: Vec<(EntityType, EntityID)>,
+        to_block: u64,
+    ) -> Result<usize, DatabaseError> {
+        let mut batch_queries: Batch = Batch::default();
+        let mut batch_values = vec![];
+        let block_ptr_filter = BlockPtrFilter::Lt(to_block);
+        let mut count = 0;
+        for (entity_name, entity_id) in entities {
+            let query = format!(
+                "DELETE FROM {}.\"{}\" WHERE id = ? AND {}",
+                self.keyspace, entity_name, block_ptr_filter
+            );
+            batch_queries.append_statement(query.as_str());
+            batch_values.push((entity_id,));
+            count += 1;
+        }
+
+        let st_batch = self.session.prepare_batch(&batch_queries).await?;
+        self.session.batch(&st_batch, batch_values).await?;
+        Ok(count)
     }
 
     async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {

@@ -122,6 +122,17 @@ impl MemoryDb {
         Ok(result)
     }
 
+    pub fn get_latest_entity_ids(&self) -> Vec<(EntityType, EntityID)> {
+        let mut result = vec![];
+        for (entity_name, data) in self.0.iter() {
+            for entity_id in data.keys() {
+                result.push((entity_name.clone(), entity_id.to_owned()));
+            }
+        }
+
+        result
+    }
+
     pub fn clear(&mut self) {
         self.0 = HashMap::new();
     }

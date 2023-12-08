@@ -62,7 +62,7 @@ impl Config {
             );
         }
 
-        return cfg;
+        cfg
     }
 }
 

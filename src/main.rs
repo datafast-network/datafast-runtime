@@ -116,6 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if let Some(block_ptr) = last_block {
                 db.commit_data(block_ptr.clone()).await?;
+                db.remove_outdated_snapshots(block_ptr.number).await?;
                 db.flush_cache().await?;
 
                 if let Some(history_size) = config.block_data_retention {
