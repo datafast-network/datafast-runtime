@@ -1,4 +1,4 @@
-# Subgraph WASM Runtime
+# Datafast-Runtime
 
 ## Design goal
 The goal design is, the runtime must be very easy to use, very easy to pull a demo.
@@ -6,7 +6,7 @@ End-product should be an executable, can be run as CLI or separate Config file.
 
 Example usage:
 ```shell
-$ swr --manifest ~/my-subgraph-repo --subscribe nats://localhost:9000/blocks --store mystore://localhost:12345/namespace
+$ dfr --manifest ~/my-subgraph-repo --subscribe nats://localhost:9000/blocks --store mystore://localhost:12345/namespace
 ```
 
 
