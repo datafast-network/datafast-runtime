@@ -1,14 +1,20 @@
 use super::ExternDBTrait;
 use crate::common::BlockPtr;
 use crate::errors::DatabaseError;
+use crate::messages::EntityID;
 use crate::messages::EntityType;
 use crate::messages::RawEntity;
+use crate::runtime::asc::native_types::store::Bytes;
+use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
+use crate::runtime::bignumber::bigdecimal::BigDecimal;
+use crate::runtime::bignumber::bigint::BigInt;
+use crate::schema_lookup::FieldKind;
 use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
 use futures_util::StreamExt;
-use futures_util::TryStreamExt;
 use mongodb::bson::doc;
+use mongodb::bson::Binary;
 use mongodb::bson::Bson;
 use mongodb::bson::Document;
 use mongodb::options::FindOneOptions;
@@ -16,7 +22,9 @@ use mongodb::options::FindOptions;
 use mongodb::Client;
 use mongodb::Collection;
 use mongodb::Database;
+use mongodb::IndexModel;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 impl From<Value> for Bson {
     fn from(value: Value) -> Self {
@@ -38,6 +46,7 @@ impl From<Value> for Bson {
 }
 
 pub struct MongoDB {
+    #[allow(dead_code)]
     db: Database,
     schema: SchemaLookup,
     entity_collections: HashMap<EntityType, Collection<Document>>,
@@ -69,6 +78,9 @@ impl MongoDB {
             entity_collections,
             block_ptr_collection,
         };
+
+        this.create_entity_tables().await?;
+        this.create_block_ptr_table().await?;
         Ok(this)
     }
 
@@ -91,14 +103,55 @@ impl MongoDB {
         result
     }
 
-    fn document_to_raw_entity(doc: Document) -> RawEntity {
+    fn bson_to_store_value(value: Bson, field_kind: &FieldKind) -> Value {
+        match field_kind.kind {
+            StoreValueKind::String => Value::String(value.as_str().unwrap().to_owned()),
+            StoreValueKind::Int => Value::Int(value.as_i32().unwrap()),
+            StoreValueKind::Int8 => Value::Int8(value.as_i64().unwrap()),
+            StoreValueKind::Bool => Value::Bool(value.as_bool().unwrap()),
+            StoreValueKind::Null => Value::Null,
+            StoreValueKind::BigInt => {
+                Value::BigInt(BigInt::from_str(value.as_str().unwrap()).unwrap())
+            }
+            StoreValueKind::BigDecimal => {
+                Value::BigDecimal(BigDecimal::from_str(value.as_str().unwrap()).unwrap())
+            }
+            StoreValueKind::Bytes => {
+                let bytes = Binary::from_base64(
+                    value.as_str().unwrap(),
+                    Some(mongodb::bson::spec::BinarySubtype::Generic),
+                )
+                .expect("failed to deserialize binary from bson");
+                Value::Bytes(Bytes::from(bytes.bytes))
+            }
+            StoreValueKind::Array => {
+                let values = value.as_array().cloned().unwrap();
+                let inner_kind = field_kind.list_inner_kind.unwrap();
+                let kind = FieldKind {
+                    kind: inner_kind,
+                    relation: None,
+                    list_inner_kind: None,
+                };
+                let values = values
+                    .into_iter()
+                    .map(|inner_val| Self::bson_to_store_value(inner_val, &kind))
+                    .collect();
+                Value::List(values)
+            }
+        }
+    }
+
+    fn document_to_raw_entity(
+        schema_lookup: &SchemaLookup,
+        entity_type: &str,
+        doc: Document,
+    ) -> RawEntity {
         let mut result = RawEntity::new();
 
-        for (field, value) in doc.iter() {
-            // result.insert(field.to_owned(), Value::from(value, field, ));
-            todo!()
+        for (field_name, value) in doc {
+            let field_kind = schema_lookup.get_field(entity_type, &field_name);
+            result.insert(field_name, Self::bson_to_store_value(value, &field_kind));
         }
-
         result
     }
 }
@@ -106,11 +159,23 @@ impl MongoDB {
 #[async_trait]
 impl ExternDBTrait for MongoDB {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError> {
-        unimplemented!()
+        for (_, collection) in self.entity_collections.iter() {
+            let idx_model = IndexModel::builder()
+                .keys(doc! { "id": 1, "__block_ptr__": -1 })
+                .build();
+            collection.create_index(idx_model, None).await?;
+        }
+        Ok(())
     }
 
     async fn create_block_ptr_table(&self) -> Result<(), DatabaseError> {
-        unimplemented!()
+        let idx_model = IndexModel::builder()
+            .keys(doc! { "block_number": -1 })
+            .build();
+        self.block_ptr_collection
+            .create_index(idx_model, None)
+            .await?;
+        Ok(())
     }
 
     async fn load_entity(
@@ -130,7 +195,7 @@ impl ExternDBTrait for MongoDB {
         let result = collection
             .find_one(filter, None)
             .await?
-            .map(Self::document_to_raw_entity);
+            .map(|doc| Self::document_to_raw_entity(&self.schema, entity_type, doc));
         Ok(result)
     }
 
@@ -150,7 +215,7 @@ impl ExternDBTrait for MongoDB {
         let result = collection
             .find_one(filter, Some(opts))
             .await?
-            .map(Self::document_to_raw_entity);
+            .map(|doc| Self::document_to_raw_entity(&self.schema, entity_type, doc));
         Ok(result)
     }
 
@@ -202,6 +267,57 @@ impl ExternDBTrait for MongoDB {
             .find_one(None, Some(opts))
             .await
             .map_err(DatabaseError::from)
+    }
+
+    async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        self.block_ptr_collection
+            .insert_one(block_ptr, None)
+            .await?;
+        Ok(())
+    }
+
+    async fn load_entities(
+        &self,
+        entity_type: &str,
+        ids: Vec<String>,
+    ) -> Result<Vec<RawEntity>, DatabaseError> {
+        let collection = self
+            .entity_collections
+            .get(entity_type)
+            .expect("Entity not exists!");
+        let cursor = collection.find(doc! { "id": { "$in": ids }}, None).await?;
+        let result = cursor
+            .collect::<Vec<Result<_, _>>>()
+            .await
+            .into_iter()
+            .flatten()
+            .map(|doc| Self::document_to_raw_entity(&self.schema, entity_type, doc))
+            .collect();
+        Ok(result)
+    }
+
+    async fn batch_insert_entities(
+        &self,
+        block_ptr: BlockPtr,
+        values: Vec<(EntityType, RawEntity)>,
+    ) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
+    async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
+    async fn remove_snapshots(
+        &self,
+        entities: Vec<(EntityType, EntityID)>,
+        to_block: u64,
+    ) -> Result<usize, DatabaseError> {
+        todo!()
+    }
+
+    async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
+        todo!()
     }
 }
 

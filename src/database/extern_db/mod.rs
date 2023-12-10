@@ -73,14 +73,6 @@ pub trait ExternDBTrait: Sized {
         data: RawEntity,
     ) -> Result<(), DatabaseError>;
 
-    async fn batch_insert_entities(
-        &self,
-        block_ptr: BlockPtr,
-        values: Vec<(EntityType, RawEntity)>,
-    ) -> Result<(), DatabaseError>;
-
-    async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError>;
-
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError>;
 
     async fn load_entities(
@@ -95,6 +87,14 @@ pub trait ExternDBTrait: Sized {
     ) -> Result<Vec<BlockPtr>, DatabaseError>;
 
     async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError>;
+
+    async fn batch_insert_entities(
+        &self,
+        block_ptr: BlockPtr,
+        values: Vec<(EntityType, RawEntity)>,
+    ) -> Result<(), DatabaseError>;
+
+    async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError>;
 
     async fn remove_snapshots(
         &self,
