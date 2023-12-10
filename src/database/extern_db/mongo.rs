@@ -6,10 +6,13 @@ use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Value;
 use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
+use futures_util::StreamExt;
+use futures_util::TryStreamExt;
 use mongodb::bson::doc;
 use mongodb::bson::Bson;
 use mongodb::bson::Document;
 use mongodb::options::FindOneOptions;
+use mongodb::options::FindOptions;
 use mongodb::Client;
 use mongodb::Collection;
 use mongodb::Database;
@@ -171,6 +174,34 @@ impl ExternDBTrait for MongoDB {
             .insert_one(Self::raw_entity_to_document(data), None)
             .await?;
         Ok(())
+    }
+
+    async fn load_recent_block_ptrs(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
+        let options = FindOptions::builder()
+            .sort(doc! {"block_number": -1})
+            .limit(number_of_blocks as i64)
+            .build();
+        let cursor = self.block_ptr_collection.find(None, options).await?;
+        let result = cursor
+            .collect::<Vec<Result<_, _>>>()
+            .await
+            .into_iter()
+            .flatten()
+            .collect();
+        Ok(result)
+    }
+
+    async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+        let opts = FindOneOptions::builder()
+            .sort(doc! { "block_ptr": 1 })
+            .build();
+        self.block_ptr_collection
+            .find_one(None, Some(opts))
+            .await
+            .map_err(DatabaseError::from)
     }
 }
 
