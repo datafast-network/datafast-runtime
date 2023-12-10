@@ -27,12 +27,12 @@ jobs:
           repository: datafast-network/subgraph-testing
           token: ${{ secrets.PA_TOKEN }}
           ref: main
-        run: |
-          cd subgraph-testing
-          yarn install
-          yarn codegen
-          yarn build
-          cd ..
+          command: |
+            cd subgraph-testing
+            yarn install
+            yarn codegen
+            yarn build
+            cd ..
 
       - name: checkout runtime
         uses: actions/checkout@master
