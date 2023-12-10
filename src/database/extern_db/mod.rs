@@ -1,3 +1,8 @@
+#[cfg(feature = "scylla")]
+mod scylladb;
+#[cfg(feature = "scylla")]
+use scylladb::*;
+
 use crate::common::BlockPtr;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
@@ -6,9 +11,6 @@ use crate::messages::EntityType;
 use crate::messages::RawEntity;
 use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
-
-#[cfg(feature = "scylla")]
-use super::scylladb::Scylladb;
 
 #[derive(Default)]
 pub enum ExternDB {

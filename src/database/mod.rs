@@ -3,9 +3,6 @@ mod memory_db;
 mod metrics;
 mod utils;
 
-#[cfg(feature = "scylla")]
-mod scylladb;
-
 use crate::common::BlockPtr;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;

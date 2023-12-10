@@ -1,4 +1,4 @@
-use super::extern_db::ExternDBTrait;
+use super::ExternDBTrait;
 use crate::common::BlockPtr;
 use crate::debug;
 use crate::error;
