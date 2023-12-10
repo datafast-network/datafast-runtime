@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: build subgraph
+      - name: checkout subgraph
         uses: actions/checkout@master
         with:
           repository: datafast-network/subgraph-testing
@@ -34,12 +34,15 @@ jobs:
             yarn build
             cd ..
 
-      - name: checkout runtime
-        uses: actions/checkout@master
+      - name: Setup environment
+        uses: the-guild-org/shared-config/setup@main
         with:
-          repository: datafast-network/datafast-runtime
-          token: ${{ secrets.PA_TOKEN }}
-          ref: main
+          nodeVersion: 20
+          packageManager: pnpm
+          packageManagerVersion: 8.10.4
+
+      - name: Install and build subgraph
+        run: pnpm install && pnpm run codegen && pnpm run build
 
       - name: Checkout sources
         uses: actions/checkout@v2
