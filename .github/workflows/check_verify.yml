@@ -42,7 +42,7 @@ jobs:
           packageManagerVersion: 8.10.4
 
       - name: Install and build subgraph
-        run: pnpm install && pnpm run codegen && pnpm run build
+        run: pnpm install && pnpm run build
 
       - name: Checkout sources
         uses: actions/checkout@v2
