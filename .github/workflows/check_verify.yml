@@ -34,6 +34,13 @@ jobs:
           yarn build
           cd ..
 
+      - name: checkout runtime
+        uses: actions/checkout@master
+        with:
+          repository: datafast-network/datafast-runtime
+          token: ${{ secrets.PA_TOKEN }}
+          ref: main
+
       - name: Checkout sources
         uses: actions/checkout@v2
 
