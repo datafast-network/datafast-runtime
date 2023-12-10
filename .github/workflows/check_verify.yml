@@ -54,11 +54,13 @@ jobs:
           args: --all-features
 
 
-      - name: Checkout sources
-        uses: actions/checkout@v2
+      - name: build subgraph
+        uses: actions/checkout@master
         with:
-          command: |
-            git clone git@github.com:datafast-network/subgraph-testing.git subgraph-testing && cd subgraph-testing && git checkout main && pnpm install && pnpm run codegen && pnpm run build
+          repository: datafast-network/subgraph-testing
+          token: ${{ secrets.PA_TOKEN }}
+          ref: main
+          command: yarn install && yarn codegen && yarn build
 
       - name: Run tests
         uses: actions-rs/cargo@v1
