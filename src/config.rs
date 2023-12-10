@@ -22,6 +22,7 @@ pub enum SourceTypes {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum DatabaseConfig {
+    #[cfg(feature = "scylla")]
     Scylla { uri: String, keyspace: String },
 }
 

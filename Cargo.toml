@@ -29,7 +29,7 @@ tokio = { version = "1.33.0", features = ["full"] }
 wasmer = "4.2.2"
 web3 = "0.19.0"
 tiny-keccak = "2.0.2"
-scylla = "0.10.1"
+scylla = { version = "0.10.1", optional = true }
 apollo-parser = "0.7.3"
 prometheus = "0.13.3"
 warp = "0.3.6"
@@ -37,6 +37,9 @@ tokio-retry = "0.3.0"
 deltalake = { version = "0.16.5", features = ["s3", "datafusion"] }
 rayon = "1.8.0"
 prost = "0.12.3"
+
+[features]
+scylla = ["dep:scylla"]
 
 [dev-dependencies]
 rstest = "0.18.2"

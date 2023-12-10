@@ -1,8 +1,10 @@
 mod extern_db;
 mod memory_db;
 mod metrics;
-mod scylladb;
 mod utils;
+
+#[cfg(feature = "scylla")]
+mod scylladb;
 
 use crate::common::BlockPtr;
 use crate::config::DatabaseConfig;

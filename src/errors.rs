@@ -1,14 +1,17 @@
 use deltalake::datafusion::error::DataFusionError;
 use deltalake::DeltaTableError;
 use kanal::SendError;
-use scylla::transport::errors::NewSessionError;
-use scylla::transport::errors::QueryError;
 use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
 use wasmer::MemoryAccessError;
 use wasmer::RuntimeError;
+
+#[cfg(feature = "scylla")]
+use scylla::transport::errors::NewSessionError;
+#[cfg(feature = "scylla")]
+use scylla::transport::errors::QueryError;
 
 #[derive(Error, Debug)]
 pub enum BigIntOutOfRangeError {
@@ -131,8 +134,12 @@ pub enum DatabaseError {
     MissingBlockPtr,
     #[error("Wasm-Host sent an invalid request")]
     WasmSendInvalidRequest,
+
+    #[cfg(feature = "scylla")]
     #[error("Failed to init new Scylla session")]
     ScyllaNewSession(#[from] NewSessionError),
+
+    #[cfg(feature = "scylla")]
     #[error("Scylla Query Error: `{0}`")]
     ScyllaQuery(#[from] QueryError),
 }
