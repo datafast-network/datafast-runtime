@@ -21,6 +21,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: build subgraph
+        uses: actions/checkout@master
+        with:
+          repository: datafast-network/subgraph-testing
+          token: ${{ secrets.PA_TOKEN }}
+          ref: main
+        run: |
+          cd subgraph-testing
+          yarn install
+          yarn codegen
+          yarn build
+          cd ..
+
       - name: Checkout sources
         uses: actions/checkout@v2
 
@@ -52,15 +65,6 @@ jobs:
         with:
           command: check
           args: --all-features
-
-
-      - name: build subgraph
-        uses: actions/checkout@master
-        with:
-          repository: datafast-network/subgraph-testing
-          token: ${{ secrets.PA_TOKEN }}
-          ref: main
-          command: yarn install && yarn codegen && yarn build
 
       - name: Run tests
         uses: actions-rs/cargo@v1
