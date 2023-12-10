@@ -35,7 +35,7 @@ impl From<Value> for Bson {
             Value::BigDecimal(decimal) => Bson::String(decimal.to_string()),
             Value::Bool(bool) => Bson::Boolean(bool),
             Value::List(list) => Bson::Array(list.into_iter().map(Bson::from).collect()),
-            Value::Bytes(bytes) => Bson::Binary(mongodb::bson::Binary {
+            Value::Bytes(bytes) => Bson::Binary(Binary {
                 subtype: mongodb::bson::spec::BinarySubtype::Generic,
                 bytes: bytes.to_vec(),
             }),
