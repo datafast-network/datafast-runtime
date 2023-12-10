@@ -3,6 +3,11 @@ mod scylladb;
 #[cfg(feature = "scylla")]
 use scylladb::*;
 
+// #[cfg(feature = "mongo")]
+mod mongo;
+// #[cfg(feature = "mongo")]
+use mongo::*;
+
 use crate::common::BlockPtr;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;

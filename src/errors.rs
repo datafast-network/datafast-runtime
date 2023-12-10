@@ -9,9 +9,10 @@ use wasmer::MemoryAccessError;
 use wasmer::RuntimeError;
 
 #[cfg(feature = "scylla")]
-use scylla::transport::errors::NewSessionError;
-#[cfg(feature = "scylla")]
-use scylla::transport::errors::QueryError;
+use scylla::transport::errors as ScyllaError;
+
+#[cfg(feature = "mongo")]
+use mongodb::error as MongoError;
 
 #[derive(Error, Debug)]
 pub enum BigIntOutOfRangeError {
@@ -136,12 +137,16 @@ pub enum DatabaseError {
     WasmSendInvalidRequest,
 
     #[cfg(feature = "scylla")]
-    #[error("Failed to init new Scylla session")]
-    ScyllaNewSession(#[from] NewSessionError),
+    #[error("Init failed")]
+    ScyllaNewSession(#[from] ScyllaError::NewSessionError),
 
     #[cfg(feature = "scylla")]
-    #[error("Scylla Query Error: `{0}`")]
-    ScyllaQuery(#[from] QueryError),
+    #[error("Query Error: `{0}`")]
+    ScyllaQuery(#[from] ScyllaError::QueryError),
+
+    #[cfg(feature = "mongo")]
+    #[error("Init failed")]
+    MongoDBInit(#[from] MongoError::Error),
 }
 
 #[derive(Debug, Error)]

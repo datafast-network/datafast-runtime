@@ -24,6 +24,8 @@ pub enum SourceTypes {
 pub enum DatabaseConfig {
     #[cfg(feature = "scylla")]
     Scylla { uri: String, keyspace: String },
+    #[cfg(feature = "mongo")]
+    MongoDB { uri: String, database_name: String },
 }
 
 #[derive(Deserialize, Default, Clone, Debug)]
