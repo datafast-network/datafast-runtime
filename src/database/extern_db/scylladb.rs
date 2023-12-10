@@ -270,6 +270,27 @@ impl Scylladb {
         Ok(())
     }
 
+    #[cfg(test)]
+    async fn soft_delete_entity(
+        &self,
+        block_ptr: BlockPtr,
+        entity_type: &str,
+        entity_id: &str,
+    ) -> Result<(), DatabaseError> {
+        let entity = self.load_entity_latest(entity_type, entity_id).await?;
+
+        if entity.is_none() {
+            return Ok(());
+        }
+
+        let mut entity = entity.unwrap();
+        entity.remove("block_ptr_number");
+        entity.remove("is_deleted");
+
+        self.insert_entity(block_ptr, entity_type, entity, true)
+            .await
+    }
+
     fn generate_insert_query(
         &self,
         entity_type: &str,
@@ -501,26 +522,6 @@ impl ExternDBTrait for Scylladb {
         );
 
         Ok(())
-    }
-
-    async fn soft_delete_entity(
-        &self,
-        block_ptr: BlockPtr,
-        entity_type: &str,
-        entity_id: &str,
-    ) -> Result<(), DatabaseError> {
-        let entity = self.load_entity_latest(entity_type, entity_id).await?;
-
-        if entity.is_none() {
-            return Ok(());
-        }
-
-        let mut entity = entity.unwrap();
-        entity.remove("block_ptr_number");
-        entity.remove("is_deleted");
-
-        self.insert_entity(block_ptr, entity_type, entity, true)
-            .await
     }
 
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
