@@ -130,13 +130,11 @@ impl MongoDB {
                 Value::BigDecimal(BigDecimal::from_str(value.as_str().unwrap()).unwrap())
             }
             StoreValueKind::Bytes => {
-                let bytes = Binary::from_base64(
-                    // WARN: not yet verified!
-                    value.as_str().unwrap(),
-                    Some(mongodb::bson::spec::BinarySubtype::Generic),
-                )
-                .expect("failed to deserialize binary from bson");
-                Value::Bytes(Bytes::from(bytes.bytes))
+                if let Bson::Binary(bytes) = value {
+                    Value::Bytes(Bytes::from(bytes.bytes))
+                } else {
+                    panic!()
+                }
             }
             StoreValueKind::Array => {
                 let values = value.as_array().cloned().unwrap();
@@ -419,8 +417,43 @@ mod tests {
         test_schema.get_mut("users").unwrap().list_inner_kind = Some(StoreValueKind::String);
 
         schema.add_schema(entity_type, test_schema);
+
+        let test_schema_2: Schema = schema!(
+            id => StoreValueKind::String,
+            data => StoreValueKind::Bytes
+        );
+
+        schema.add_schema("entity_with_data", test_schema_2);
+
         let db = MongoDB::new(&uri, &database_name, schema).await?;
         Ok((db, entity_type.to_owned()))
+    }
+
+    #[tokio::test]
+    async fn test_data() {
+        let (db, _) = setup("token_00").await.unwrap();
+        let example_byte = "0x000000000000000000000000000000000000000000000000000000000c119fea";
+        let item: RawEntity = entity! {
+            id => Value::String("item".to_string()),
+            data => Value::Bytes(Bytes::from(hex::decode(example_byte.replace("0x", "")).unwrap())),
+            __is_deleted__ => Value::Bool(false)
+        };
+        db.create_entity(BlockPtr::default(), "entity_with_data", item.clone())
+            .await
+            .unwrap();
+
+        let loaded = db
+            .load_entity("entity_with_data", "item")
+            .await
+            .unwrap()
+            .unwrap();
+        let returned_data = loaded.get("data").cloned().unwrap();
+        if let Value::Bytes(bytes) = returned_data {
+            let actual_data = format!("0x{}", hex::encode(bytes.to_vec()));
+            assert_eq!(actual_data, example_byte);
+        } else {
+            panic!()
+        }
     }
 
     #[tokio::test]
