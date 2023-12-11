@@ -33,9 +33,9 @@ impl MemoryDb {
 
         let data = entity.unwrap().last().cloned().unwrap();
         let is_deleted = data
-            .get("is_deleted")
+            .get("__is_deleted__")
             .cloned()
-            .ok_or(DatabaseError::MissingField("is_deleted".to_string()))?;
+            .ok_or(DatabaseError::MissingField("__is_deleted__".to_string()))?;
         if let Value::Bool(is_deleted) = is_deleted {
             if is_deleted {
                 return Ok(None);
@@ -45,7 +45,7 @@ impl MemoryDb {
                 entity_type => entity_type,
                 entity_id => entity_id
             );
-            return Err(DatabaseError::InvalidValue("is_deleted".to_string()));
+            return Err(DatabaseError::InvalidValue("__is_deleted__".to_string()));
         }
         Ok(Some(data))
     }
@@ -70,7 +70,7 @@ impl MemoryDb {
             // Push new record
             let snapshots = table.get_mut(entity_id).unwrap();
             let mut new_data = data.clone();
-            new_data.insert("is_deleted".to_string(), Value::Bool(false));
+            new_data.insert("__is_deleted__".to_string(), Value::Bool(false));
             snapshots.push(new_data);
             Ok(())
         } else {
@@ -102,8 +102,8 @@ impl MemoryDb {
 
         let snapshots = entity.unwrap();
         let mut last = snapshots.iter().last().cloned().unwrap();
-        last.remove("is_deleted");
-        last.insert("is_deleted".to_string(), Value::Bool(true));
+        last.remove("__is_deleted__");
+        last.insert("__is_deleted__".to_string(), Value::Bool(true));
         snapshots.push(last);
 
         Ok(())
@@ -161,7 +161,7 @@ mod tests {
             &Value::String("test".to_string())
         );
         assert_eq!(latest.get("id").unwrap(), &Value::String("1".to_string()));
-        assert_eq!(latest.get("is_deleted").unwrap(), &Value::Bool(false));
+        assert_eq!(latest.get("__is_deleted__").unwrap(), &Value::Bool(false));
     }
 
     #[test]
@@ -184,7 +184,7 @@ mod tests {
             &Value::String("test".to_string())
         );
         assert_eq!(latest.get("id").unwrap(), &Value::String("1".to_string()));
-        assert_eq!(latest.get("is_deleted").unwrap(), &Value::Bool(false));
+        assert_eq!(latest.get("__is_deleted__").unwrap(), &Value::Bool(false));
 
         db.soft_delete("test", "1").unwrap();
 

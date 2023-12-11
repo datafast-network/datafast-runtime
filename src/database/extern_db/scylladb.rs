@@ -55,8 +55,8 @@ pub enum BlockPtrFilter {
 impl Display for BlockPtrFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Gte(block) => write!(f, "block_ptr_number >= {block}"),
-            Self::Lt(block) => write!(f, "block_ptr_number < {block}"),
+            Self::Gte(block) => write!(f, "__block_ptr__ >= {block}"),
+            Self::Lt(block) => write!(f, "__block_ptr__ < {block}"),
         }
     }
 }
@@ -179,32 +179,15 @@ impl Scylladb {
             for (idx, column) in row.columns.iter().enumerate() {
                 let col_spec = col_specs[idx].clone();
                 let field_name = col_spec.name.clone();
-
-                if field_name == "is_deleted" {
-                    entity.insert(
-                        "is_deleted".to_string(),
-                        Value::Bool(column.clone().unwrap().as_boolean().unwrap()),
-                    );
-                    continue;
-                }
-
-                if field_name == "block_ptr_number" {
-                    entity.insert(
-                        "block_ptr_number".to_string(),
-                        Value::Int8(column.clone().unwrap().as_bigint().unwrap()),
-                    );
-                    continue;
-                }
-
                 let field_kind = self.schema_lookup.get_field(entity_type, &field_name);
                 let value = Scylladb::cql_value_to_store_value(field_kind, column.clone());
                 entity.insert(field_name, value);
             }
 
             let is_deleted = entity
-                .get("is_deleted")
+                .get("__is_deleted__")
                 .cloned()
-                .expect("Missing `is_deleted` field");
+                .expect("Missing `__is_deleted__` field");
 
             if is_deleted == Value::Bool(true) && !include_deleted {
                 continue;
@@ -225,7 +208,7 @@ impl Scylladb {
     ) -> Result<(), DatabaseError> {
         assert!(data.contains_key("id"));
         let mut data_raw = data.clone();
-        data_raw.insert("is_deleted".to_string(), Value::Bool(is_deleted));
+        data_raw.insert("__is_deleted__".to_string(), Value::Bool(is_deleted));
         let (query, values) = self.generate_insert_query(entity_type, data_raw, block_ptr);
         self.session.query(query, values).await?;
 
@@ -284,8 +267,8 @@ impl Scylladb {
         }
 
         let mut entity = entity.unwrap();
-        entity.remove("block_ptr_number");
-        entity.remove("is_deleted");
+        entity.remove("__block_ptr__");
+        entity.remove("__is_deleted__");
 
         self.insert_entity(block_ptr, entity_type, entity, true)
             .await
@@ -299,13 +282,13 @@ impl Scylladb {
     ) -> (String, Vec<CqlValue>) {
         let schema = self.schema_lookup.get_schema(entity_type);
         let mut fields: Vec<String> = vec![
-            "\"block_ptr_number\"".to_string(),
-            "\"is_deleted\"".to_string(),
+            "\"__block_ptr__\"".to_string(),
+            "\"__is_deleted__\"".to_string(),
         ];
         let mut column_values = vec!["?".to_string(), "?".to_string()];
         let mut values_params = vec![
             CqlValue::BigInt(block_ptr.number as i64),
-            data.get("is_deleted").unwrap().clone().into(),
+            data.get("__is_deleted__").unwrap().clone().into(),
         ];
         for (field_name, field_kind) in schema.iter() {
             let value = match data.get(field_name) {
@@ -355,19 +338,19 @@ impl ExternDBTrait for Scylladb {
                 column_definitions.push(definition);
             }
             // Add block_ptr
-            column_definitions.push("block_ptr_number bigint".to_string());
+            column_definitions.push("__block_ptr__ bigint".to_string());
 
             // Add is_deleted for soft-delete
-            column_definitions.push("is_deleted boolean".to_string());
+            column_definitions.push("__is_deleted__ boolean".to_string());
 
             // Define primary-key
-            column_definitions.push("PRIMARY KEY (id, block_ptr_number)".to_string());
+            column_definitions.push("PRIMARY KEY (id, __block_ptr__)".to_string());
 
             let joint_column_definition = column_definitions.join(",\n");
             let query = format!(
                 r#"CREATE TABLE IF NOT EXISTS {}."{}" (
             {joint_column_definition}
-            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_ptr_number DESC)"#,
+            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (__block_ptr__ DESC)"#,
                 self.keyspace, entity_type
             );
             self.session.query(query, &[]).await?;
@@ -406,7 +389,7 @@ impl ExternDBTrait for Scylladb {
             r#"
             SELECT * from {}."{}"
             WHERE id = ?
-            ORDER BY block_ptr_number DESC
+            ORDER BY __block_ptr__ DESC
             LIMIT 1
             "#,
             self.keyspace, entity_type
@@ -458,15 +441,15 @@ impl ExternDBTrait for Scylladb {
             let session = self.session.clone();
 
             for (entity_type, data) in chunk.iter().cloned() {
-                if data.get("is_deleted").is_none() {
+                if data.get("__is_deleted__").is_none() {
                     error!(ExternDB,
                            "Missing is_deleted field";
                            entity_type => entity_type,
                            entity_data => format!("{:?}", data),
-                           block_ptr_number => block_ptr.number,
+                           __block_ptr__ => block_ptr.number,
                            block_ptr_hash => block_ptr.hash
                     );
-                    return Err(DatabaseError::MissingField("is_deleted".to_string()));
+                    return Err(DatabaseError::MissingField("__is_deleted__".to_string()));
                 }
 
                 let (query, values) =
