@@ -168,7 +168,7 @@ impl ExternDBTrait for MongoDB {
         let idx_option = IndexOptions::builder().unique(true).build();
         for (_, collection) in self.entity_collections.iter() {
             let idx_model = IndexModel::builder()
-                .keys(doc! { "id": 1, "__block_ptr__": -1 })
+                .keys(doc! { "id": -1, "__block_ptr__": -1 })
                 .options(idx_option.clone())
                 .build();
             collection.create_index(idx_model, None).await?;
@@ -225,7 +225,20 @@ impl ExternDBTrait for MongoDB {
             .find_one(filter, Some(opts))
             .await?
             .map(|doc| Self::document_to_raw_entity(&self.schema, entity_type, doc));
-        Ok(result)
+
+        if result.is_none() {
+            return Ok(None);
+        }
+
+        let entity = result.unwrap();
+
+        let is_deleted = entity.get("__is_deleted__").cloned().unwrap();
+
+        if is_deleted == Value::Bool(true) {
+            return Ok(None);
+        }
+
+        Ok(Some(entity))
     }
 
     async fn create_entity(
@@ -334,6 +347,7 @@ impl ExternDBTrait for MongoDB {
 mod tests {
     use super::*;
     use crate::entity;
+    use crate::info;
     use crate::schema;
     use crate::schema_lookup::Schema;
     use std::env;
@@ -343,6 +357,11 @@ mod tests {
         let uri =
             env::var("MONGO_URI").unwrap_or("mongodb://root:example@localhost:27017".to_string());
         let database_name = env::var("MONGO_DATABASE").unwrap_or("db0".to_string());
+        MongoDB::new(&uri, &database_name, SchemaLookup::default())
+            .await?
+            .drop_db()
+            .await?;
+
         let mut schema = SchemaLookup::new();
 
         let mut test_schema: Schema = schema!(
@@ -360,13 +379,13 @@ mod tests {
 
         schema.add_schema(entity_type, test_schema);
         let db = MongoDB::new(&uri, &database_name, schema).await?;
-        db.drop_db().await?;
         Ok((db, entity_type.to_owned()))
     }
 
     #[tokio::test]
-    async fn test_01_init() {
+    async fn test_01_basic_init_and_insert() {
         let (db, entity_type) = setup("token_01").await.unwrap();
+
         let tk1: RawEntity = entity! {
             id => Value::String("token-id".to_string()),
             name => Value::String("Tether USD".to_string()),
@@ -399,5 +418,41 @@ mod tests {
             loaded.get("id").cloned().unwrap(),
             Value::String("token-id".to_string())
         );
+
+        let tk2: RawEntity = entity! {
+            id => Value::String("token-id".to_string()),
+            name => Value::String("Tether USD".to_string()),
+            symbol => Value::String("USDT".to_string()),
+            total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap()),
+            userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
+            tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
+            users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
+            table => Value::String("dont-matter".to_string()),
+            __is_deleted__ => Value::Bool(true)
+        };
+        let duplicate_insert = db
+            .create_entity(BlockPtr::default(), &entity_type, tk2)
+            .await;
+        assert!(duplicate_insert.is_err());
+
+        let tk3: RawEntity = entity! {
+            id => Value::String("token-id-1".to_string()),
+            name => Value::String("Tether USD".to_string()),
+            symbol => Value::String("USDT".to_string()),
+            total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap()),
+            userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
+            tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
+            users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
+            table => Value::String("dont-matter".to_string()),
+            __is_deleted__ => Value::Bool(true)
+        };
+        db.create_entity(BlockPtr::default(), &entity_type, tk3)
+            .await
+            .unwrap();
+        let loaded = db
+            .load_entity_latest(&entity_type, "token-id-1")
+            .await
+            .unwrap();
+        assert!(loaded.is_none());
     }
 }
