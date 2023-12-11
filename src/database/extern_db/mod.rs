@@ -39,7 +39,7 @@ impl ExternDB {
             }
             #[cfg(feature = "mongo")]
             DatabaseConfig::MongoDB { uri, database_name } => {
-                ExternDB::Mongo(MongoDB::new(uri, &database_name, schema_lookup).await?)
+                ExternDB::Mongo(MongoDB::new(uri, database_name, schema_lookup).await?)
             }
         };
 

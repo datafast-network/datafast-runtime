@@ -286,7 +286,7 @@ impl ExternDBTrait for MongoDB {
     ) -> Result<Vec<RawEntity>, DatabaseError> {
         let fetch_entities = ids
             .iter()
-            .map(|entity_id| self.load_entity(entity_type, &entity_id));
+            .map(|entity_id| self.load_entity(entity_type, entity_id));
         let result = try_join_all(fetch_entities)
             .await?
             .into_iter()
@@ -303,9 +303,7 @@ impl ExternDBTrait for MongoDB {
         let mut grouped_values = HashMap::<EntityType, Vec<RawEntity>>::new();
 
         for (entity_type, mut data) in values {
-            if !grouped_values.contains_key(&entity_type.to_owned()) {
-                grouped_values.insert(entity_type.to_owned(), vec![]);
-            }
+            grouped_values.entry(entity_type.to_owned()).or_insert_with(std::vec::Vec::new);
 
             data.remove("__block_ptr__");
             data.insert(
@@ -324,7 +322,7 @@ impl ExternDBTrait for MongoDB {
                 .expect("Entity type not exists!");
             let docs = records
                 .into_iter()
-                .map(|entity| Self::raw_entity_to_document(entity))
+                .map(Self::raw_entity_to_document)
                 .collect::<Vec<Document>>();
             inserts.push(collection.insert_many(docs.clone(), None));
         }

@@ -239,7 +239,7 @@ mod test {
                     "0xea674fdde714fd979de3edf0f56aa9716b898ec8"
                 );
                 assert_eq!(
-                    format!("{:?}", first_tx.to.clone().unwrap()),
+                    format!("{:?}", first_tx.to.unwrap()),
                     "0x60f18d941f6253e3f7082ea0db3bc3944e7e9d40"
                 );
 
@@ -257,7 +257,7 @@ mod test {
                     "0x8a9d69aa686fa0f9bbdec21294f67d4d9cfb4a3e"
                 );
                 assert_eq!(
-                    format!("{:?}", last_tx.to.clone().unwrap()),
+                    format!("{:?}", last_tx.to.unwrap()),
                     "0xd69b8ff1888e78d9c337c2f2e6b3bf3e7357800e"
                 );
 
@@ -291,7 +291,7 @@ mod test {
                     assert_eq!(log.get(key), expected_log.get(key),);
                 }
 
-                let log = serde_json::to_value(&logs.last().clone())
+                let log = serde_json::to_value(logs.last().clone())
                     .unwrap()
                     .as_object()
                     .unwrap()
