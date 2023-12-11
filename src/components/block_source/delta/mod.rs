@@ -291,7 +291,7 @@ mod test {
                     assert_eq!(log.get(key), expected_log.get(key),);
                 }
 
-                let log = serde_json::to_value(logs.last().clone())
+                let log = serde_json::to_value(logs.last())
                     .unwrap()
                     .as_object()
                     .unwrap()
