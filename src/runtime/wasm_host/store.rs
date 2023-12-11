@@ -150,8 +150,8 @@ fn remove_private_field(entities: Vec<RawEntity>) -> Vec<RawEntity> {
     entities
         .into_iter()
         .map(|mut entity| {
-            entity.remove("block_ptr_number");
-            entity.remove("is_deleted");
+            entity.remove("__block_ptr__");
+            entity.remove("__is_deleted__");
             entity
         })
         .collect()

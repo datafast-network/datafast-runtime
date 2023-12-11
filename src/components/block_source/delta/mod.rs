@@ -26,7 +26,6 @@ pub struct DeltaClient {
     ctx: SessionContext,
     start_block: u64,
     query_step: u64,
-    block_per_file: u32,
 }
 
 impl DeltaClient {
@@ -59,7 +58,6 @@ impl DeltaClient {
             ctx,
             start_block,
             query_step: cfg.query_step,
-            block_per_file: cfg.block_per_file,
         })
     }
 
@@ -85,7 +83,7 @@ impl DeltaClient {
         sender: AsyncSender<Vec<BlockDataMessage>>,
         valve: Valve,
     ) -> Result<(), SourceError> {
-        let mut start_block = self.start_block - (self.start_block % self.block_per_file as u64);
+        let mut start_block = self.start_block;
         info!(BlockSource, "source start collecting data");
 
         loop {
@@ -155,7 +153,6 @@ mod test {
             table_path: "s3://ethereum/blocks_proto/".to_owned(),
             query_step: 4000,
             version: None,
-            block_per_file: 2,
         };
 
         let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
@@ -186,7 +183,6 @@ mod test {
             table_path: "s3://ethereum/blocks_proto/".to_owned(),
             query_step: 1,
             version: None,
-            block_per_file: 2,
         };
 
         let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
@@ -239,7 +235,7 @@ mod test {
                     "0xea674fdde714fd979de3edf0f56aa9716b898ec8"
                 );
                 assert_eq!(
-                    format!("{:?}", first_tx.to.clone().unwrap()),
+                    format!("{:?}", first_tx.to.unwrap()),
                     "0x60f18d941f6253e3f7082ea0db3bc3944e7e9d40"
                 );
 
@@ -257,7 +253,7 @@ mod test {
                     "0x8a9d69aa686fa0f9bbdec21294f67d4d9cfb4a3e"
                 );
                 assert_eq!(
-                    format!("{:?}", last_tx.to.clone().unwrap()),
+                    format!("{:?}", last_tx.to.unwrap()),
                     "0xd69b8ff1888e78d9c337c2f2e6b3bf3e7357800e"
                 );
 
@@ -291,7 +287,7 @@ mod test {
                     assert_eq!(log.get(key), expected_log.get(key),);
                 }
 
-                let log = serde_json::to_value(&logs.last().clone())
+                let log = serde_json::to_value(logs.last())
                     .unwrap()
                     .as_object()
                     .unwrap()

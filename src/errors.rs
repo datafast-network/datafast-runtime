@@ -1,14 +1,18 @@
 use deltalake::datafusion::error::DataFusionError;
 use deltalake::DeltaTableError;
 use kanal::SendError;
-use scylla::transport::errors::NewSessionError;
-use scylla::transport::errors::QueryError;
 use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::InstantiationError;
 use wasmer::MemoryAccessError;
 use wasmer::RuntimeError;
+
+#[cfg(feature = "scylla")]
+use scylla::transport::errors as ScyllaError;
+
+#[cfg(feature = "mongo")]
+use mongodb::error as MongoError;
 
 #[derive(Error, Debug)]
 pub enum BigIntOutOfRangeError {
@@ -131,10 +135,18 @@ pub enum DatabaseError {
     MissingBlockPtr,
     #[error("Wasm-Host sent an invalid request")]
     WasmSendInvalidRequest,
-    #[error("Failed to init new Scylla session")]
-    ScyllaNewSession(#[from] NewSessionError),
-    #[error("Scylla Query Error: `{0}`")]
-    ScyllaQuery(#[from] QueryError),
+
+    #[cfg(feature = "scylla")]
+    #[error("Init failed")]
+    ScyllaNewSession(#[from] ScyllaError::NewSessionError),
+
+    #[cfg(feature = "scylla")]
+    #[error("Query Error: `{0}`")]
+    ScyllaQuery(#[from] ScyllaError::QueryError),
+
+    #[cfg(feature = "mongo")]
+    #[error("Init failed")]
+    MongoDBInit(#[from] MongoError::Error),
 }
 
 #[derive(Debug, Error)]

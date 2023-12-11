@@ -10,7 +10,6 @@ pub struct DeltaConfig {
     pub table_path: String,
     pub query_step: u64,
     pub version: Option<u64>,
-    pub block_per_file: u32,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -22,7 +21,10 @@ pub enum SourceTypes {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum DatabaseConfig {
+    #[cfg(feature = "scylla")]
     Scylla { uri: String, keyspace: String },
+    #[cfg(feature = "mongo")]
+    Mongo { uri: String, database: String },
 }
 
 #[derive(Deserialize, Default, Clone, Debug)]

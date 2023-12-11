@@ -1,4 +1,4 @@
-use super::extern_db::ExternDBTrait;
+use super::ExternDBTrait;
 use crate::common::BlockPtr;
 use crate::debug;
 use crate::error;
@@ -55,8 +55,8 @@ pub enum BlockPtrFilter {
 impl Display for BlockPtrFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Gte(block) => write!(f, "block_ptr_number >= {block}"),
-            Self::Lt(block) => write!(f, "block_ptr_number < {block}"),
+            Self::Gte(block) => write!(f, "__block_ptr__ >= {block}"),
+            Self::Lt(block) => write!(f, "__block_ptr__ < {block}"),
         }
     }
 }
@@ -179,32 +179,15 @@ impl Scylladb {
             for (idx, column) in row.columns.iter().enumerate() {
                 let col_spec = col_specs[idx].clone();
                 let field_name = col_spec.name.clone();
-
-                if field_name == "is_deleted" {
-                    entity.insert(
-                        "is_deleted".to_string(),
-                        Value::Bool(column.clone().unwrap().as_boolean().unwrap()),
-                    );
-                    continue;
-                }
-
-                if field_name == "block_ptr_number" {
-                    entity.insert(
-                        "block_ptr_number".to_string(),
-                        Value::Int8(column.clone().unwrap().as_bigint().unwrap()),
-                    );
-                    continue;
-                }
-
                 let field_kind = self.schema_lookup.get_field(entity_type, &field_name);
                 let value = Scylladb::cql_value_to_store_value(field_kind, column.clone());
                 entity.insert(field_name, value);
             }
 
             let is_deleted = entity
-                .get("is_deleted")
+                .get("__is_deleted__")
                 .cloned()
-                .expect("Missing `is_deleted` field");
+                .expect("Missing `__is_deleted__` field");
 
             if is_deleted == Value::Bool(true) && !include_deleted {
                 continue;
@@ -225,7 +208,7 @@ impl Scylladb {
     ) -> Result<(), DatabaseError> {
         assert!(data.contains_key("id"));
         let mut data_raw = data.clone();
-        data_raw.insert("is_deleted".to_string(), Value::Bool(is_deleted));
+        data_raw.insert("__is_deleted__".to_string(), Value::Bool(is_deleted));
         let (query, values) = self.generate_insert_query(entity_type, data_raw, block_ptr);
         self.session.query(query, values).await?;
 
@@ -270,6 +253,27 @@ impl Scylladb {
         Ok(())
     }
 
+    #[cfg(test)]
+    async fn soft_delete_entity(
+        &self,
+        block_ptr: BlockPtr,
+        entity_type: &str,
+        entity_id: &str,
+    ) -> Result<(), DatabaseError> {
+        let entity = self.load_entity(entity_type, entity_id).await?;
+
+        if entity.is_none() {
+            return Ok(());
+        }
+
+        let mut entity = entity.unwrap();
+        entity.remove("__block_ptr__");
+        entity.remove("__is_deleted__");
+
+        self.insert_entity(block_ptr, entity_type, entity, true)
+            .await
+    }
+
     fn generate_insert_query(
         &self,
         entity_type: &str,
@@ -278,13 +282,13 @@ impl Scylladb {
     ) -> (String, Vec<CqlValue>) {
         let schema = self.schema_lookup.get_schema(entity_type);
         let mut fields: Vec<String> = vec![
-            "\"block_ptr_number\"".to_string(),
-            "\"is_deleted\"".to_string(),
+            "\"__block_ptr__\"".to_string(),
+            "\"__is_deleted__\"".to_string(),
         ];
         let mut column_values = vec!["?".to_string(), "?".to_string()];
         let mut values_params = vec![
             CqlValue::BigInt(block_ptr.number as i64),
-            data.get("is_deleted").unwrap().clone().into(),
+            data.get("__is_deleted__").unwrap().clone().into(),
         ];
         for (field_name, field_kind) in schema.iter() {
             let value = match data.get(field_name) {
@@ -334,19 +338,19 @@ impl ExternDBTrait for Scylladb {
                 column_definitions.push(definition);
             }
             // Add block_ptr
-            column_definitions.push("block_ptr_number bigint".to_string());
+            column_definitions.push("__block_ptr__ bigint".to_string());
 
             // Add is_deleted for soft-delete
-            column_definitions.push("is_deleted boolean".to_string());
+            column_definitions.push("__is_deleted__ boolean".to_string());
 
             // Define primary-key
-            column_definitions.push("PRIMARY KEY (id, block_ptr_number)".to_string());
+            column_definitions.push("PRIMARY KEY (id, __block_ptr__)".to_string());
 
             let joint_column_definition = column_definitions.join(",\n");
             let query = format!(
                 r#"CREATE TABLE IF NOT EXISTS {}."{}" (
             {joint_column_definition}
-            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (block_ptr_number DESC)"#,
+            ) WITH compression = {{'sstable_compression': 'LZ4Compressor'}} AND CLUSTERING ORDER BY (__block_ptr__ DESC)"#,
                 self.keyspace, entity_type
             );
             self.session.query(query, &[]).await?;
@@ -378,31 +382,6 @@ impl ExternDBTrait for Scylladb {
 
     async fn load_entity(
         &self,
-        block_ptr: BlockPtr,
-        entity_type: &str,
-        entity_id: &str,
-    ) -> Result<Option<RawEntity>, DatabaseError> {
-        let query = format!(
-            r#"
-                SELECT * from {}."{}"
-                WHERE block_ptr_number = ? AND id = ?
-                LIMIT 1
-            "#,
-            self.keyspace, entity_type
-        );
-        let entity_query_result = self
-            .session
-            .query(query, (block_ptr.number as i64, entity_id))
-            .await?;
-        let entity = self
-            .handle_entity_query_result(entity_type, entity_query_result, false)
-            .first()
-            .cloned();
-        Ok(entity)
-    }
-
-    async fn load_entity_latest(
-        &self,
         entity_type: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError> {
@@ -410,7 +389,7 @@ impl ExternDBTrait for Scylladb {
             r#"
             SELECT * from {}."{}"
             WHERE id = ?
-            ORDER BY block_ptr_number DESC
+            ORDER BY __block_ptr__ DESC
             LIMIT 1
             "#,
             self.keyspace, entity_type
@@ -462,15 +441,15 @@ impl ExternDBTrait for Scylladb {
             let session = self.session.clone();
 
             for (entity_type, data) in chunk.iter().cloned() {
-                if data.get("is_deleted").is_none() {
+                if data.get("__is_deleted__").is_none() {
                     error!(ExternDB,
                            "Missing is_deleted field";
                            entity_type => entity_type,
                            entity_data => format!("{:?}", data),
-                           block_ptr_number => block_ptr.number,
+                           __block_ptr__ => block_ptr.number,
                            block_ptr_hash => block_ptr.hash
                     );
-                    return Err(DatabaseError::MissingField("is_deleted".to_string()));
+                    return Err(DatabaseError::MissingField("__is_deleted__".to_string()));
                 }
 
                 let (query, values) =
@@ -501,26 +480,6 @@ impl ExternDBTrait for Scylladb {
         );
 
         Ok(())
-    }
-
-    async fn soft_delete_entity(
-        &self,
-        block_ptr: BlockPtr,
-        entity_type: &str,
-        entity_id: &str,
-    ) -> Result<(), DatabaseError> {
-        let entity = self.load_entity_latest(entity_type, entity_id).await?;
-
-        if entity.is_none() {
-            return Ok(());
-        }
-
-        let mut entity = entity.unwrap();
-        entity.remove("block_ptr_number");
-        entity.remove("is_deleted");
-
-        self.insert_entity(block_ptr, entity_type, entity, true)
-            .await
     }
 
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
@@ -707,535 +666,5 @@ WHERE sgd = ? AND block_number = {}"#,
         let st_batch = self.session.prepare_batch(&batch_queries).await?;
         self.session.batch(&st_batch, batch_values).await?;
         Ok(count as u64)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::ExternDBTrait;
-    use super::*;
-    use crate::entity;
-    use crate::runtime::asc::native_types::store::Value;
-    use crate::runtime::bignumber::bigint::BigInt;
-    use crate::schema;
-    use crate::schema_lookup::Schema;
-    use std::collections::HashSet;
-    use std::str::FromStr;
-
-    async fn setup_db(entity_type: &str) -> (Scylladb, String) {
-        env_logger::try_init().unwrap_or_default();
-
-        let uri = "localhost:9042";
-        let keyspace = format!("ks_{}", entity_type);
-        let mut schema = SchemaLookup::new();
-
-        let mut test_schema: Schema = schema!(
-            id => StoreValueKind::String,
-            name => StoreValueKind::String,
-            symbol => StoreValueKind::String,
-            total_supply => StoreValueKind::BigInt,
-            userBalance => StoreValueKind::BigInt,
-            tokenBlockNumber => StoreValueKind::BigInt,
-            users => StoreValueKind::Array,
-            table => StoreValueKind::String
-        );
-
-        test_schema.get_mut("users").unwrap().list_inner_kind = Some(StoreValueKind::String);
-
-        schema.add_schema(entity_type, test_schema);
-        let db = Scylladb::new(uri, &keyspace, schema).await.unwrap();
-        db.drop_tables().await.unwrap();
-        db.create_block_ptr_table().await.unwrap();
-        db.create_entity_tables().await.unwrap();
-        db.revert_from_block(0).await.expect("Revert table failed");
-        (db, entity_type.to_string())
-    }
-
-    #[tokio::test]
-    async fn test_scylla_01_setup_db() {
-        setup_db("test").await;
-    }
-
-    #[tokio::test]
-    async fn test_scylla_02_create_and_load_entity() {
-        let (db, entity_type) = setup_db("Tokens_01").await;
-
-        let entity_data: RawEntity = entity! {
-            id => Value::String("token-id".to_string()),
-            name => Value::String("Tether USD".to_string()),
-            symbol => Value::String("USDT".to_string()),
-            total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap()),
-            userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
-            tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
-            users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
-            table => Value::String("dont-matter".to_string())
-        };
-
-        let block_ptr = BlockPtr::default();
-
-        db.create_entity(block_ptr.clone(), &entity_type, entity_data.clone())
-            .await
-            .unwrap();
-
-        info!(ExternDB, "Create test Token OK!");
-
-        let loaded_entity = db
-            .load_entity(block_ptr.clone(), &entity_type, "token-id")
-            .await
-            .unwrap()
-            .unwrap();
-
-        info!(ExternDB, "Load test Token OK!");
-        info!(ExternDB, "Loaded from db"; loaded_entity => format!("{:?}", loaded_entity));
-        assert_eq!(
-            loaded_entity.get("id").cloned(),
-            Some(Value::String("token-id".to_string()))
-        );
-        assert_eq!(
-            loaded_entity.get("name").cloned(),
-            Some(Value::String("Tether USD".to_string()))
-        );
-        assert_eq!(
-            loaded_entity.get("symbol").cloned(),
-            Some(Value::String("USDT".to_string()))
-        );
-        assert_eq!(
-            loaded_entity.get("total_supply").cloned(),
-            Some(Value::BigInt(
-                BigInt::from_str("111222333444555666777888999").unwrap()
-            ))
-        );
-        assert_eq!(
-            loaded_entity.get("is_deleted").cloned(),
-            Some(Value::Bool(false))
-        );
-
-        let loaded_entity = db
-            .load_entity_latest(&entity_type, "token-id")
-            .await
-            .unwrap()
-            .unwrap();
-
-        info!(ExternDB, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
-        assert_eq!(
-            loaded_entity.get("id").cloned(),
-            Some(Value::String("token-id".to_string()))
-        );
-
-        let block_ptr = BlockPtr {
-            number: 1,
-            hash: "hash_1".to_string(),
-            parent_hash: "".to_string(),
-        };
-        db.create_entity(block_ptr.clone(), &entity_type, entity_data)
-            .await
-            .unwrap();
-
-        let loaded_entity = db
-            .load_entity_latest(&entity_type, "token-id")
-            .await
-            .unwrap()
-            .unwrap();
-
-        info!(ExternDB, "Loaded-latest from db"; loaded_entity => format!("{:?}", loaded_entity));
-        assert_eq!(
-            loaded_entity.get("id").cloned(),
-            Some(Value::String("token-id".to_string()))
-        );
-        assert_eq!(
-            loaded_entity.get("block_ptr_number").cloned(),
-            Some(Value::Int8(1))
-        );
-    }
-
-    #[tokio::test]
-    async fn test_scylla_03_revert_entity() {
-        let (db, entity_type) = setup_db("Tokens_03").await;
-
-        for id in 0..10 {
-            let entity_data = entity! {
-                id => Value::String("token-id".to_string()),
-                name => Value::String("Tether USD".to_string()),
-                symbol => Value::String("USDT".to_string()),
-                total_supply => Value::BigInt(BigInt::from(id*1000)),
-                userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
-                tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
-                users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
-                table => Value::String("dont-matter".to_string()),
-                is_deleted => Value::Bool(false)
-            };
-            let block_ptr = BlockPtr {
-                number: id,
-                hash: format!("hash_{}", id),
-                parent_hash: "".to_string(),
-            };
-
-            db.create_entity(block_ptr.clone(), &entity_type, entity_data)
-                .await
-                .unwrap();
-        }
-
-        let latest = db
-            .load_entity_latest(&entity_type, "token-id")
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(9)));
-
-        db.revert_from_block(5).await.unwrap();
-
-        let latest = db
-            .load_entity_latest(&entity_type, "token-id")
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(4)));
-
-        db.soft_delete_entity(
-            BlockPtr {
-                number: 5,
-                hash: "hash".to_string(),
-                parent_hash: "".to_string(),
-            },
-            &entity_type,
-            "token-id",
-        )
-        .await
-        .unwrap();
-
-        let latest = db
-            .load_entity_latest(&entity_type, "token-id")
-            .await
-            .unwrap();
-        assert!(latest.is_none());
-
-        db.revert_from_block(3).await.unwrap();
-
-        let latest = db
-            .load_entity_latest(&entity_type, "token-id")
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(latest.get("block_ptr_number"), Some(&Value::Int8(2)));
-    }
-
-    #[tokio::test]
-    async fn test_scylla_04_batch_insert() {
-        let (db, entity_type) = setup_db("Tokens_04").await;
-
-        let mut entities = Vec::new();
-        let block_ptr = BlockPtr {
-            number: 0,
-            hash: "hash".to_string(),
-            parent_hash: "parent_hash1".to_string(),
-        };
-
-        let mut ids = Vec::new();
-
-        for id in 0..10 {
-            let entity_data: RawEntity = entity! {
-                id => Value::String(format!("token-id_{}", id)),
-                name => Value::String("Tether USD".to_string()),
-                symbol => Value::String("USDT".to_string()),
-                total_supply => Value::BigInt(BigInt::from(id*1000)),
-                userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
-                tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
-                users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
-                table => Value::String("dont-matter".to_string()),
-                is_deleted => Value::Bool(id % 2 == 0)
-            };
-            ids.push(format!("token-id_{}", id));
-            entities.push((entity_type.clone(), entity_data));
-        }
-
-        db.batch_insert_entities(block_ptr.clone(), entities)
-            .await
-            .unwrap();
-
-        let entities_values = db.load_entities(&entity_type, ids).await.unwrap();
-
-        assert_eq!(entities_values.len(), 5);
-
-        let latest = db
-            .load_entity_latest(&entity_type, "token-id_0")
-            .await
-            .unwrap();
-
-        assert!(latest.is_none());
-
-        let latest = db
-            .load_entity_latest(&entity_type, "token-id_1")
-            .await
-            .unwrap();
-
-        assert!(latest.is_some());
-
-        let latest = latest.unwrap();
-        assert_eq!(
-            latest.get("total_supply"),
-            Some(&Value::BigInt(BigInt::from(1000)))
-        );
-    }
-
-    #[tokio::test]
-    async fn test_scylla_05_get_relation() {
-        env_logger::try_init().unwrap_or_default();
-
-        let uri = "localhost:9042";
-        let keyspace = "ks";
-        let mut schema = SchemaLookup::new();
-        let entity_type = "test_relation";
-        let tokens = "tokens_relation";
-        let mut entity_1 = Schema::new();
-        entity_1.insert(
-            "id".to_string(),
-            FieldKind {
-                kind: StoreValueKind::String,
-                relation: None,
-                list_inner_kind: None,
-            },
-        );
-        entity_1.insert(
-            "name".to_string(),
-            FieldKind {
-                kind: StoreValueKind::String,
-                relation: None,
-                list_inner_kind: None,
-            },
-        );
-        entity_1.insert(
-            "token_id".to_string(),
-            FieldKind {
-                kind: StoreValueKind::Array,
-                relation: Some((tokens.to_string(), "id".to_string())),
-                list_inner_kind: Some(StoreValueKind::String),
-            },
-        );
-        schema.add_schema(entity_type, entity_1);
-
-        let mut entity_2 = Schema::new();
-        entity_2.insert(
-            "id".to_string(),
-            FieldKind {
-                kind: StoreValueKind::String,
-                relation: None,
-                list_inner_kind: None,
-            },
-        );
-        entity_2.insert(
-            "name".to_string(),
-            FieldKind {
-                kind: StoreValueKind::String,
-                relation: None,
-                list_inner_kind: None,
-            },
-        );
-        schema.add_schema(tokens, entity_2);
-
-        let db = Scylladb::new(uri, keyspace, schema).await.unwrap();
-        db.drop_tables().await.unwrap();
-        db.create_entity_tables().await.unwrap();
-
-        let block_ptr = BlockPtr {
-            number: 0,
-            hash: "hash".to_string(),
-            parent_hash: "".to_string(),
-        };
-        for token in 0..5 {
-            let token_entity: RawEntity = entity! {
-                id => Value::String(format!("token-id_{}", token)),
-                name => Value::String(format!("token-name_{}", token)),
-            };
-            db.insert_entity(block_ptr.clone(), tokens, token_entity, false)
-                .await
-                .unwrap();
-        }
-
-        let mut entity_data: RawEntity = entity! {
-            id => Value::String(format!("entity-id_{}", 1)),
-            name => Value::String("entity-name".to_string()),
-        };
-        entity_data.insert(
-            "token_id".to_string(),
-            Value::List(vec![
-                Value::String("token-id_0".to_string()),
-                Value::String("token-id_1".to_string()),
-                Value::String("token-id_2".to_string()),
-            ]),
-        );
-
-        db.insert_entity(block_ptr.clone(), entity_type, entity_data, false)
-            .await
-            .unwrap();
-
-        let latest = db
-            .load_entity_latest(entity_type, "entity-id_1")
-            .await
-            .unwrap()
-            .unwrap();
-        let relations = latest.get("token_id").cloned().unwrap();
-        let relation_ids = match relations {
-            Value::List(list) => {
-                let mut relation = vec![];
-                list.iter().for_each(|value| {
-                    if let Value::String(entity_id) = value {
-                        relation.push(entity_id.clone())
-                    }
-                });
-                relation
-            }
-            _ => panic!("Not a list"),
-        };
-        info!(ExternDB, "describe relation"; relation_ids => format!("{:?}", relation_ids));
-        let tokens_relation = db.load_entities(tokens, relation_ids).await.unwrap();
-
-        assert_eq!(tokens_relation.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn test_scylla_06_save_load_block_ptr() {
-        let (db, _entity_name) = setup_db("Tokens_06").await;
-
-        for i in 7..12 {
-            db.save_block_ptr(BlockPtr {
-                number: i,
-                hash: format!("hash-{i}"),
-                parent_hash: format!("parent-hash-{i}"),
-            })
-            .await
-            .unwrap();
-        }
-
-        let number_of_blocks = 10;
-        let recent_block_ptrs = db.load_recent_block_ptrs(number_of_blocks).await.unwrap();
-
-        assert_eq!(recent_block_ptrs.len(), 5);
-        assert_eq!(recent_block_ptrs.last().cloned().unwrap().number, 11);
-        assert_eq!(recent_block_ptrs.first().cloned().unwrap().number, 7);
-    }
-
-    #[tokio::test]
-    async fn test_scylla_07_clean_up_data() {
-        let (mut db, entity_name) = setup_db("Tokens_07").await;
-
-        let mut schema = SchemaLookup::new();
-        let mut entity_1 = Schema::new();
-        entity_1.insert(
-            "id".to_string(),
-            FieldKind {
-                kind: StoreValueKind::String,
-                relation: None,
-                list_inner_kind: None,
-            },
-        );
-        entity_1.insert(
-            "name".to_string(),
-            FieldKind {
-                kind: StoreValueKind::String,
-                relation: None,
-                list_inner_kind: None,
-            },
-        );
-        schema.add_schema(&entity_name, entity_1);
-        db.schema_lookup = schema;
-
-        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap();
-        assert!(earliest_block_ptr.is_none());
-
-        for i in 0..5 {
-            let block_ptr = BlockPtr {
-                number: i,
-                hash: "hash={i}".to_string(),
-                parent_hash: "parent_hash".to_string(),
-            };
-            for token in 0..2 {
-                let token: RawEntity = entity! {
-                    id => Value::String(format!("token-id_{}", token)),
-                    name => Value::String(format!("token-name_{}", token)),
-                };
-                db.insert_entity(block_ptr.clone(), &entity_name, token, false)
-                    .await
-                    .unwrap();
-            }
-            db.save_block_ptr(block_ptr).await.unwrap();
-        }
-
-        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap().unwrap();
-        assert_eq!(earliest_block_ptr.number, 0);
-
-        let ids = db
-            .get_ids_by_block_ptr_filter(&entity_name, &BlockPtrFilter::Lt(2))
-            .await
-            .unwrap();
-
-        let mut id_set = HashSet::new();
-        for id in ids {
-            id_set.insert(id);
-        }
-
-        assert_eq!(id_set.len(), 2);
-
-        let count = db.clean_data_history(2).await.unwrap();
-        assert_eq!(count, 2);
-
-        let earliest_block_ptr = db.get_earliest_block_ptr().await.unwrap().unwrap();
-        assert_eq!(earliest_block_ptr.number, 2);
-    }
-
-    #[tokio::test]
-    async fn test_scylla_08_remove_snapshots() {
-        let (db, entity_type) = setup_db("Tokens_08").await;
-        let mut block_ptr = BlockPtr::default();
-        let token: RawEntity = entity! {
-            id => Value::String("vutr".to_string()),
-            name => Value::String("vutr".to_string()),
-            symbol => Value::String("VUTR".to_string()),
-            total_supply => Value::BigInt(BigInt::from(1000)),
-            userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
-            tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
-            users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
-            table => Value::String("dont-matter".to_string()),
-            is_deleted => Value::Bool(false)
-        };
-
-        db.insert_entity(block_ptr.clone(), &entity_type, token.clone(), false)
-            .await
-            .unwrap();
-        // Load at BlockPtr(number=0)
-        db.load_entity(BlockPtr::default(), &entity_type, "vutr")
-            .await
-            .unwrap()
-            .unwrap();
-
-        block_ptr.number = 1;
-        db.insert_entity(block_ptr.clone(), &entity_type, token, false)
-            .await
-            .unwrap();
-        // Load at BlockPtr(number=1) -> exists!
-        db.load_entity(block_ptr.clone(), &entity_type, "vutr")
-            .await
-            .unwrap()
-            .unwrap();
-        // Load at BlockPtr(number=0) -> exists!
-        db.load_entity(BlockPtr::default(), &entity_type, "vutr")
-            .await
-            .unwrap()
-            .unwrap();
-
-        // Remove snapshots at block-ptr=0
-        db.remove_snapshots(vec![("Tokens_08".to_string(), "vutr".to_string())], 1)
-            .await
-            .unwrap();
-        // Load at BlockPtr(number=1) -> exists!
-        db.load_entity(block_ptr, &entity_type, "vutr")
-            .await
-            .unwrap()
-            .unwrap();
-        // Load at BlockPtr(number=0) -> dont exists!
-        assert!(db
-            .load_entity(BlockPtr::default(), &entity_type, "vutr")
-            .await
-            .unwrap()
-            .is_none());
     }
 }
