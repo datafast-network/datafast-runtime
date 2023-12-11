@@ -38,8 +38,8 @@ impl ExternDB {
                 ExternDB::Scylla(Scylladb::new(uri, keyspace, schema_lookup).await?)
             }
             #[cfg(feature = "mongo")]
-            DatabaseConfig::Mongo { uri, database_name } => {
-                ExternDB::Mongo(MongoDB::new(uri, database_name, schema_lookup).await?)
+            DatabaseConfig::Mongo { uri, database } => {
+                ExternDB::Mongo(MongoDB::new(uri, database, schema_lookup).await?)
             }
         };
 

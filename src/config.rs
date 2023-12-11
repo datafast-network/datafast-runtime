@@ -25,7 +25,7 @@ pub enum DatabaseConfig {
     #[cfg(feature = "scylla")]
     Scylla { uri: String, keyspace: String },
     #[cfg(feature = "mongo")]
-    Mongo { uri: String, database_name: String },
+    Mongo { uri: String, database: String },
 }
 
 #[derive(Deserialize, Default, Clone, Debug)]
