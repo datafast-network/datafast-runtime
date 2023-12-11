@@ -383,7 +383,6 @@ mod tests {
     use crate::entity;
     use crate::schema;
     use crate::schema_lookup::Schema;
-    use futures_util::FutureExt;
     use futures_util::StreamExt;
     use std::env;
     use std::time::Instant;
