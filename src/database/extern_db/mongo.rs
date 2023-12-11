@@ -42,6 +42,7 @@ impl From<Value> for Bson {
             Value::List(list) => Bson::Array(list.into_iter().map(Bson::from).collect()),
             Value::Bytes(bytes) => Bson::Binary(Binary {
                 subtype: mongodb::bson::spec::BinarySubtype::Generic,
+                // WARN: not yet verified!
                 bytes: bytes.to_vec(),
             }),
             Value::BigInt(n) => Bson::String(n.to_string()),
@@ -65,10 +66,12 @@ impl MongoDB {
         schema: SchemaLookup,
     ) -> Result<Self, DatabaseError> {
         let client = Client::with_uri_str(uri).await?;
+        info!(Database, "client created OK");
         let db_options = DatabaseOptions::builder()
             .write_concern(Some(WriteConcern::MAJORITY))
             .build();
         let db = client.database_with_options(database_name, db_options);
+        info!(Database, "db namespace created OK");
 
         let block_ptr_collection = db.collection::<BlockPtr>("block_ptr");
         let entity_collections = schema
@@ -88,7 +91,9 @@ impl MongoDB {
         };
 
         this.create_entity_tables().await?;
+        info!(Database, "entity-tables created OK");
         this.create_block_ptr_table().await?;
+        info!(Database, "block-ptr created OK");
         Ok(this)
     }
 
@@ -126,6 +131,7 @@ impl MongoDB {
             }
             StoreValueKind::Bytes => {
                 let bytes = Binary::from_base64(
+                    // WARN: not yet verified!
                     value.as_str().unwrap(),
                     Some(mongodb::bson::spec::BinarySubtype::Generic),
                 )
@@ -303,7 +309,9 @@ impl ExternDBTrait for MongoDB {
         let mut grouped_values = HashMap::<EntityType, Vec<RawEntity>>::new();
 
         for (entity_type, mut data) in values {
-            grouped_values.entry(entity_type.to_owned()).or_insert_with(std::vec::Vec::new);
+            grouped_values
+                .entry(entity_type.to_owned())
+                .or_insert_with(std::vec::Vec::new);
 
             data.remove("__block_ptr__");
             data.insert(
