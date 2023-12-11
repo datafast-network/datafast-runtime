@@ -355,11 +355,25 @@ impl ExternDBTrait for MongoDB {
         entities: Vec<(EntityType, EntityID)>,
         to_block: u64,
     ) -> Result<usize, DatabaseError> {
-        todo!()
+        let mut tasks = vec![];
+        for (entity_type, entity_id) in entities {
+            let c = self.entity_collections.get(&entity_type).unwrap();
+            tasks.push(c.delete_many(
+                doc! { "__block_ptr__": { "$lt": to_block as i64 }, "id": entity_id },
+                None,
+            ));
+        }
+        try_join_all(tasks).await?;
+        Ok(0)
     }
 
     async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
-        todo!()
+        let mut tasks = vec![];
+        for c in self.entity_collections.values() {
+            tasks.push(c.delete_many(doc! { "__block_ptr__": { "$lt": to_block as i64 } }, None));
+        }
+        try_join_all(tasks).await?;
+        Ok(1)
     }
 }
 
@@ -369,6 +383,8 @@ mod tests {
     use crate::entity;
     use crate::schema;
     use crate::schema_lookup::Schema;
+    use futures_util::FutureExt;
+    use futures_util::StreamExt;
     use std::env;
     use std::time::Instant;
 
@@ -403,7 +419,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_01_basic_init_and_insert() {
+    async fn test_01() {
         let (db, entity_type) = setup("token_01").await.unwrap();
 
         let tk1: RawEntity = entity! {
@@ -471,7 +487,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_02_batch_insert_batch_load() {
+    async fn test_02() {
         let (db, entity_type) = setup("token_02").await.unwrap();
 
         for i in 1..10 {
@@ -503,6 +519,7 @@ mod tests {
                 .await
                 .unwrap();
             log::info!("Done batch insert in {:?}", timer.elapsed());
+            db.save_block_ptr(block_ptr.clone()).await.unwrap();
 
             for token_number in 0..10 {
                 let entity = db
@@ -526,6 +543,7 @@ mod tests {
             }
         }
 
+        log::info!("Testing revert.........");
         db.revert_from_block(9).await.unwrap();
         let token_ids = (0..10)
             .map(|i| format!("token_{i}"))
@@ -536,5 +554,31 @@ mod tests {
         for token in tokens {
             assert_eq!(token.get("__block_ptr__").cloned().unwrap(), Value::Int8(8));
         }
+
+        log::info!("Testing remove-snapshots.........");
+        let collection = db.entity_collections.get(&entity_type).unwrap();
+        let token1 = collection
+            .find(doc! { "id": "token_1" }, None)
+            .await
+            .unwrap()
+            .collect::<Vec<Result<_, _>>>()
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        assert_eq!(token1.len(), 8);
+        db.remove_snapshots(vec![(entity_type.clone(), "token_1".to_string())], 8)
+            .await
+            .unwrap();
+        let token1 = collection
+            .find(doc! { "id": "token_1" }, None)
+            .await
+            .unwrap()
+            .collect::<Vec<Result<_, _>>>()
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        assert_eq!(token1.len(), 1);
     }
 }
