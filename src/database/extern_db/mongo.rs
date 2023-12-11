@@ -1,6 +1,7 @@
 use super::ExternDBTrait;
 use crate::common::BlockPtr;
 use crate::errors::DatabaseError;
+use crate::info;
 use crate::messages::EntityID;
 use crate::messages::EntityType;
 use crate::messages::RawEntity;
@@ -12,6 +13,7 @@ use crate::runtime::bignumber::bigint::BigInt;
 use crate::schema_lookup::FieldKind;
 use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
+use futures_util::future::try_join_all;
 use futures_util::StreamExt;
 use mongodb::bson::doc;
 use mongodb::bson::Binary;
@@ -302,7 +304,42 @@ impl ExternDBTrait for MongoDB {
         block_ptr: BlockPtr,
         values: Vec<(EntityType, RawEntity)>,
     ) -> Result<(), DatabaseError> {
-        todo!()
+        let mut grouped_values = HashMap::<EntityType, Vec<RawEntity>>::new();
+
+        for (entity_type, mut data) in values {
+            if !grouped_values.contains_key(&entity_type.to_owned()) {
+                grouped_values.insert(entity_type.to_owned(), vec![]);
+            }
+
+            data.remove("__block_ptr__");
+            data.insert(
+                "__block_ptr__".to_string(),
+                Value::Int8(block_ptr.number as i64),
+            );
+
+            grouped_values.get_mut(&entity_type).unwrap().push(data);
+        }
+
+        let mut inserts = vec![];
+        for (entity_type, records) in grouped_values {
+            let collection = self
+                .entity_collections
+                .get(&entity_type)
+                .expect("Entity type not exists!");
+            let docs = records
+                .into_iter()
+                .map(|entity| Self::raw_entity_to_document(entity))
+                .collect::<Vec<Document>>();
+            inserts.push(collection.insert_many(docs.clone(), None));
+        }
+
+        let result = try_join_all(inserts).await?;
+        info!(
+            Database,
+            "Commit result";
+            statements => format!("{:?} statements", result.len())
+        );
+        Ok(())
     }
 
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
@@ -329,6 +366,7 @@ mod tests {
     use crate::schema;
     use crate::schema_lookup::Schema;
     use std::env;
+    use std::time::Instant;
 
     async fn setup(entity_type: &str) -> Result<(MongoDB, String), DatabaseError> {
         env_logger::try_init().unwrap_or_default();
@@ -426,5 +464,47 @@ mod tests {
             .unwrap();
         let loaded = db.load_entity(&entity_type, "token-id-1").await.unwrap();
         assert!(loaded.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_02_batch_insert() {
+        let (db, entity_type) = setup("token_02").await.unwrap();
+
+        for i in 1..10 {
+            let block_ptr = BlockPtr {
+                number: i,
+                hash: format!("i={i}"),
+                parent_hash: format!("i={}", i - 1),
+            };
+
+            let mut entities = vec![];
+
+            for j in 0..1000 {
+                let tk: RawEntity = entity! {
+                    id => Value::String(format!("token_{j}")),
+                    name => Value::String("Tether USD".to_string()),
+                    symbol => Value::String("USDT".to_string()),
+                    total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap()),
+                    userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
+                    tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
+                    users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
+                    table => Value::String("dont-matter".to_string()),
+                    __is_deleted__ => Value::Bool(false)
+                };
+                entities.push((entity_type.to_owned(), tk));
+            }
+
+            let timer = Instant::now();
+            db.batch_insert_entities(block_ptr, entities).await.unwrap();
+            log::info!("Done batch insert in {:?}", timer.elapsed());
+
+            for j in 0..10 {
+                let entity = db
+                    .load_entity(&entity_type, &format!("token_{j}"))
+                    .await
+                    .unwrap();
+                assert!(entity.is_some());
+            }
+        }
     }
 }
