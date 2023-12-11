@@ -284,17 +284,13 @@ impl ExternDBTrait for MongoDB {
         entity_type: &str,
         ids: Vec<String>,
     ) -> Result<Vec<RawEntity>, DatabaseError> {
-        let collection = self
-            .entity_collections
-            .get(entity_type)
-            .expect("Entity not exists!");
-        let cursor = collection.find(doc! { "id": { "$in": ids }}, None).await?;
-        let result = cursor
-            .collect::<Vec<Result<_, _>>>()
-            .await
+        let fetch_entities = ids
+            .iter()
+            .map(|entity_id| self.load_entity(entity_type, &entity_id));
+        let result = try_join_all(fetch_entities)
+            .await?
             .into_iter()
             .flatten()
-            .map(|doc| Self::document_to_raw_entity(&self.schema, entity_type, doc))
             .collect();
         Ok(result)
     }
@@ -343,7 +339,15 @@ impl ExternDBTrait for MongoDB {
     }
 
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
-        todo!()
+        let mut tasks = vec![];
+        for c in self.entity_collections.values() {
+            tasks.push(c.delete_many(
+                doc! { "__block_ptr__": { "$gte": from_block as i64 } },
+                None,
+            ));
+        }
+        try_join_all(tasks).await?;
+        Ok(())
     }
 
     async fn remove_snapshots(
@@ -467,7 +471,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_02_batch_insert() {
+    async fn test_02_batch_insert_batch_load() {
         let (db, entity_type) = setup("token_02").await.unwrap();
 
         for i in 1..10 {
@@ -495,16 +499,42 @@ mod tests {
             }
 
             let timer = Instant::now();
-            db.batch_insert_entities(block_ptr, entities).await.unwrap();
+            db.batch_insert_entities(block_ptr.clone(), entities)
+                .await
+                .unwrap();
             log::info!("Done batch insert in {:?}", timer.elapsed());
 
-            for j in 0..10 {
+            for token_number in 0..10 {
                 let entity = db
-                    .load_entity(&entity_type, &format!("token_{j}"))
+                    .load_entity(&entity_type, &format!("token_{token_number}"))
                     .await
                     .unwrap();
                 assert!(entity.is_some());
             }
+
+            let token_ids = (0..10)
+                .map(|i| format!("token_{i}"))
+                .collect::<Vec<EntityID>>();
+            let tokens = db.load_entities(&entity_type, token_ids).await.unwrap();
+            assert_eq!(tokens.len(), 10);
+
+            for token in tokens {
+                assert_eq!(
+                    token.get("__block_ptr__").cloned().unwrap(),
+                    Value::Int8(block_ptr.number as i64)
+                );
+            }
+        }
+
+        db.revert_from_block(9).await.unwrap();
+        let token_ids = (0..10)
+            .map(|i| format!("token_{i}"))
+            .collect::<Vec<EntityID>>();
+        let tokens = db.load_entities(&entity_type, token_ids).await.unwrap();
+        assert_eq!(tokens.len(), 10);
+
+        for token in tokens {
+            assert_eq!(token.get("__block_ptr__").cloned().unwrap(), Value::Int8(8));
         }
     }
 }
