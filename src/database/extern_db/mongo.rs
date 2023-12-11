@@ -323,15 +323,31 @@ impl ExternDBTrait for MongoDB {
 
 #[cfg(test)]
 mod tests {
-    use super::MongoDB;
-    use crate::{errors::DatabaseError, schema_lookup::SchemaLookup};
+    use super::*;
+    use crate::schema;
+    use crate::schema_lookup::Schema;
     use std::env;
 
-    async fn setup() -> Result<MongoDB, DatabaseError> {
+    async fn setup(entity_type: &str) -> Result<MongoDB, DatabaseError> {
         env_logger::try_init().unwrap_or_default();
         let uri = env::var("MONGO_URI").unwrap();
         let database_name = env::var("MONGO_DATABASE").unwrap();
-        let schema = SchemaLookup::new();
+        let mut schema = SchemaLookup::new();
+
+        let mut test_schema: Schema = schema!(
+            id => StoreValueKind::String,
+            name => StoreValueKind::String,
+            symbol => StoreValueKind::String,
+            total_supply => StoreValueKind::BigInt,
+            userBalance => StoreValueKind::BigInt,
+            tokenBlockNumber => StoreValueKind::BigInt,
+            users => StoreValueKind::Array,
+            table => StoreValueKind::String
+        );
+
+        test_schema.get_mut("users").unwrap().list_inner_kind = Some(StoreValueKind::String);
+
+        schema.add_schema(entity_type, test_schema);
         let db = MongoDB::new(&uri, &database_name, schema).await?;
         db.drop_db().await?;
         Ok(db)
@@ -339,6 +355,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_01_init() {
-        let db = setup().await;
+        let db = setup("token_01").await.unwrap();
     }
 }

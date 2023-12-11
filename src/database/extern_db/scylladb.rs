@@ -753,12 +753,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_scylla_01_setup_db() {
+    async fn test_01_setup_db() {
         setup_db("test").await;
     }
 
     #[tokio::test]
-    async fn test_scylla_02_create_and_load_entity() {
+    async fn test_02_create_and_load_entity() {
         let (db, entity_type) = setup_db("Tokens_01").await;
 
         let entity_data: RawEntity = entity! {
@@ -850,7 +850,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_scylla_03_revert_entity() {
+    async fn test_03_revert_entity() {
         let (db, entity_type) = setup_db("Tokens_03").await;
 
         for id in 0..10 {
@@ -921,7 +921,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_scylla_04_batch_insert() {
+    async fn test_04_batch_insert() {
         let (db, entity_type) = setup_db("Tokens_04").await;
 
         let mut entities = Vec::new();
@@ -979,7 +979,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_scylla_05_get_relation() {
+    async fn test_05_get_relation() {
         env_logger::try_init().unwrap_or_default();
 
         let uri = "localhost:9042";
@@ -1094,7 +1094,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_scylla_06_save_load_block_ptr() {
+    async fn test_06_save_load_block_ptr() {
         let (db, _entity_name) = setup_db("Tokens_06").await;
 
         for i in 7..12 {
@@ -1116,7 +1116,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_scylla_07_clean_up_data() {
+    async fn test_07_clean_up_data() {
         let (mut db, entity_name) = setup_db("Tokens_07").await;
 
         let mut schema = SchemaLookup::new();
@@ -1184,7 +1184,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_scylla_08_remove_snapshots() {
+    async fn test_08_remove_snapshots() {
         let (db, entity_type) = setup_db("Tokens_08").await;
         let mut block_ptr = BlockPtr::default();
         let token: RawEntity = entity! {
