@@ -26,7 +26,6 @@ pub struct DeltaClient {
     ctx: SessionContext,
     start_block: u64,
     query_step: u64,
-    block_per_file: u32,
 }
 
 impl DeltaClient {
@@ -59,7 +58,6 @@ impl DeltaClient {
             ctx,
             start_block,
             query_step: cfg.query_step,
-            block_per_file: cfg.block_per_file,
         })
     }
 
@@ -85,7 +83,7 @@ impl DeltaClient {
         sender: AsyncSender<Vec<BlockDataMessage>>,
         valve: Valve,
     ) -> Result<(), SourceError> {
-        let mut start_block = self.start_block - (self.start_block % self.block_per_file as u64);
+        let mut start_block = self.start_block;
         info!(BlockSource, "source start collecting data");
 
         loop {
@@ -155,7 +153,6 @@ mod test {
             table_path: "s3://ethereum/blocks_proto/".to_owned(),
             query_step: 4000,
             version: None,
-            block_per_file: 2,
         };
 
         let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
@@ -186,7 +183,6 @@ mod test {
             table_path: "s3://ethereum/blocks_proto/".to_owned(),
             query_step: 1,
             version: None,
-            block_per_file: 2,
         };
 
         let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
