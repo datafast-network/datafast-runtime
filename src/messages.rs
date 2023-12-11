@@ -3,7 +3,6 @@ use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::BlockPtr;
 use crate::runtime::asc::native_types::store::Value;
-use serde_json::Value;
 use std::collections::HashMap;
 use web3::types::Log;
 

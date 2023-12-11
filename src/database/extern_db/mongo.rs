@@ -17,8 +17,11 @@ use mongodb::bson::doc;
 use mongodb::bson::Binary;
 use mongodb::bson::Bson;
 use mongodb::bson::Document;
+use mongodb::options::DatabaseOptions;
 use mongodb::options::FindOneOptions;
 use mongodb::options::FindOptions;
+use mongodb::options::IndexOptions;
+use mongodb::options::WriteConcern;
 use mongodb::Client;
 use mongodb::Collection;
 use mongodb::Database;
@@ -60,7 +63,10 @@ impl MongoDB {
         schema: SchemaLookup,
     ) -> Result<Self, DatabaseError> {
         let client = Client::with_uri_str(uri).await?;
-        let db = client.database(database_name);
+        let db_options = DatabaseOptions::builder()
+            .write_concern(Some(WriteConcern::MAJORITY))
+            .build();
+        let db = client.database_with_options(database_name, db_options);
 
         let block_ptr_collection = db.collection::<BlockPtr>("block_ptr");
         let entity_collections = schema
@@ -159,9 +165,11 @@ impl MongoDB {
 #[async_trait]
 impl ExternDBTrait for MongoDB {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError> {
+        let idx_option = IndexOptions::builder().unique(true).build();
         for (_, collection) in self.entity_collections.iter() {
             let idx_model = IndexModel::builder()
                 .keys(doc! { "id": 1, "__block_ptr__": -1 })
+                .options(idx_option.clone())
                 .build();
             collection.create_index(idx_model, None).await?;
         }
@@ -211,6 +219,7 @@ impl ExternDBTrait for MongoDB {
         let filter = doc! { "id": entity_id, "__is_deleted__": false };
         let opts = FindOneOptions::builder()
             .sort(doc! { "block_ptr": -1 })
+            .projection(doc! { "_id": 0 })
             .build();
         let result = collection
             .find_one(filter, Some(opts))
@@ -324,14 +333,16 @@ impl ExternDBTrait for MongoDB {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entity;
     use crate::schema;
     use crate::schema_lookup::Schema;
     use std::env;
 
-    async fn setup(entity_type: &str) -> Result<MongoDB, DatabaseError> {
+    async fn setup(entity_type: &str) -> Result<(MongoDB, String), DatabaseError> {
         env_logger::try_init().unwrap_or_default();
-        let uri = env::var("MONGO_URI").unwrap();
-        let database_name = env::var("MONGO_DATABASE").unwrap();
+        let uri =
+            env::var("MONGO_URI").unwrap_or("mongodb://root:example@localhost:27017".to_string());
+        let database_name = env::var("MONGO_DATABASE").unwrap_or("db0".to_string());
         let mut schema = SchemaLookup::new();
 
         let mut test_schema: Schema = schema!(
@@ -350,11 +361,43 @@ mod tests {
         schema.add_schema(entity_type, test_schema);
         let db = MongoDB::new(&uri, &database_name, schema).await?;
         db.drop_db().await?;
-        Ok(db)
+        Ok((db, entity_type.to_owned()))
     }
 
     #[tokio::test]
     async fn test_01_init() {
-        let db = setup("token_01").await.unwrap();
+        let (db, entity_type) = setup("token_01").await.unwrap();
+        let tk1: RawEntity = entity! {
+            id => Value::String("token-id".to_string()),
+            name => Value::String("Tether USD".to_string()),
+            symbol => Value::String("USDT".to_string()),
+            total_supply => Value::BigInt(BigInt::from_str("111222333444555666777888999").unwrap()),
+            userBalance => Value::BigInt(BigInt::from_str("10").unwrap()),
+            tokenBlockNumber => Value::BigInt(BigInt::from_str("100").unwrap()),
+            users => Value::List(vec![Value::String("vu".to_string()),Value::String("quan".to_string())]),
+            table => Value::String("dont-matter".to_string()),
+            __is_deleted__ => Value::Bool(false)
+        };
+        db.create_entity(BlockPtr::default(), &entity_type, tk1)
+            .await
+            .unwrap();
+        let loaded = db
+            .load_entity_latest(&entity_type, "token-id")
+            .await
+            .unwrap();
+        assert!(loaded.is_some());
+        let loaded = loaded.unwrap();
+        assert_eq!(
+            loaded.get("__is_deleted__").cloned().unwrap(),
+            Value::Bool(false)
+        );
+        assert_eq!(
+            loaded.get("__block_ptr__").cloned().unwrap(),
+            Value::Int8(0)
+        );
+        assert_eq!(
+            loaded.get("id").cloned().unwrap(),
+            Value::String("token-id".to_string())
+        );
     }
 }

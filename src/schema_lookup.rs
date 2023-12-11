@@ -86,7 +86,27 @@ impl SchemaLookup {
         schema_lookup
     }
 
-    pub fn add_schema(&mut self, entity_name: &str, schema: Schema) {
+    pub fn add_schema(&mut self, entity_name: &str, mut schema: Schema) {
+        if !schema.contains_key("__is_deleted__") {
+            schema.insert(
+                "__is_deleted__".to_string(),
+                FieldKind {
+                    kind: StoreValueKind::Bool,
+                    relation: None,
+                    list_inner_kind: None,
+                },
+            );
+        }
+        if !schema.contains_key("__block_ptr__") {
+            schema.insert(
+                "__block_ptr__".to_string(),
+                FieldKind {
+                    kind: StoreValueKind::Int8,
+                    relation: None,
+                    list_inner_kind: None,
+                },
+            );
+        }
         self.schema.insert(entity_name.to_owned(), schema);
     }
 
@@ -117,21 +137,6 @@ impl SchemaLookup {
     }
 
     pub fn get_field(&self, entity_type: &str, field_name: &str) -> FieldKind {
-        if field_name == "block_ptr_number" {
-            return FieldKind {
-                kind: StoreValueKind::Int8,
-                relation: None,
-                list_inner_kind: None,
-            };
-        }
-        if field_name == "is_deleted" {
-            return FieldKind {
-                kind: StoreValueKind::Bool,
-                relation: None,
-                list_inner_kind: None,
-            };
-        }
-
         let entity_schema = self
             .schema
             .get(entity_type)
