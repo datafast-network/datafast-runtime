@@ -96,7 +96,7 @@ impl Database {
         if entity.is_none() {
             self.metrics.cache_miss.inc();
             self.metrics.extern_db_load.inc();
-            let entity = self.db.load_entity_latest(&entity_type, &entity_id).await?;
+            let entity = self.db.load_entity(&entity_type, &entity_id).await?;
 
             if entity.is_none() {
                 return Ok(StoreRequestResult::Load(None));

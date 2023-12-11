@@ -188,7 +188,6 @@ impl ExternDBTrait for MongoDB {
 
     async fn load_entity(
         &self,
-        block_ptr: BlockPtr,
         entity_type: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError> {
@@ -196,27 +195,7 @@ impl ExternDBTrait for MongoDB {
             .entity_collections
             .get(entity_type)
             .expect("Entity not exists!");
-        let filter = doc! {
-            "__block_ptr__": block_ptr.number as i64,
-            "id": entity_id,
-        };
-        let result = collection
-            .find_one(filter, None)
-            .await?
-            .map(|doc| Self::document_to_raw_entity(&self.schema, entity_type, doc));
-        Ok(result)
-    }
-
-    async fn load_entity_latest(
-        &self,
-        entity_type: &str,
-        entity_id: &str,
-    ) -> Result<Option<RawEntity>, DatabaseError> {
-        let collection = self
-            .entity_collections
-            .get(entity_type)
-            .expect("Entity not exists!");
-        let filter = doc! { "id": entity_id, "__is_deleted__": false };
+        let filter = doc! { "id": entity_id };
         let opts = FindOneOptions::builder()
             .sort(doc! { "block_ptr": -1 })
             .projection(doc! { "_id": 0 })
@@ -347,7 +326,6 @@ impl ExternDBTrait for MongoDB {
 mod tests {
     use super::*;
     use crate::entity;
-    use crate::info;
     use crate::schema;
     use crate::schema_lookup::Schema;
     use std::env;
@@ -400,10 +378,7 @@ mod tests {
         db.create_entity(BlockPtr::default(), &entity_type, tk1)
             .await
             .unwrap();
-        let loaded = db
-            .load_entity_latest(&entity_type, "token-id")
-            .await
-            .unwrap();
+        let loaded = db.load_entity(&entity_type, "token-id").await.unwrap();
         assert!(loaded.is_some());
         let loaded = loaded.unwrap();
         assert_eq!(
@@ -449,10 +424,7 @@ mod tests {
         db.create_entity(BlockPtr::default(), &entity_type, tk3)
             .await
             .unwrap();
-        let loaded = db
-            .load_entity_latest(&entity_type, "token-id-1")
-            .await
-            .unwrap();
+        let loaded = db.load_entity(&entity_type, "token-id-1").await.unwrap();
         assert!(loaded.is_none());
     }
 }

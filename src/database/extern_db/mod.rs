@@ -55,16 +55,15 @@ pub trait ExternDBTrait: Sized {
 
     async fn load_entity(
         &self,
-        block_ptr: BlockPtr,
         entity_type: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError>;
 
-    async fn load_entity_latest(
+    async fn load_entities(
         &self,
         entity_type: &str,
-        entity_id: &str,
-    ) -> Result<Option<RawEntity>, DatabaseError>;
+        ids: Vec<String>,
+    ) -> Result<Vec<RawEntity>, DatabaseError>;
 
     async fn create_entity(
         &self,
@@ -74,12 +73,6 @@ pub trait ExternDBTrait: Sized {
     ) -> Result<(), DatabaseError>;
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError>;
-
-    async fn load_entities(
-        &self,
-        entity_type: &str,
-        ids: Vec<String>,
-    ) -> Result<Vec<RawEntity>, DatabaseError>;
 
     async fn load_recent_block_ptrs(
         &self,
@@ -129,29 +122,14 @@ impl ExternDBTrait for ExternDB {
 
     async fn load_entity(
         &self,
-        block_ptr: BlockPtr,
         entity_type: &str,
         entity_id: &str,
     ) -> Result<Option<RawEntity>, DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.load_entity(block_ptr, entity_type, entity_id).await,
+            ExternDB::Scylla(db) => db.load_entity(entity_type, entity_id).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.load_entity(block_ptr, entity_type, entity_id).await,
-            ExternDB::None => Ok(None),
-        }
-    }
-
-    async fn load_entity_latest(
-        &self,
-        entity_type: &str,
-        entity_id: &str,
-    ) -> Result<Option<RawEntity>, DatabaseError> {
-        match self {
-            #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.load_entity_latest(entity_type, entity_id).await,
-            #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.load_entity_latest(entity_type, entity_id).await,
+            ExternDB::Mongo(db) => db.load_entity(entity_type, entity_id).await,
             ExternDB::None => Ok(None),
         }
     }
