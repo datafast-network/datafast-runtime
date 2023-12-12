@@ -8,6 +8,7 @@ use crate::errors::FilterError;
 use crate::messages::BlockDataMessage;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
+use crate::{debug, error};
 use ethabi::Contract;
 use web3::types::Log;
 
@@ -128,13 +129,25 @@ impl EthereumFilter {
                                 block_header.to_owned(),
                                 tx.clone(),
                             )
-                            .map(|e| EthereumFilteredEvent {
-                                event: e,
-                                handler: get_handler_for_log(&ds.ds, &log.topics[0])
-                                    .unwrap()
-                                    .handler,
-                                datasource: ds.ds.name.clone(),
+                            .map(|e| {
+                                let handler = get_handler_for_log(&ds.ds, &log.topics[0]);
+                                if handler.is_none() {
+                                    debug!(DataFilter,
+                                        "No handler found for log";
+                                        log => format!("{:?}", log),
+                                        datasource => ds.ds.name.clone(),
+                                        block => format!("{:?}", block_header)
+                                    );
+                                    None
+                                } else {
+                                    Some(EthereumFilteredEvent {
+                                        event: e,
+                                        handler: handler.unwrap().handler,
+                                        datasource: ds.ds.name.clone(),
+                                    })
+                                }
                             })
+                            .flatten()
                         })
                 }
             })

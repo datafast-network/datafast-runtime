@@ -119,12 +119,9 @@ impl LoaderTrait for LocalFileLoader {
             return Ok(wasm_bytes.clone());
         }
 
-        let datasource = self
-            .subgraph_yaml
-            .dataSources
-            .iter()
-            .find(|ds| ds.name == datasource_name);
+        let datasources = self.datasources_and_templates();
 
+        let datasource = datasources.iter().find(|ds| ds.name == datasource_name);
         if datasource.is_none() {
             return Err(ManifestLoaderError::InvalidDataSource(
                 datasource_name.to_owned(),
@@ -184,8 +181,7 @@ impl LoaderTrait for LocalFileLoader {
     }
     fn datasources_and_templates(&self) -> Vec<Datasource> {
         let mut datasources = self.subgraph_yaml.dataSources.clone();
-        let mut templates = self.subgraph_yaml.templates.clone();
-        datasources.append(&mut templates);
+        datasources.extend(self.subgraph_yaml.templates.clone());
         datasources
     }
 }
@@ -217,6 +213,8 @@ mod test {
         env_logger::try_init().unwrap_or_default();
         let loader = LocalFileLoader::new("./subgraph").await.unwrap();
         let sources = loader.datasources_and_templates();
+        let template = sources.iter().find(|s| s.name == "Pool").unwrap();
+        log::log!(log::Level::Info, "{:?}", template);
         assert_eq!(3, sources.len());
     }
 }
