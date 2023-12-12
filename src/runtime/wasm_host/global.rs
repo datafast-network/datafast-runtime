@@ -51,3 +51,11 @@ pub fn abort(
         location, message
     )))
 }
+
+#[cfg(test)]
+mod test {
+    use super::super::test::*;
+    use crate::host_fn_test;
+
+    host_fn_test!("TestGlobalVar", test_global_var, host {});
+}
