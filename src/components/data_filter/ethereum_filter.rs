@@ -4,11 +4,12 @@ use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Datasource;
+use crate::debug;
+use crate::error;
 use crate::errors::FilterError;
 use crate::messages::BlockDataMessage;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
-use crate::{debug, error};
 use ethabi::Contract;
 use web3::types::Log;
 

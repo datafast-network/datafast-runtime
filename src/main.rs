@@ -10,6 +10,7 @@ mod metrics;
 mod rpc_client;
 mod runtime;
 mod schema_lookup;
+mod welcome;
 
 use components::*;
 use config::Config;
@@ -26,6 +27,7 @@ fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::try_init().unwrap_or_default();
+    welcome::welcome();
 
     let config = Config::load();
     info!(main, "Config loaded");

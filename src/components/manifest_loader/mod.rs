@@ -1,7 +1,8 @@
 mod local;
 
+use crate::common::BlockPtr;
+use crate::common::Datasource;
 use crate::common::Source;
-use crate::common::{BlockPtr, Datasource};
 use crate::errors::ManifestLoaderError;
 use crate::info;
 use crate::schema_lookup::SchemaLookup;
@@ -9,7 +10,8 @@ use async_trait::async_trait;
 use local::LocalFileLoader;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 #[async_trait]
 pub trait LoaderTrait: Sized {

@@ -3,7 +3,8 @@ mod metrics;
 
 use super::ManifestAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
-use crate::common::{BlockPtr, HandlerTypes};
+use crate::common::BlockPtr;
+use crate::common::HandlerTypes;
 use crate::config::Config;
 use crate::database::DatabaseAgent;
 use crate::errors::SubgraphError;
