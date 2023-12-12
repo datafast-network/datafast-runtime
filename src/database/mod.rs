@@ -4,6 +4,7 @@ mod metrics;
 mod utils;
 
 use crate::common::BlockPtr;
+use crate::common::Datasource;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
 use crate::info;
@@ -229,6 +230,14 @@ impl DatabaseAgent {
     ) -> Result<Self, DatabaseError> {
         let db = Database::new(config, schema.to_owned(), registry).await?;
         Ok(Self::from(db))
+    }
+
+    pub async fn load_datasources(&self) -> Result<Option<Vec<Datasource>>, DatabaseError> {
+        self.db.lock().await.db.load_datasources().await
+    }
+
+    pub async fn save_datasources(&self, ds: Vec<Datasource>) -> Result<(), DatabaseError> {
+        self.db.lock().await.db.save_datasources(ds).await
     }
 
     pub fn wasm_send_store_request(

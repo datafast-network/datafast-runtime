@@ -9,6 +9,7 @@ mod mongo;
 use mongo::*;
 
 use crate::common::BlockPtr;
+use crate::common::Datasource;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
 use crate::messages::EntityID;
@@ -53,6 +54,8 @@ pub trait ExternDBTrait: Sized {
 
     async fn create_block_ptr_table(&self) -> Result<(), DatabaseError>;
 
+    async fn create_datasource_table(&self) -> Result<(), DatabaseError>;
+
     async fn load_entity(
         &self,
         entity_type: &str,
@@ -80,6 +83,10 @@ pub trait ExternDBTrait: Sized {
     ) -> Result<Vec<BlockPtr>, DatabaseError>;
 
     async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError>;
+
+    async fn save_datasources(&self, datasources: Vec<Datasource>) -> Result<(), DatabaseError>;
+
+    async fn load_datasources(&self) -> Result<Option<Vec<Datasource>>, DatabaseError>;
 
     async fn batch_insert_entities(
         &self,
@@ -116,6 +123,16 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.create_block_ptr_table().await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.create_block_ptr_table().await,
+            ExternDB::None => Ok(()),
+        }
+    }
+
+    async fn create_datasource_table(&self) -> Result<(), DatabaseError> {
+        match self {
+            #[cfg(feature = "scylla")]
+            ExternDB::Scylla(db) => db.create_datasource_table().await,
+            #[cfg(feature = "mongo")]
+            ExternDB::Mongo(db) => db.create_datasource_table().await,
             ExternDB::None => Ok(()),
         }
     }
@@ -216,6 +233,26 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.get_earliest_block_ptr().await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.get_earliest_block_ptr().await,
+            ExternDB::None => Ok(None),
+        }
+    }
+
+    async fn save_datasources(&self, datasources: Vec<Datasource>) -> Result<(), DatabaseError> {
+        match self {
+            #[cfg(feature = "scylla")]
+            ExternDB::Scylla(db) => db.save_datasources(datasources).await,
+            #[cfg(feature = "mongo")]
+            ExternDB::Mongo(db) => db.save_datasources(datasources).await,
+            ExternDB::None => Ok(()),
+        }
+    }
+
+    async fn load_datasources(&self) -> Result<Option<Vec<Datasource>>, DatabaseError> {
+        match self {
+            #[cfg(feature = "scylla")]
+            ExternDB::Scylla(db) => db.load_datasources().await,
+            #[cfg(feature = "mongo")]
+            ExternDB::Mongo(db) => db.load_datasources().await,
             ExternDB::None => Ok(None),
         }
     }

@@ -1,5 +1,6 @@
 use super::ExternDBTrait;
 use crate::common::BlockPtr;
+use crate::common::Datasource;
 use crate::errors::DatabaseError;
 use crate::info;
 use crate::messages::EntityID;
@@ -23,11 +24,14 @@ use mongodb::options::DatabaseOptions;
 use mongodb::options::FindOneOptions;
 use mongodb::options::FindOptions;
 use mongodb::options::IndexOptions;
+use mongodb::options::InsertManyOptions;
 use mongodb::options::WriteConcern;
 use mongodb::Client;
 use mongodb::Collection;
 use mongodb::Database;
 use mongodb::IndexModel;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -51,12 +55,35 @@ impl From<Value> for Bson {
     }
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+struct WrappedDatasource {
+    pub name: String,
+    pub address: Option<String>,
+    pub created_at_block: Option<u64>,
+    pub datasource: Datasource,
+}
+
+impl From<Datasource> for WrappedDatasource {
+    fn from(ds: Datasource) -> Self {
+        let name = ds.name.clone();
+        let address = ds.source.address.clone();
+        let created_at_block = ds.source.startBlock.clone();
+        WrappedDatasource {
+            datasource: ds,
+            name,
+            address,
+            created_at_block,
+        }
+    }
+}
+
 pub struct MongoDB {
     #[allow(dead_code)]
     db: Database,
     schema: SchemaLookup,
     entity_collections: HashMap<EntityType, Collection<Document>>,
     block_ptr_collection: Collection<BlockPtr>,
+    datasource_collection: Collection<WrappedDatasource>,
 }
 
 impl MongoDB {
@@ -82,12 +109,14 @@ impl MongoDB {
                 (entity_type.to_owned(), collection)
             })
             .collect::<HashMap<EntityType, Collection<Document>>>();
+        let datasource_collection = db.collection::<WrappedDatasource>("datasources");
 
         let this = MongoDB {
             db,
             schema,
             entity_collections,
             block_ptr_collection,
+            datasource_collection,
         };
 
         this.create_entity_tables().await?;
@@ -187,6 +216,18 @@ impl ExternDBTrait for MongoDB {
             .keys(doc! { "block_number": -1 })
             .build();
         self.block_ptr_collection
+            .create_index(idx_model, None)
+            .await?;
+        Ok(())
+    }
+
+    async fn create_datasource_table(&self) -> Result<(), DatabaseError> {
+        let opts = IndexOptions::builder().unique(true).build();
+        let idx_model = IndexModel::builder()
+            .keys(doc! { "created_at_block": -1, "name": 1, "address": 1,  })
+            .options(opts)
+            .build();
+        self.datasource_collection
             .create_index(idx_model, None)
             .await?;
         Ok(())
@@ -297,6 +338,38 @@ impl ExternDBTrait for MongoDB {
             .flatten()
             .collect();
         Ok(result)
+    }
+
+    async fn save_datasources(&self, datasources: Vec<Datasource>) -> Result<(), DatabaseError> {
+        let docs: Vec<_> = datasources
+            .into_iter()
+            .map(WrappedDatasource::from)
+            .collect();
+
+        // Allow duplicate error, and just insert other datasources
+        let opts = InsertManyOptions::builder().ordered(false).build();
+        self.datasource_collection
+            .insert_many(docs, opts)
+            .await
+            .ok();
+        Ok(())
+    }
+
+    async fn load_datasources(&self) -> Result<Option<Vec<Datasource>>, DatabaseError> {
+        let cursor = self.datasource_collection.find(doc! {}, None).await?;
+        let result = cursor
+            .collect::<Vec<Result<_, _>>>()
+            .await
+            .into_iter()
+            .flatten()
+            .map(|wds| wds.datasource)
+            .collect::<Vec<_>>();
+
+        if result.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(result))
     }
 
     async fn batch_insert_entities(
