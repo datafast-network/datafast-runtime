@@ -224,7 +224,7 @@ impl ExternDBTrait for MongoDB {
     async fn create_datasource_table(&self) -> Result<(), DatabaseError> {
         let opts = IndexOptions::builder().unique(true).build();
         let idx_model = IndexModel::builder()
-            .keys(doc! { "created_at_block": -1, "name": 1, "address": 1,  })
+            .keys(doc! { "created_at_block": -1, "name": 1, "address": 1 })
             .options(opts)
             .build();
         self.datasource_collection
