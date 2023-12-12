@@ -1,9 +1,9 @@
 mod datasource_wasm_instance;
 mod metrics;
 
-use super::ManifestLoader;
+use super::ManifestAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
-use crate::common::HandlerTypes;
+use crate::common::{BlockPtr, HandlerTypes};
 use crate::config::Config;
 use crate::database::DatabaseAgent;
 use crate::errors::SubgraphError;
@@ -16,6 +16,8 @@ use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
+use std::str::FromStr;
+use web3::types::Address;
 
 pub struct Subgraph {
     // NOTE: using IPFS might lead to subgraph-id using a hex/hash
@@ -35,9 +37,10 @@ impl Subgraph {
 
     pub async fn create_sources(
         &mut self,
-        manifest: &ManifestLoader,
+        manifest: &ManifestAgent,
         db: &DatabaseAgent,
         rpc: &RpcAgent,
+        block_ptr: BlockPtr,
     ) -> Result<(), SubgraphError> {
         self.sources.clear();
         for datasource in manifest.datasources() {
@@ -46,12 +49,22 @@ impl Subgraph {
                 .load_wasm(&datasource.name)
                 .await
                 .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
+            let address = datasource
+                .clone()
+                .source
+                .address
+                .map(|s| Address::from_str(&s).ok())
+                .flatten();
             let wasm_host = create_wasm_host(
                 api_version,
                 wasm_bytes,
                 db.clone(),
                 datasource.name.clone(),
                 rpc.clone(),
+                manifest.clone(),
+                address,
+                block_ptr.clone(),
+                datasource.network.clone(),
             )
             .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
             let source = DatasourceWasmInstance::try_from((wasm_host, datasource))?;

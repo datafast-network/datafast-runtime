@@ -2,6 +2,7 @@ mod asc;
 mod bigdecimal;
 mod bigint;
 mod chain;
+mod datasource;
 mod global;
 mod json;
 mod macros;
@@ -21,7 +22,10 @@ use wasmer::Memory;
 use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
+use web3::types::Address;
 
+use crate::common::BlockPtr;
+use crate::components::ManifestAgent;
 use crate::database::DatabaseAgent;
 use crate::rpc_client::RpcAgent;
 pub use asc::AscHost;
@@ -35,7 +39,11 @@ pub struct Env {
     pub arena_start_ptr: Arc<Mutex<i32>>,
     pub db_agent: DatabaseAgent,
     pub datasource_name: String,
+    pub datasource_network: String,
+    pub datasource_address: Option<Address>,
     pub rpc_agent: RpcAgent,
+    pub datasource_agent: ManifestAgent,
+    pub block_ptr: BlockPtr,
 }
 
 pub fn create_wasm_host(
@@ -44,6 +52,10 @@ pub fn create_wasm_host(
     db_agent: DatabaseAgent,
     datasource_name: String,
     rpc_agent: RpcAgent,
+    datasource_agent: ManifestAgent,
+    datasource_address: Option<Address>,
+    block_ptr: BlockPtr,
+    datasource_network: String,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -59,6 +71,10 @@ pub fn create_wasm_host(
             db_agent: db_agent.clone(),
             datasource_name,
             rpc_agent: rpc_agent.clone(),
+            datasource_agent,
+            datasource_address,
+            block_ptr,
+            datasource_network,
         },
     );
 
@@ -122,6 +138,12 @@ pub fn create_wasm_host(
             "typeConversion.bytesToBase58" => Function::new_typed_with_env(&mut store, &env, types_conversion::bytes_to_base58),
             //Log
             "log.log" => Function::new_typed_with_env(&mut store, &env, wasm_log::log_log),
+            // Datasource
+            "dataSource.create" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_create),
+            "dataSource.createWithContext" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_create_context),
+            "dataSource.address" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_address),
+            "dataSource.network" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_network),
+            "dataSource.context" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_context),
             // BigInt
             "bigInt.plus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_plus),
             "bigInt.minus" => Function::new_typed_with_env(&mut store, &env, bigint::big_int_minus),

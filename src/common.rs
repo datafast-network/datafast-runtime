@@ -55,6 +55,7 @@ pub struct Source {
 #[allow(non_snake_case)]
 pub struct SubgraphYaml {
     pub dataSources: Vec<Datasource>,
+    pub templates: Vec<Datasource>,
 }
 
 #[derive(Debug)]

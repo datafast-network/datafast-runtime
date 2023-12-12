@@ -134,6 +134,29 @@ impl LoaderTrait for LocalFileLoader {
             .map(|ds| ds.source.clone())
             .collect()
     }
+    async fn create_datasource(
+        &mut self,
+        name: &str,
+        params: Vec<String>,
+        block_ptr: BlockPtr,
+    ) -> Result<(), ManifestLoaderError> {
+        let mut template = self
+            .subgraph_yaml
+            .templates
+            .iter()
+            .find(|t| t.name == name)
+            .ok_or(ManifestLoaderError::InvalidDataSource(name.to_owned()))
+            .cloned()?;
+        template.source = Source {
+            abi: template.source.abi,
+            address: params.get(0).cloned(),
+            startBlock: Some(block_ptr.number),
+        };
+        self.subgraph_yaml.dataSources.push(template);
+        self.load_abis().await?;
+        self.load_wasm(name).await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

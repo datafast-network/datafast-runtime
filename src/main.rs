@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = default_registry();
 
     // TODO: impl IPFS Loader
-    let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
+    let manifest = ManifestAgent::new(&config.subgraph_dir).await?;
     info!(main, "Manifest loaded");
 
     let valve = Valve::new(&config.valve);
@@ -107,7 +107,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                subgraph.create_sources(&manifest, &db, &rpc).await?;
+                subgraph
+                    .create_sources(&manifest, &db, &rpc, block_ptr.clone())
+                    .await?;
                 subgraph.process(block).await?;
 
                 if block_ptr.number % 500 == 0 {
