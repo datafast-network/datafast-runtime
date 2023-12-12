@@ -85,11 +85,11 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
     fn read_u32(&self, offset: u32) -> Result<u32, AscError> {
         let mut bytes = [0; 4];
         let env = self.data();
-        assert!(env.memory.is_some(), "No memory???/");
+        assert!(env.memory.is_some(), "No memory???");
         let memory = &env
             .memory
             .clone()
-            .expect("(FunctionEnvMut::read_u32) Memory must be initilized beforehand");
+            .expect("(FunctionEnvMut::read_u32) Memory must be initialized beforehand");
 
         let store_ref = self.as_store_ref();
         let view = memory.view(&store_ref);

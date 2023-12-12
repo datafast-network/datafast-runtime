@@ -168,7 +168,7 @@ impl DataFilterTrait for EthereumFilter {
 
 #[cfg(test)]
 mod test {
-    use crate::components::ManifestLoader;
+    use crate::components::ManifestAgent;
 
     use super::*;
 
@@ -262,7 +262,7 @@ mod test {
 "#;
         let logs: Vec<Log> = serde_json::from_str(logs).unwrap();
         let contract = erc20_contract();
-        let test_manifest = ManifestLoader::new("fs://Users/vutran/Desktop/build")
+        let test_manifest = ManifestAgent::new("fs://Users/vutran/Desktop/build")
             .await
             .unwrap();
         let datasources_1: Vec<Datasource> = test_manifest

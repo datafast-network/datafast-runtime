@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
     info!(main, "BlockSource ready");
 
-    let filter = DataFilter::new(config.chain.clone(), manifest.datasources())?;
+    let filter = DataFilter::new(config.chain.clone(), manifest.datasource_and_templates())?;
     info!(main, "DataFilter ready");
 
     let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
@@ -110,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 subgraph
                     .create_sources(&manifest, &db, &rpc, block_ptr.clone())
                     .await?;
-                subgraph.process(block).await?;
+                subgraph.process(block, &manifest).await?;
 
                 if block_ptr.number % 500 == 0 {
                     valve.set_finished(block_ptr.number);

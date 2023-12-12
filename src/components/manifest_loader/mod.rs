@@ -34,6 +34,8 @@ pub trait LoaderTrait: Sized {
         params: Vec<String>,
         block_ptr: BlockPtr,
     ) -> Result<(), ManifestLoaderError>;
+
+    fn datasources_and_templates(&self) -> Vec<Datasource>;
 }
 
 enum ManifestLoader {
@@ -96,6 +98,12 @@ impl ManifestLoader {
         }
     }
 
+    pub fn datasource_and_templates(&self) -> Vec<Datasource> {
+        match self {
+            Self::Local(loader) => loader.datasources_and_templates(),
+        }
+    }
+
     pub async fn create_datasource(
         &mut self,
         name: &str,
@@ -114,6 +122,12 @@ pub struct ManifestAgent {
 }
 
 impl ManifestAgent {
+    pub fn mock() -> Self {
+        let loader = ManifestLoader::Local(LocalFileLoader::default());
+        ManifestAgent {
+            loader: Arc::new(Mutex::new(loader)),
+        }
+    }
     pub async fn new(path: &str) -> Result<Self, ManifestLoaderError> {
         let loader = ManifestLoader::new(path).await?;
         Ok(ManifestAgent {
@@ -144,6 +158,11 @@ impl ManifestAgent {
     pub fn datasources(&self) -> Vec<Datasource> {
         let loader = self.loader.lock().unwrap();
         loader.datasources()
+    }
+
+    pub fn datasource_and_templates(&self) -> Vec<Datasource> {
+        let loader = self.loader.lock().unwrap();
+        loader.datasource_and_templates()
     }
 
     pub fn create_datasource(

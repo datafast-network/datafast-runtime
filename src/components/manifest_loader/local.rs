@@ -9,6 +9,7 @@ use std::fs::read_to_string;
 use std::io::BufReader;
 use tokio::sync::Mutex;
 
+#[derive(Default)]
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
@@ -67,6 +68,8 @@ impl LoaderTrait for LocalFileLoader {
     }
 
     async fn load_abis(&mut self) -> Result<(), ManifestLoaderError> {
+        let mut abis = HashMap::new();
+
         for datasource in self.subgraph_yaml.dataSources.iter_mut() {
             let datasource_name = datasource.name.to_owned();
             let abi_name = datasource.source.abi.clone();
@@ -84,8 +87,30 @@ impl LoaderTrait for LocalFileLoader {
             let value = serde_json::from_reader(abi_file)
                 .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
             datasource.source.abi = serde_json::to_string(&value).unwrap();
-            self.abis.insert(datasource_name, value);
+            abis.insert(datasource_name, value);
         }
+
+        for template in self.subgraph_yaml.templates.iter_mut() {
+            let datasource_name = template.name.to_owned();
+            let abi_name = template.source.abi.clone();
+            let abi_path = template
+                .mapping
+                .abis
+                .iter()
+                .find(|abi| abi.name == abi_name)
+                .map_or(
+                    Err(ManifestLoaderError::InvalidABI(abi_name.to_owned())),
+                    |abi| Ok(format!("{}/{}", self.subgraph_dir, abi.file)),
+                )?;
+            let abi_file = fs::File::open(&abi_path)
+                .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
+            let value = serde_json::from_reader(abi_file)
+                .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
+            template.source.abi = serde_json::to_string(&value).unwrap();
+            abis.insert(datasource_name, value);
+        }
+
+        self.abis = abis;
         Ok(())
     }
 
@@ -157,6 +182,12 @@ impl LoaderTrait for LocalFileLoader {
         self.load_wasm(name).await?;
         Ok(())
     }
+    fn datasources_and_templates(&self) -> Vec<Datasource> {
+        let mut datasources = self.subgraph_yaml.dataSources.clone();
+        let mut templates = self.subgraph_yaml.templates.clone();
+        datasources.append(&mut templates);
+        datasources
+    }
 }
 
 #[cfg(test)]
@@ -179,5 +210,13 @@ mod test {
 
         loader.load_abis().await.unwrap();
         loader.load_yaml().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get_template() {
+        env_logger::try_init().unwrap_or_default();
+        let loader = LocalFileLoader::new("./subgraph").await.unwrap();
+        let sources = loader.datasources_and_templates();
+        assert_eq!(3, sources.len());
     }
 }

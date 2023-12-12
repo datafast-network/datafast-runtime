@@ -12,6 +12,7 @@ pub fn datasource_create(
     name_ptr: AscPtr<AscString>,
     params_ptr: AscPtr<Array<AscPtr<AscString>>>,
 ) -> Result<(), RuntimeError> {
+    info!(datasource_create, ">>>>> Create datasource");
     let source_name: String = asc_get(&fenv, name_ptr, 0)?;
     let source_params: Vec<String> = asc_get(&fenv, params_ptr, 0)?;
     info!(datasource_create,
@@ -24,7 +25,10 @@ pub fn datasource_create(
         .datasource_agent
         .create_datasource(&source_name, source_params, env.block_ptr.clone())
     {
-        Ok(_) => Ok(()),
+        Ok(_) => {
+            info!(datasource_create, "Create datasource success");
+            Ok(())
+        }
         Err(err) => Err(RuntimeError::new(err.to_string())),
     }
 }
@@ -74,3 +78,6 @@ pub fn datasource_context(_fenv: FunctionEnvMut<Env>) -> Result<AscPtr<AscEntity
     // Ok(context_ptr)
     Err(RuntimeError::new("Not implemented yet!"))
 }
+
+#[cfg(test)]
+mod tests {}

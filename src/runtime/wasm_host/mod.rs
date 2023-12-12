@@ -123,6 +123,14 @@ pub fn create_wasm_host(
             "ethereum.call" =>  Function::new_typed_with_env(&mut store, &env, chain::ethereum::ethereum_call),
             "crypto.keccak256" => Function::new_typed_with_env(&mut store, &env, chain::ethereum::crypto_keccak_256),
         },
+        "datasource" => {
+            // Datasource
+            "dataSource.create" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_create),
+            "dataSource.createWithContext" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_create_context),
+            "dataSource.address" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_address),
+            "dataSource.network" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_network),
+            "dataSource.context" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_context)
+        },
         "index" => { //index for subgraph version <= 4
             "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
             "store.get" => Function::new_typed_with_env(&mut store, &env, store::store_get),
@@ -266,6 +274,10 @@ pub mod test {
             db_agent,
             "Test".to_string(),
             rpc_agent,
+            ManifestAgent::mock(),
+            None,
+            BlockPtr::default(),
+            "test".to_string(),
         )
         .unwrap()
     }
