@@ -197,7 +197,7 @@ pub enum RPCClientError {
     #[error("Invalid Argument")]
     InvalidArguments,
     #[error("Data encoding failed")]
-    DatEncodingFail,
+    DataEncodingFail,
     #[error("Result decoding failed")]
     DatDecodingFail,
 }

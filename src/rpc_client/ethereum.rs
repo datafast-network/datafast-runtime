@@ -168,7 +168,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                return Err(RPCClientError::DatEncodingFail);
+                return Err(RPCClientError::DataEncodingFail);
             }
         };
 
