@@ -165,7 +165,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                return Err(RPCClientError::DataEncodingFail);
+                return Err(RPCClientError::Revert(format!("{:?}", e)));
             }
         };
 
@@ -218,7 +218,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                RPCClientError::DataDecodingFail
+                RPCClientError::Revert(format!("{:?}", e))
             })?;
         let response = CallResponse::EthereumContractCall(Some(data_result));
         Ok(response)
@@ -236,5 +236,42 @@ impl RPCTrait for EthereumRPC {
                 self.handle_contract_call(data, call.block_ptr).await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
+    use crate::common::ABIList;
+    use ethabi::Address;
+    use std::fs;
+    use std::str::FromStr;
+
+    #[tokio::test]
+    async fn test_rpc_call_symbol() {
+        env_logger::try_init().unwrap_or_default();
+        let data = UnresolvedContractCall {
+            contract_name: "ERC20".to_string(),
+            contract_address: Address::from_str("0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2")
+                .unwrap(),
+            function_name: "symbol".to_string(),
+            function_signature: None,
+            function_args: vec![],
+        };
+        let abi =
+            fs::read_to_string("./subgraph/NonfungiblePositionManager/abis/ERC20.json").unwrap();
+        let mut abis = ABIList::default();
+        abis.insert("ERC20".to_string(), serde_json::from_str(&abi).unwrap());
+        let rpc = super::EthereumRPC::new("https://eth.llamarpc.com", abis)
+            .await
+            .unwrap();
+        let block_ptr = crate::common::BlockPtr {
+            number: 12369879,
+            hash: "0x7d81e60e5a2296dc38f36e343a7f3e416b1fc2f766568b2d81a63159752b8885".to_string(),
+            parent_hash: "0x6c768e2debe6d3cb09e078387c20ea90b41e3899ecd0f65e523be9f9bb0033b7"
+                .to_string(),
+        };
+        let result = rpc.handle_contract_call(data, block_ptr).await.unwrap();
+        log::info!("result: {:?}", result);
     }
 }

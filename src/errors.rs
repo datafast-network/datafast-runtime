@@ -202,4 +202,6 @@ pub enum RPCClientError {
     DataDecodingFail,
     #[error("RPC Client Error: {0}")]
     RPCInvalidChain(String),
+    #[error("call reverted: {0}")]
+    Revert(String),
 }
