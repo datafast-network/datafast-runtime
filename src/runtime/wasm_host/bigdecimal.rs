@@ -53,12 +53,6 @@ pub fn big_decimal_divided_by(
 ) -> Result<AscPtr<AscBigDecimal>, RuntimeError> {
     let x: BigDecimal = asc_get(&fenv, big_decimal_x_ptr, 0)?;
     let y: BigDecimal = asc_get(&fenv, big_decimal_y_ptr, 0)?;
-    info!(
-        big_decimal_divided_by,
-        "big_decimal_divided_by";
-        x => x.to_string(),
-        y => y.to_string()
-    );
     if y == BigDecimal::from(0) {
         return Err(RuntimeError::new(
             "Divide by zero | big_decimal_divided_by error!",
