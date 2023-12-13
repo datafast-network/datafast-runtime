@@ -10,7 +10,6 @@ mod metrics;
 mod rpc_client;
 mod runtime;
 mod schema_lookup;
-mod welcome;
 
 use components::*;
 use config::Config;
@@ -19,6 +18,15 @@ use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
+use std::fs;
+
+fn welcome() {
+    let contents =
+        fs::read_to_string("./welcome.txt").expect("Should have been able to read the file");
+
+    warn!(DatafastRuntime, "\nA product of Datafast - [df|runtime]");
+    log::info!("\n\n{contents}");
+}
 
 fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
     info!(main, format!("{task_name} has finished"); result => format!("{:?}", r));
@@ -27,7 +35,7 @@ fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::try_init().unwrap_or_default();
-    welcome::welcome();
+    welcome();
 
     let config = Config::load();
     info!(main, "Config loaded");
