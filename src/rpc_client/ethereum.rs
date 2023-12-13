@@ -70,7 +70,14 @@ impl EthereumRPC {
             .iter()
             .find(|(name, _)| **name == contract_name)
             .ok_or_else(|| {
-                RPCClientError::RPCClient(format!("Contract \"{}\" not found", contract_name))
+                error!(
+                    RPCClientError,
+                    "contract call failed";
+                    contract_name => contract_name,
+                    function_name => function_name,
+                    contract_address => contract_address
+                );
+                RPCClientError::ContractCallFail
             })?
             .1;
 
@@ -85,9 +92,9 @@ impl EthereumRPC {
                     contract_name => contract_name,
                     function_name => function_name,
                     contract_address => contract_address,
-                    error => format!("{:?}", e)
+                    e => e
                 );
-                RPCClientError::RPCClient(e.to_string())
+                RPCClientError::FunctionNotFound
             })?,
 
             // Behavior for apiVersion >= 0.0.04: look up function by signature of
@@ -105,7 +112,7 @@ impl EthereumRPC {
                         function_signature => fn_signature,
                         error => format!("{:?}", e)
                     );
-                    RPCClientError::RPCClient(e.to_string())
+                    RPCClientError::FunctionNotFound
                 })?
                 .iter()
                 .find(|f| f.signature() == fn_signature)
@@ -118,10 +125,7 @@ impl EthereumRPC {
                         contract_address => contract_address,
                         function_signature => fn_signature
                     );
-                    RPCClientError::RPCClient(format!(
-                        "Contract function not found: {}",
-                        fn_signature
-                    ))
+                    RPCClientError::SignatureNotFound
                 })?,
         };
 
@@ -138,10 +142,7 @@ impl EthereumRPC {
             .zip(result.function.inputs.iter().map(|p| &p.kind))
         {
             if !token.type_check(kind) {
-                return Err(RPCClientError::RPCClient(format!(
-                    "Invalid argument {:?} for function {:?}",
-                    token, result.function
-                )));
+                return Err(RPCClientError::InvalidArguments);
             }
         }
 
@@ -167,7 +168,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                return Err(RPCClientError::RPCClient(e.to_string()));
+                return Err(RPCClientError::DatEncodingFail);
             }
         };
 
@@ -204,7 +205,7 @@ impl EthereumRPC {
                 block_number => block_ptr.number,
                 block_hash => block_ptr.hash
             );
-            RPCClientError::RPCClient(e.to_string())
+            RPCClientError::ContractCallFail
         })?;
 
         let data_result = request_data
@@ -220,7 +221,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                RPCClientError::RPCClient(e.to_string())
+                RPCClientError::DatDecodingFail
             })?;
         let response = CallResponse::EthereumContractCall(Some(data_result));
         Ok(response)

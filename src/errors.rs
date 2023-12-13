@@ -186,6 +186,16 @@ pub enum SourceError {
 
 #[derive(Debug, Error)]
 pub enum RPCClientError {
-    #[error("RPCClient error: {0}")]
-    RPCClient(String),
+    #[error("Contract call failed")]
+    ContractCallFail,
+    #[error("Function not found")]
+    FunctionNotFound,
+    #[error("Function Signature not found")]
+    SignatureNotFound,
+    #[error("Invalid Argument")]
+    InvalidArguments,
+    #[error("Data encoding failed")]
+    DatEncodingFail,
+    #[error("Result decoding failed")]
+    DatDecodingFail,
 }
