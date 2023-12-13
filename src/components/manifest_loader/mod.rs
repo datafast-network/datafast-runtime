@@ -1,15 +1,13 @@
 mod local;
 
-use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::Source;
+use crate::common::{ABIList, BlockPtr};
 use crate::errors::ManifestLoaderError;
 use crate::info;
 use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
 use local::LocalFileLoader;
-use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -24,7 +22,7 @@ pub trait LoaderTrait: Sized {
     // Load-Wasm is lazy, we only execute it when we need it
     async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
 
-    fn get_abis(&self) -> HashMap<String, Value>;
+    fn get_abis(&self) -> ABIList;
 
     fn get_schema(&self) -> SchemaLookup;
 
@@ -76,7 +74,7 @@ impl ManifestLoader {
         }
     }
 
-    pub fn get_abis(&self) -> HashMap<String, Value> {
+    pub fn get_abis(&self) -> ABIList {
         match self {
             ManifestLoader::Local(loader) => loader.get_abis(),
         }
@@ -142,7 +140,7 @@ impl ManifestAgent {
         loader.load_wasm(datasource_name).await
     }
 
-    pub fn get_abis(&self) -> HashMap<String, Value> {
+    pub fn get_abis(&self) -> ABIList {
         let loader = self.loader.lock().unwrap();
         loader.get_abis()
     }

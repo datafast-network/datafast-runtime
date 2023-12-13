@@ -3,9 +3,8 @@ use super::DataFilterTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::common::Datasource;
+use crate::common::{ABIList, Datasource};
 use crate::debug;
-use crate::error;
 use crate::errors::FilterError;
 use crate::messages::BlockDataMessage;
 use crate::messages::EthereumFilteredEvent;
@@ -25,12 +24,16 @@ pub struct EthereumFilter {
 }
 
 impl EthereumFilter {
-    pub fn new(datasources: Vec<Datasource>) -> Self {
+    pub fn new(datasources: Vec<Datasource>, abi_list: ABIList) -> Self {
         let ds = datasources
             .into_iter()
-            .map(|ds| DatasourceWithContract {
-                ds: ds.clone(),
-                contract: serde_json::from_str(&ds.source.abi).unwrap(),
+            .map(|ds| {
+                let abi_name = ds.source.abi.clone();
+                let contract = abi_list
+                    .get(&abi_name)
+                    .map(|abi| serde_json::from_value(abi.clone()).expect("invalid abi"))
+                    .unwrap();
+                DatasourceWithContract { ds, contract }
             })
             .collect::<Vec<_>>();
         Self { ds }
@@ -285,7 +288,7 @@ mod test {
             // USDT Contract datasource
             .take(1)
             .collect();
-        let mut filter = EthereumFilter::new(datasources_1.clone());
+        let mut filter = EthereumFilter::new(datasources_1.clone(), ABIList::default());
         let header = EthereumBlockData::default();
         let txs = vec![EthereumTransactionData::default()];
 

@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
-    pub abis: HashMap<String, serde_json::Value>,
+    pub abis: ABIList,
     pub schema: SchemaLookup,
     wasm_per_source: Mutex<HashMap<String, Vec<u8>>>,
 }
@@ -32,7 +32,7 @@ impl LocalFileLoader {
         let mut this = Self {
             subgraph_dir: subgraph_dir.to_owned(),
             subgraph_yaml: SubgraphYaml::default(),
-            abis: HashMap::new(),
+            abis: ABIList::default(),
             schema: SchemaLookup::new(),
             wasm_per_source: Mutex::new(HashMap::new()),
         };
@@ -68,49 +68,18 @@ impl LoaderTrait for LocalFileLoader {
     }
 
     async fn load_abis(&mut self) -> Result<(), ManifestLoaderError> {
-        let mut abis = HashMap::new();
-
-        for datasource in self.subgraph_yaml.dataSources.iter_mut() {
-            let datasource_name = datasource.name.to_owned();
-            let abi_name = datasource.source.abi.clone();
-            let abi_path = datasource
-                .mapping
-                .abis
-                .iter()
-                .find(|abi| abi.name == abi_name)
-                .map_or(
-                    Err(ManifestLoaderError::InvalidABI(abi_name.to_owned())),
-                    |abi| Ok(format!("{}/{}", self.subgraph_dir, abi.file)),
-                )?;
-            let abi_file = fs::File::open(&abi_path)
-                .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
-            let value = serde_json::from_reader(abi_file)
-                .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
-            datasource.source.abi = serde_json::to_string(&value).unwrap();
-            abis.insert(datasource_name, value);
+        let ds = self.datasources_and_templates();
+        for datasource in ds {
+            for mapping_abi in datasource.mapping.abis.iter() {
+                let abi_name = &mapping_abi.name;
+                let abi_path = format!("{}/{}", self.subgraph_dir, mapping_abi.file);
+                let abi_file = fs::File::open(&abi_path)
+                    .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
+                let value = serde_json::from_reader(abi_file)
+                    .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
+                self.abis.insert(abi_name.to_owned(), value);
+            }
         }
-
-        for template in self.subgraph_yaml.templates.iter_mut() {
-            let datasource_name = template.name.to_owned();
-            let abi_name = template.source.abi.clone();
-            let abi_path = template
-                .mapping
-                .abis
-                .iter()
-                .find(|abi| abi.name == abi_name)
-                .map_or(
-                    Err(ManifestLoaderError::InvalidABI(abi_name.to_owned())),
-                    |abi| Ok(format!("{}/{}", self.subgraph_dir, abi.file)),
-                )?;
-            let abi_file = fs::File::open(&abi_path)
-                .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
-            let value = serde_json::from_reader(abi_file)
-                .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
-            template.source.abi = serde_json::to_string(&value).unwrap();
-            abis.insert(datasource_name, value);
-        }
-
-        self.abis = abis;
         Ok(())
     }
 
@@ -141,7 +110,7 @@ impl LoaderTrait for LocalFileLoader {
         Ok(wasm_bytes)
     }
 
-    fn get_abis(&self) -> HashMap<String, serde_json::Value> {
+    fn get_abis(&self) -> ABIList {
         self.abis.clone()
     }
 

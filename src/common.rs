@@ -1,6 +1,7 @@
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
 
@@ -90,5 +91,22 @@ impl Display for BlockPtr {
             "BlockPtr({}, hash=`{}`, parent_hash=`{}`)",
             self.number, self.hash, self.parent_hash
         )
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct ABIList(HashMap<String, serde_json::Value>);
+
+impl ABIList {
+    pub fn get(&self, name: &str) -> Option<serde_json::Value> {
+        self.0.get(name).cloned()
+    }
+
+    pub fn insert(&mut self, name: String, abi: serde_json::Value) {
+        self.0.insert(name, abi);
+    }
+
+    pub fn iter(&self) -> std::collections::hash_map::Iter<String, serde_json::Value> {
+        self.0.iter()
     }
 }

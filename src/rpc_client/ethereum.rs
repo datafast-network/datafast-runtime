@@ -4,7 +4,7 @@ use super::types::CallResponse;
 use super::RPCTrait;
 use crate::chain::ethereum::ethereum_call::EthereumContractCall;
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
-use crate::common::BlockPtr;
+use crate::common::{ABIList, BlockPtr};
 use crate::error;
 use crate::errors::RPCClientError;
 use crate::info;
@@ -28,10 +28,7 @@ pub struct EthereumRPC {
 }
 
 impl EthereumRPC {
-    pub async fn new(
-        url: &str,
-        abis: HashMap<String, serde_json::Value>,
-    ) -> Result<Self, RPCClientError> {
+    pub async fn new(url: &str, abis: ABIList) -> Result<Self, RPCClientError> {
         let client = Web3::new(Http::new(url).unwrap());
         let abis = abis
             .iter()
@@ -92,7 +89,7 @@ impl EthereumRPC {
                     contract_name => contract_name,
                     function_name => function_name,
                     contract_address => contract_address,
-                    e => e
+                    e => format!("{:?}", e)
                 );
                 RPCClientError::FunctionNotFound
             })?,
@@ -221,7 +218,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                RPCClientError::DatDecodingFail
+                RPCClientError::DataDecodingFail
             })?;
         let response = CallResponse::EthereumContractCall(Some(data_result));
         Ok(response)

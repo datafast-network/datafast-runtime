@@ -198,6 +198,8 @@ pub enum RPCClientError {
     InvalidArguments,
     #[error("Data encoding failed")]
     DataEncodingFail,
-    #[error("Result decoding failed")]
-    DatDecodingFail,
+    #[error("Data decoding failed")]
+    DataDecodingFail,
+    #[error("RPC Client Error: {0}")]
+    RPCInvalidChain(String),
 }
