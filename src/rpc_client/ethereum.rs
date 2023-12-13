@@ -72,12 +72,12 @@ impl EthereumRPC {
             .ok_or_else(|| {
                 error!(
                     RPCClientError,
-                    "contract call failed";
+                    "get abi failed";
                     contract_name => contract_name,
                     function_name => function_name,
                     contract_address => contract_address
                 );
-                RPCClientError::ContractCallFail
+                RPCClientError::BadABI
             })?
             .1;
 

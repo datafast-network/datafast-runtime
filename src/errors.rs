@@ -186,6 +186,8 @@ pub enum SourceError {
 
 #[derive(Debug, Error)]
 pub enum RPCClientError {
+    #[error("ABI is not valid")]
+    BadABI,
     #[error("Contract call failed")]
     ContractCallFail,
     #[error("Function not found")]
