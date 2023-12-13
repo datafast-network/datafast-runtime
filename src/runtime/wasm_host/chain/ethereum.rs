@@ -101,7 +101,7 @@ pub fn ethereum_call(
             let asc_result = asc_new(&mut fenv, tokens.as_slice())?;
             Ok(asc_result)
         }
-        Err(e) => Ok(AscPtr::null()),
+        Err(_) => Ok(AscPtr::null()),
     }
 }
 
