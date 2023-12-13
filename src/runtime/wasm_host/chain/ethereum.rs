@@ -82,8 +82,14 @@ pub fn ethereum_call(
 
     match result {
         Ok(CallResponse::EthereumContractCall(tokens)) => {
-            let asc_tokens = asc_new(&mut fenv, &tokens)?;
-            Ok(asc_tokens)
+            if tokens.is_some() {
+                let tokens = tokens.unwrap();
+                let asc_tokens = asc_new(&mut fenv, &tokens)?;
+                Ok(asc_tokens)
+            } else {
+                let null_ptr = AscPtr::null();
+                Ok(null_ptr)
+            }
         }
         Err(_) => {
             let null_ptr = AscPtr::null();
