@@ -2,6 +2,7 @@ use crate::chain::ethereum::asc::EthereumValueKind;
 use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCall;
 use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCallV4;
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
+use crate::error;
 use crate::errors::AscError;
 use crate::rpc_client::CallRequest;
 use crate::rpc_client::CallResponse;
@@ -77,23 +78,30 @@ pub fn ethereum_call(
         asc_get::<_, AscUnresolvedContractCall, _>(&fenv, asc_ptr.into(), 0)?
     };
     let request = CallRequest::EthereumContractCall(call);
-    let result = env.rpc_agent.handle_request(request);
+    let result = env.rpc_agent.handle_request(request).map_err(|e| {
+        error!(
+            ethereum_call,
+            "Contract function call failed";
+            error => format!("{:?}", e)
+        );
+        AscError::Plain(format!("Contract function call failed: {:?}", e))
+    });
 
     match result {
-        Ok(CallResponse::EthereumContractCall(tokens)) => {
-            if tokens.is_some() {
-                let tokens = tokens.unwrap();
-                let asc_tokens = asc_new(&mut fenv, &tokens)?;
-                Ok(asc_tokens)
-            } else {
-                let null_ptr = AscPtr::null();
-                Ok(null_ptr)
+        Ok(CallResponse::EthereumContractCall(result)) => {
+            if result.is_none() {
+                error!(
+                ethereum_call,
+                "Contract function call failed";
+                error => "No result returned"
+                );
+                return Ok(AscPtr::null());
             }
+            let tokens = result.unwrap();
+            let asc_result = asc_new(&mut fenv, tokens.as_slice())?;
+            Ok(asc_result)
         }
-        Err(_) => {
-            let null_ptr = AscPtr::null();
-            Ok(null_ptr)
-        }
+        Err(e) => Ok(AscPtr::null()),
     }
 }
 
