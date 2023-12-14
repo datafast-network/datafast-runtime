@@ -42,7 +42,7 @@ pub struct Env {
     pub datasource_network: String,
     pub datasource_address: Option<Address>,
     pub rpc_agent: RpcAgent,
-    pub datasource_agent: ManifestAgent,
+    pub manifest_agent: ManifestAgent,
     pub block_ptr: BlockPtr,
 }
 
@@ -52,7 +52,7 @@ pub fn create_wasm_host(
     db_agent: DatabaseAgent,
     datasource_name: String,
     rpc_agent: RpcAgent,
-    datasource_agent: ManifestAgent,
+    manifest_agent: ManifestAgent,
     datasource_address: Option<Address>,
     block_ptr: BlockPtr,
     datasource_network: String,
@@ -71,7 +71,7 @@ pub fn create_wasm_host(
             db_agent: db_agent.clone(),
             datasource_name,
             rpc_agent: rpc_agent.clone(),
-            datasource_agent,
+            manifest_agent,
             datasource_address,
             block_ptr,
             datasource_network,
