@@ -88,16 +88,7 @@ pub fn ethereum_call(
     });
 
     match result {
-        Ok(CallResponse::EthereumContractCall(result)) => {
-            if result.is_none() {
-                error!(
-                ethereum_call,
-                "Contract function call failed";
-                error => "No result returned"
-                );
-                return Ok(AscPtr::null());
-            }
-            let tokens = result.unwrap();
+        Ok(CallResponse::EthereumContractCall(tokens)) => {
             let asc_result = asc_new(&mut fenv, tokens.as_slice())?;
             Ok(asc_result)
         }

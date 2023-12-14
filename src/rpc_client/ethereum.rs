@@ -139,9 +139,11 @@ impl EthereumRPC {
     ) -> Result<CallResponse, RPCClientError> {
         let request_data = self.parse_contract_call_request(data)?;
         // Encode the call parameters according to the ABI
-        let call_data = match request_data.function.encode_input(&request_data.args) {
-            Ok(data) => web3::types::Bytes(data),
-            Err(e) => {
+        let call_data = request_data
+            .function
+            .encode_input(&request_data.args)
+            .map(web3::types::Bytes::from)
+            .map_err(|e| {
                 error!(
                     ethereum_call,
                     "Contract function call failed";
@@ -151,9 +153,8 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                return Err(RPCClientError::Revert(format!("{:?}", e)));
-            }
-        };
+                RPCClientError::Revert(format!("{:?}", e))
+            })?;
 
         let block_id = if !self.supports_eip_1898 {
             BlockId::Number(block_ptr.number.into())
@@ -161,7 +162,7 @@ impl EthereumRPC {
             BlockId::Hash(H256::from_str(&block_ptr.hash).unwrap())
         };
 
-        let req = web3::types::CallRequest {
+        let request = web3::types::CallRequest {
             to: Some(request_data.address),
             gas: Some(web3::types::U256::from(ETH_CALL_GAS)),
             data: Some(call_data),
@@ -174,8 +175,8 @@ impl EthereumRPC {
             transaction_type: None,
         };
 
-        let result = Retry::spawn(FixedInterval::from_millis(100).take(5), || {
-            self.client.eth().call(req.clone(), Some(block_id))
+        let result = Retry::spawn(FixedInterval::from_millis(5).take(5), || {
+            self.client.eth().call(request.clone(), Some(block_id))
         })
         .await
         .map_err(|e| {
@@ -191,9 +192,10 @@ impl EthereumRPC {
             RPCClientError::ContractCallFail
         })?;
 
-        let data_result = request_data
+        let result = request_data
             .function
             .decode_output(&result.0)
+            .map(CallResponse::EthereumContractCall)
             .map_err(|e| {
                 error!(
                     ethereum_call,
@@ -206,8 +208,8 @@ impl EthereumRPC {
                 );
                 RPCClientError::Revert(format!("{:?}", e))
             })?;
-        let response = CallResponse::EthereumContractCall(Some(data_result));
-        Ok(response)
+
+        Ok(result)
     }
 }
 
