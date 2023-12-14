@@ -37,16 +37,7 @@ pub fn datasource_create_context(
     params_ptr: AscPtr<Array<AscPtr<AscString>>>,
     _context_ptr: AscPtr<AscEntity>,
 ) -> Result<(), RuntimeError> {
-    let source_name: String = asc_get(&fenv, name_ptr, 0).unwrap();
-    let source_params: Vec<String> = asc_get(&fenv, params_ptr, 0).unwrap();
-    // let context: HashMap<_, Value> = asc_get(&fenv, context_ptr, 0).unwrap();
-    // let datasource_ctx = Datasource::
-    info!(datasource_create_context,
-        "Create datasource with context";
-        name => &source_name,
-        params => format!("{:?}", source_params)
-    );
-    Ok(())
+    todo!()
 }
 
 pub fn datasource_address(
