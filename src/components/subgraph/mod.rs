@@ -86,7 +86,7 @@ impl Subgraph {
                 .create_single_source(datasource, manifest, db, rpc, &block_ptr)
                 .await?;
             self.sources
-                .push((wasm_source.id.clone(), address, wasm_source));
+                .push((wasm_source.name.clone(), address, wasm_source));
         }
         Ok(())
     }
@@ -154,7 +154,7 @@ impl Subgraph {
                         .create_single_source(ds, manifest, &db, &rpc, &block_ptr)
                         .await?;
                     self.sources
-                        .push((wasm_source.id.clone(), address, wasm_source));
+                        .push((wasm_source.name.clone(), address, wasm_source));
                 }
             }
         }
@@ -187,11 +187,8 @@ impl Subgraph {
             .current_block_number
             .set(block_ptr.number as i64);
 
-        let timer = self.metrics.block_process_duration.start_timer();
         self.handle_filtered_data(msg, manifest, block_ptr.clone())
             .await?;
-        timer.stop_and_record();
-        self.metrics.block_process_counter.inc();
 
         if block_ptr.number % 1000 == 0 {
             info!(
