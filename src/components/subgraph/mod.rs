@@ -8,6 +8,7 @@ use crate::common::Datasource;
 use crate::common::HandlerTypes;
 use crate::config::Config;
 use crate::database::DatabaseAgent;
+use crate::debug;
 use crate::errors::SubgraphError;
 use crate::info;
 use crate::messages::EthereumFilteredEvent;
@@ -164,7 +165,7 @@ impl Subgraph {
             }
         }
         if event_count > 0 {
-            info!(
+            debug!(
                 Subgraph,
                 "processed all events in block";
                 events => event_count,
