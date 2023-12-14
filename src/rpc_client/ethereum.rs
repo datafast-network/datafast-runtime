@@ -4,13 +4,12 @@ use super::types::CallResponse;
 use super::RPCTrait;
 use crate::chain::ethereum::ethereum_call::EthereumContractCall;
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
-use crate::common::ABIList;
+use crate::common::ABIs;
 use crate::common::BlockPtr;
 use crate::error;
 use crate::errors::RPCClientError;
 use crate::info;
 use async_trait::async_trait;
-use std::collections::HashMap;
 use std::str::FromStr;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::Retry;
@@ -25,21 +24,12 @@ const ETH_CALL_GAS: u32 = 50_000_000;
 pub struct EthereumRPC {
     client: Web3<WebSocket>,
     supports_eip_1898: bool,
-    abis: HashMap<String, ethabi::Contract>,
+    abis: ABIs,
 }
 
 impl EthereumRPC {
-    pub async fn new(url: &str, abis: ABIList) -> Result<Self, RPCClientError> {
+    pub async fn new(url: &str, abis: ABIs) -> Result<Self, RPCClientError> {
         let client = Web3::new(WebSocket::new(url).await.unwrap());
-        let abis = abis
-            .iter()
-            .map(|(contract_name, abi)| {
-                (
-                    contract_name.clone(),
-                    serde_json::from_value(abi.clone()).expect("invalid abi"),
-                )
-            })
-            .collect();
         let supports_eip_1898 = client
             .web3()
             .client_version()
@@ -63,21 +53,16 @@ impl EthereumRPC {
         let contract_address = call.contract_address;
 
         //get contract abi
-        let abi = self
-            .abis
-            .iter()
-            .find(|(name, _)| **name == contract_name)
-            .ok_or_else(|| {
-                error!(
-                    RPCClientError,
-                    "get abi failed";
-                    contract_name => contract_name,
-                    function_name => function_name,
-                    contract_address => contract_address
-                );
-                RPCClientError::BadABI
-            })?
-            .1;
+        let abi = self.abis.get_contract(&contract_name).ok_or_else(|| {
+            error!(
+                RPCClientError,
+                "get abi failed";
+                contract_name => contract_name,
+                function_name => function_name,
+                contract_address => contract_address
+            );
+            RPCClientError::BadABI
+        })?;
 
         let function_call = match call.function_signature {
             // Behavior for apiVersion < 0.0.4: look up function by name; for overloaded
@@ -243,7 +228,7 @@ impl RPCTrait for EthereumRPC {
 #[cfg(test)]
 mod tests {
     use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
-    use crate::common::ABIList;
+    use crate::common::ABIs;
     use ethabi::Address;
     use std::fs;
     use std::str::FromStr;
@@ -261,7 +246,7 @@ mod tests {
         };
         let abi =
             fs::read_to_string("./subgraph/NonfungiblePositionManager/abis/ERC20.json").unwrap();
-        let mut abis = ABIList::default();
+        let mut abis = ABIs::default();
         abis.insert("ERC20".to_string(), serde_json::from_str(&abi).unwrap());
         let rpc = super::EthereumRPC::new("https://eth.llamarpc.com", abis)
             .await

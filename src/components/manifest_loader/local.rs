@@ -11,7 +11,7 @@ use std::io::BufReader;
 pub struct LocalFileLoader {
     pub subgraph_dir: String,
     pub subgraph_yaml: SubgraphYaml,
-    pub abis: ABIList,
+    pub abis: ABIs,
     pub schema: SchemaLookup,
     wasm_per_source: HashMap<String, Vec<u8>>,
 }
@@ -30,7 +30,7 @@ impl LocalFileLoader {
         let mut this = Self {
             subgraph_dir: subgraph_dir.to_owned(),
             subgraph_yaml: SubgraphYaml::default(),
-            abis: ABIList::default(),
+            abis: ABIs::default(),
             schema: SchemaLookup::new(),
             wasm_per_source: HashMap::new(),
         };
@@ -105,7 +105,7 @@ impl LocalFileLoader {
 }
 
 impl LoaderTrait for LocalFileLoader {
-    fn get_abis(&self) -> ABIList {
+    fn get_abis(&self) -> ABIs {
         self.abis.clone()
     }
 

@@ -1,3 +1,4 @@
+use ethabi::Contract;
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
@@ -95,19 +96,23 @@ impl Display for BlockPtr {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct ABIList(HashMap<String, serde_json::Value>);
+pub struct ABIs(HashMap<String, serde_json::Value>);
 
-impl ABIList {
+impl ABIs {
     pub fn get(&self, name: &str) -> Option<serde_json::Value> {
         self.0.get(name).cloned()
     }
 
-    pub fn insert(&mut self, name: String, abi: serde_json::Value) {
-        self.0.insert(name, abi);
+    pub fn get_contract(&self, name: &str) -> Option<Contract> {
+        self.0
+            .get(name)
+            .cloned()
+            .map(|v| serde_json::from_value(v).ok())
+            .flatten()
     }
 
-    pub fn iter(&self) -> std::collections::hash_map::Iter<String, serde_json::Value> {
-        self.0.iter()
+    pub fn insert(&mut self, name: String, abi: serde_json::Value) {
+        self.0.insert(name, abi);
     }
 
     pub fn len(&self) -> usize {

@@ -3,7 +3,7 @@ use super::DataFilterTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::common::ABIList;
+use crate::common::ABIs;
 use crate::common::Datasource;
 use crate::debug;
 use crate::errors::FilterError;
@@ -25,7 +25,7 @@ pub struct EthereumFilter {
 }
 
 impl EthereumFilter {
-    pub fn new(datasources: Vec<Datasource>, abi_list: ABIList) -> Self {
+    pub fn new(datasources: Vec<Datasource>, abi_list: ABIs) -> Self {
         let ds = datasources
             .into_iter()
             .map(|ds| {
@@ -289,7 +289,7 @@ mod test {
             // USDT Contract datasource
             .take(1)
             .collect();
-        let mut filter = EthereumFilter::new(datasources_1.clone(), ABIList::default());
+        let mut filter = EthereumFilter::new(datasources_1.clone(), ABIs::default());
         let header = EthereumBlockData::default();
         let txs = vec![EthereumTransactionData::default()];
 

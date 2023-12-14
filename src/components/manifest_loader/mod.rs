@@ -1,6 +1,6 @@
 mod local;
 
-use crate::common::ABIList;
+use crate::common::ABIs;
 use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::Source;
@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 pub trait LoaderTrait {
-    fn get_abis(&self) -> ABIList;
+    fn get_abis(&self) -> ABIs;
     fn get_schema(&self) -> SchemaLookup;
     fn get_sources(&self) -> Vec<Source>;
     fn get_wasm(&self, source_name: &str) -> Vec<u8>;
@@ -57,7 +57,7 @@ impl ManifestLoader {
         }
     }
 
-    pub fn get_abis(&self) -> ABIList {
+    pub fn get_abis(&self) -> ABIs {
         match self {
             ManifestLoader::Local(loader) => loader.get_abis(),
         }
@@ -130,7 +130,7 @@ impl ManifestAgent {
         })
     }
 
-    pub fn get_abis(&self) -> ABIList {
+    pub fn get_abis(&self) -> ABIs {
         let loader = self.loader.lock().unwrap();
         loader.get_abis()
     }

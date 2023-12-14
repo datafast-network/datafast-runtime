@@ -1,7 +1,7 @@
 mod ethereum;
 mod types;
 
-use crate::common::ABIList;
+use crate::common::ABIs;
 use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
@@ -50,7 +50,7 @@ pub struct RpcClient {
 }
 
 impl RpcClient {
-    async fn new(config: &Config, abis: ABIList) -> Result<Self, RPCClientError> {
+    async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCClientError> {
         let rpc_client = match config.chain {
             Chain::Ethereum => {
                 let client = ethereum::EthereumRPC::new(&config.rpc_endpoint, abis).await?;
@@ -105,7 +105,7 @@ pub struct RpcAgent {
 }
 
 impl RpcAgent {
-    pub async fn new(config: &Config, abis: ABIList) -> Result<Self, RPCClientError> {
+    pub async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCClientError> {
         let rpc_client = RpcClient::new(config, abis).await?;
         Ok(Self {
             client: Arc::new(Mutex::new(rpc_client)),
@@ -166,7 +166,7 @@ pub mod tests {
         ))
         .unwrap();
         let abi = serde_json::from_reader(abi_file).unwrap();
-        let mut abis = ABIList::default();
+        let mut abis = ABIs::default();
         abis.insert("ERC20".to_string(), abi);
 
         let client = ethereum::EthereumRPC::new(rpc, abis).await.unwrap();

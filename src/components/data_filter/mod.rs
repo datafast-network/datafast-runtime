@@ -1,7 +1,7 @@
 mod ethereum_filter;
 mod utils;
 
-use crate::common::ABIList;
+use crate::common::ABIs;
 use crate::common::Chain;
 use crate::common::Datasource;
 use crate::errors::FilterError;
@@ -41,7 +41,7 @@ impl DataFilter {
     pub fn new(
         chain: Chain,
         datasources: Vec<Datasource>,
-        abi_list: ABIList,
+        abi_list: ABIs,
     ) -> Result<Self, FilterError> {
         let filter = match chain {
             Chain::Ethereum => DataFilter::Ethereum(EthereumFilter::new(datasources, abi_list)),
