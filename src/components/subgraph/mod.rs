@@ -48,10 +48,7 @@ impl Subgraph {
         block_ptr: &BlockPtr,
     ) -> Result<DatasourceWasmInstance, SubgraphError> {
         let api_version = datasource.mapping.apiVersion.to_owned();
-        let wasm_bytes = manifest
-            .load_wasm(&datasource.name)
-            .await
-            .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
+        let wasm_bytes = manifest.get_wasm(&datasource.name);
         let address = datasource
             .clone()
             .source

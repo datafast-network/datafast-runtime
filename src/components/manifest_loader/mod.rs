@@ -7,29 +7,17 @@ use crate::common::Source;
 use crate::errors::ManifestLoaderError;
 use crate::info;
 use crate::schema_lookup::SchemaLookup;
-use async_trait::async_trait;
 use local::LocalFileLoader;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-#[async_trait]
-pub trait LoaderTrait: Sized {
-    async fn load_schema(&mut self) -> Result<(), ManifestLoaderError>;
-
-    async fn load_yaml(&mut self) -> Result<(), ManifestLoaderError>;
-
-    async fn load_abis(&mut self) -> Result<(), ManifestLoaderError>;
-
-    // Load-Wasm is lazy, we only execute it when we need it
-    async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError>;
-
+pub trait LoaderTrait {
     fn get_abis(&self) -> ABIList;
-
     fn get_schema(&self) -> SchemaLookup;
-
     fn get_sources(&self) -> Vec<Source>;
+    fn get_wasm(&self, source_name: &str) -> Vec<u8>;
 
-    async fn create_datasource(
+    fn create_datasource(
         &mut self,
         name: &str,
         params: Vec<String>,
@@ -60,18 +48,12 @@ impl ManifestLoader {
                     "Using LocalFile Loader, loading subgraph build bundle";
                     build_bundle_path => local_path
                 );
-                let loader = LocalFileLoader::new(&local_path).await?;
+                let loader = LocalFileLoader::new(&local_path)?;
                 Ok(ManifestLoader::Local(loader))
             }
             _ => {
                 unimplemented!()
             }
-        }
-    }
-
-    pub async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError> {
-        match self {
-            ManifestLoader::Local(loader) => loader.load_wasm(datasource_name).await,
         }
     }
 
@@ -93,6 +75,12 @@ impl ManifestLoader {
         }
     }
 
+    pub fn get_wasm(&self, source_name: &str) -> Vec<u8> {
+        match self {
+            ManifestLoader::Local(loader) => loader.get_wasm(source_name),
+        }
+    }
+
     pub fn datasources(&self) -> Vec<Datasource> {
         match self {
             Self::Local(loader) => loader.subgraph_yaml.dataSources.to_vec(),
@@ -111,14 +99,14 @@ impl ManifestLoader {
         }
     }
 
-    pub async fn create_datasource(
+    pub fn create_datasource(
         &mut self,
         name: &str,
         params: Vec<String>,
         block_ptr: BlockPtr,
     ) -> Result<(), ManifestLoaderError> {
         match self {
-            Self::Local(loader) => loader.create_datasource(name, params, block_ptr).await,
+            Self::Local(loader) => loader.create_datasource(name, params, block_ptr),
         }
     }
 }
@@ -142,11 +130,6 @@ impl ManifestAgent {
         })
     }
 
-    pub async fn load_wasm(&self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError> {
-        let loader = self.loader.lock().unwrap();
-        loader.load_wasm(datasource_name).await
-    }
-
     pub fn get_abis(&self) -> ABIList {
         let loader = self.loader.lock().unwrap();
         loader.get_abis()
@@ -160,6 +143,11 @@ impl ManifestAgent {
     pub fn get_sources(&self) -> Vec<Source> {
         let loader = self.loader.lock().unwrap();
         loader.get_sources()
+    }
+
+    pub fn get_wasm(&self, source_name: &str) -> Vec<u8> {
+        let loader = self.loader.lock().unwrap();
+        loader.get_wasm(source_name)
     }
 
     pub fn datasources(&self) -> Vec<Datasource> {
@@ -183,21 +171,7 @@ impl ManifestAgent {
         params: Vec<String>,
         block_ptr: BlockPtr,
     ) -> Result<(), ManifestLoaderError> {
-        use std::thread;
-        let loader = self.loader.clone();
-        let name = name.to_owned();
-        thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_time()
-                .build()
-                .unwrap();
-
-            rt.block_on(async move {
-                let mut loader = loader.lock().unwrap();
-                loader.create_datasource(&name, params, block_ptr).await
-            })
-        })
-        .join()
-        .unwrap()
+        let mut loader = self.loader.lock().unwrap();
+        loader.create_datasource(&name, params, block_ptr)
     }
 }
