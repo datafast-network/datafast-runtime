@@ -109,4 +109,8 @@ impl ABIList {
     pub fn iter(&self) -> std::collections::hash_map::Iter<String, serde_json::Value> {
         self.0.iter()
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }

@@ -167,7 +167,7 @@ mod test {
             .unwrap();
 
         assert_eq!(loader.subgraph_yaml.dataSources.len(), 5);
-        // assert_eq!(loader.abis, 5);
+        assert_eq!(loader.abis.len(), 5);
 
         loader.load_wasm("TestTypes").await.unwrap();
         loader.load_wasm("TestStore").await.unwrap();

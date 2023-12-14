@@ -1,8 +1,9 @@
 mod local;
 
+use crate::common::ABIList;
+use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::Source;
-use crate::common::{ABIList, BlockPtr};
 use crate::errors::ManifestLoaderError;
 use crate::info;
 use crate::schema_lookup::SchemaLookup;
@@ -98,6 +99,12 @@ impl ManifestLoader {
         }
     }
 
+    pub fn count_datasources(&self) -> usize {
+        match self {
+            Self::Local(loader) => loader.subgraph_yaml.dataSources.len(),
+        }
+    }
+
     pub fn datasource_and_templates(&self) -> Vec<Datasource> {
         match self {
             Self::Local(loader) => loader.datasources_and_templates(),
@@ -158,6 +165,11 @@ impl ManifestAgent {
     pub fn datasources(&self) -> Vec<Datasource> {
         let loader = self.loader.lock().unwrap();
         loader.datasources()
+    }
+
+    pub fn count_datasources(&self) -> usize {
+        let loader = self.loader.lock().unwrap();
+        loader.count_datasources()
     }
 
     pub fn datasource_and_templates(&self) -> Vec<Datasource> {
