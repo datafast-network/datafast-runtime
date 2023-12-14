@@ -19,6 +19,7 @@ use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::time::Instant;
 use web3::types::Address;
 
 pub struct Subgraph {
@@ -121,6 +122,9 @@ impl Subgraph {
                 source_instance.invoke(HandlerTypes::EthereumBlock, &handler, block.clone())?;
             }
         }
+
+        let timer = Instant::now();
+        let event_count = events.len();
         for event in events {
             let count_datasources = self.sources.len();
             let source_instance = self
@@ -141,9 +145,16 @@ impl Subgraph {
             }
 
             let source_instance = source_instance.unwrap();
+            let process_time = Instant::now();
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
+            log::info!(
+                "processed in {:?}, source={}",
+                process_time.elapsed(),
+                source_instance.name
+            );
 
             if count_datasources < manifest.count_datasources() {
+                let create_new_source_time = Instant::now();
                 let new_datasources = manifest.datasources()[count_datasources..].to_vec();
 
                 let db = source_instance.host.db_agent.clone();
@@ -156,7 +167,20 @@ impl Subgraph {
                     self.sources
                         .push((wasm_source.name.clone(), address, wasm_source));
                 }
+                log::info!(
+                    "created new source in {:?}",
+                    create_new_source_time.elapsed()
+                );
             }
+        }
+        if event_count > 0 {
+            info!(
+                Subgraph,
+                "processed all events in block";
+                events => event_count,
+                exec_time => format!("{:?}", timer.elapsed()),
+                block => block_ptr.number
+            );
         }
 
         Ok(())

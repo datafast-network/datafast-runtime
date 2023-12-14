@@ -12,8 +12,6 @@ mod wasm_log;
 
 use crate::errors::WasmHostError;
 use semver::Version;
-use std::sync::Arc;
-use std::sync::Mutex;
 use wasmer::imports;
 use wasmer::Function;
 use wasmer::FunctionEnv;
@@ -36,7 +34,7 @@ pub struct Env {
     pub memory_allocate: Option<TypedFunction<i32, i32>>,
     pub api_version: Version,
     pub id_of_type: Option<TypedFunction<u32, u32>>,
-    pub arena_start_ptr: Arc<Mutex<i32>>,
+    pub arena_start_ptr: i32,
     pub db_agent: DatabaseAgent,
     pub datasource_name: String,
     pub datasource_network: String,
@@ -67,7 +65,7 @@ pub fn create_wasm_host(
             memory_allocate: None,
             id_of_type: None,
             api_version: api_version.clone(),
-            arena_start_ptr: Arc::new(Mutex::new(0)),
+            arena_start_ptr: 0,
             db_agent: db_agent.clone(),
             datasource_name,
             rpc_agent: rpc_agent.clone(),
