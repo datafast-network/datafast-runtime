@@ -15,25 +15,20 @@ pub fn datasource_create(
     name_ptr: AscPtr<AscString>,
     params_ptr: AscPtr<Array<AscPtr<AscString>>>,
 ) -> Result<(), RuntimeError> {
-    info!(datasource_create, ">>>>> Create datasource");
     let source_name: String = asc_get(&fenv, name_ptr, 0)?;
     let source_params: Vec<String> = asc_get(&fenv, params_ptr, 0)?;
-    info!(datasource_create,
-        "Create datasource";
-        name => &source_name,
-        params => format!("{:?}", source_params)
-    );
     let env = fenv.data_mut();
-    match env
-        .datasource_agent
-        .create_datasource(&source_name, source_params, env.block_ptr.clone())
-    {
-        Ok(_) => {
-            info!(datasource_create, "Create datasource success");
-            Ok(())
-        }
-        Err(err) => Err(RuntimeError::new(err.to_string())),
-    }
+    env.datasource_agent
+        .create_datasource(&source_name, source_params.clone(), env.block_ptr.clone())
+        .unwrap();
+    info!(
+        wasm_host,
+        "new datasource added";
+        block_ptr => env.block_ptr,
+        source_name => source_name,
+        source_params => format!("{:?}", source_params)
+    );
+    Ok(())
 }
 
 pub fn datasource_create_context(
