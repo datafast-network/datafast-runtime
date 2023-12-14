@@ -145,16 +145,17 @@ impl Subgraph {
             }
 
             let source_instance = source_instance.unwrap();
+
             let process_time = Instant::now();
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
-            log::info!(
-                "processed in {:?}, source={}",
-                process_time.elapsed(),
-                source_instance.name
+            info!(
+                Subgraph,
+                format!("processed single event in {:?}", process_time.elapsed());
+                source_name => source_instance.name,
+                handler_name => event.handler
             );
 
             if count_datasources < manifest.count_datasources() {
-                let create_new_source_time = Instant::now();
                 let new_datasources = manifest.datasources()[count_datasources..].to_vec();
 
                 let db = source_instance.host.db_agent.clone();
@@ -167,10 +168,6 @@ impl Subgraph {
                     self.sources
                         .push((wasm_source.name.clone(), address, wasm_source));
                 }
-                log::info!(
-                    "created new source in {:?}",
-                    create_new_source_time.elapsed()
-                );
             }
         }
         if event_count > 0 {
