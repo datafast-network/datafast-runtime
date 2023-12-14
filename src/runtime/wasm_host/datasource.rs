@@ -62,11 +62,5 @@ pub fn datasource_network(
 }
 
 pub fn datasource_context(_fenv: FunctionEnvMut<Env>) -> Result<AscPtr<AscEntity>, RuntimeError> {
-    // let context = fenv.data().datasource_name.clone();
-    // let context_ptr: HashMap<_, Value> = asc_new(&mut fenv, &context).unwrap();
-    // Ok(context_ptr)
-    Err(RuntimeError::new("Not implemented yet!"))
+    todo!()
 }
-
-#[cfg(test)]
-mod tests {}
