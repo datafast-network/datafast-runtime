@@ -123,6 +123,7 @@ impl ManifestAgent {
             loader: Arc::new(Mutex::new(loader)),
         }
     }
+
     pub async fn new(path: &str) -> Result<Self, ManifestLoaderError> {
         let loader = ManifestLoader::new(path).await?;
         Ok(ManifestAgent {

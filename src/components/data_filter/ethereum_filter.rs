@@ -25,12 +25,12 @@ pub struct EthereumFilter {
 }
 
 impl EthereumFilter {
-    pub fn new(datasources: Vec<Datasource>, abi_list: ABIs) -> Self {
+    pub fn new(datasources: Vec<Datasource>, abis: ABIs) -> Self {
         let ds = datasources
             .into_iter()
             .map(|ds| {
                 let abi_name = ds.source.abi.clone();
-                let contract = abi_list
+                let contract = abis
                     .get(&abi_name)
                     .map(|abi| serde_json::from_value(abi.clone()).expect("invalid abi"))
                     .unwrap();

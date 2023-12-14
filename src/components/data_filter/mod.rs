@@ -41,10 +41,10 @@ impl DataFilter {
     pub fn new(
         chain: Chain,
         datasources: Vec<Datasource>,
-        abi_list: ABIs,
+        abis: ABIs,
     ) -> Result<Self, FilterError> {
         let filter = match chain {
-            Chain::Ethereum => DataFilter::Ethereum(EthereumFilter::new(datasources, abi_list)),
+            Chain::Ethereum => DataFilter::Ethereum(EthereumFilter::new(datasources, abis)),
         };
         Ok(filter)
     }
