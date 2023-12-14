@@ -9,7 +9,6 @@ edition = "2021"
 async-trait = "0.1.74"
 bigdecimal = { version = "0.4.2", features = ["serde"] }
 bs58 = "0.5.0"
-convert_case = "0.6.0"
 env_logger = "0.10.0"
 ethabi = "18.0.0"
 figment = { version = "0.10.11", features = ["env", "json", "toml", "yaml"] }
@@ -44,4 +43,5 @@ scylla = ["dep:scylla"]
 mongo = ["dep:mongodb"]
 
 [dev-dependencies]
+convert_case = "0.6.0"
 rstest = "0.18.2"
