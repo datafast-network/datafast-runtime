@@ -5,10 +5,12 @@ use crate::common::ABIList;
 use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
+use crate::debug;
 use crate::errors::RPCClientError;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Mutex;
 pub use types::*;
 
@@ -70,10 +72,10 @@ impl RpcClient {
             block_ptr: self.block_ptr.clone(),
             call_request: call,
         };
-        match self.cache.get(&call_context) {
+        match self.cache.get(&call_context.call_request) {
             None => {
                 let result = self.rpc_client.handle_request(call_context.clone()).await?;
-                self.cache.insert(call_context, result.clone());
+                self.cache.insert(call_context.call_request, result.clone());
                 Ok(result)
             }
             Some(result) => Ok(result.clone()),
@@ -111,10 +113,11 @@ impl RpcAgent {
     }
 
     pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
+        let timer = Instant::now();
         use std::thread;
         let client = self.client.clone();
 
-        thread::spawn(|| {
+        let result = thread::spawn(|| {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_time()
                 .enable_io()
@@ -127,7 +130,10 @@ impl RpcAgent {
             })
         })
         .join()
-        .unwrap()
+        .unwrap();
+
+        debug!(RpcClient, "handle rpc call"; time => format!("{:?}ms", timer.elapsed().as_millis()));
+        result
     }
 
     pub async fn set_block_ptr(&self, block_ptr: &BlockPtr) {

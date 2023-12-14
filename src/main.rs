@@ -129,8 +129,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 subgraph.process(block, &manifest).await?;
 
-                rpc.clear_cache().await;
-
                 if block_ptr.number % 500 == 0 {
                     valve.set_finished(block_ptr.number);
                 }
@@ -140,6 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 db.commit_data(block_ptr.clone()).await?;
                 db.remove_outdated_snapshots(block_ptr.number).await?;
                 db.flush_cache().await?;
+                rpc.clear_cache().await;
 
                 if let Some(history_size) = config.block_data_retention {
                     if block_ptr.number > history_size {

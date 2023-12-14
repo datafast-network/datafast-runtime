@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::Retry;
-use web3::transports::Http;
+use web3::transports::WebSocket;
 use web3::types::BlockId;
 use web3::types::H256;
 use web3::Web3;
@@ -23,14 +23,14 @@ const ETH_CALL_GAS: u32 = 50_000_000;
 
 #[derive(Clone)]
 pub struct EthereumRPC {
-    client: Web3<Http>,
+    client: Web3<WebSocket>,
     supports_eip_1898: bool,
     abis: HashMap<String, ethabi::Contract>,
 }
 
 impl EthereumRPC {
     pub async fn new(url: &str, abis: ABIList) -> Result<Self, RPCClientError> {
-        let client = Web3::new(Http::new(url).unwrap());
+        let client = Web3::new(WebSocket::new(url).await.unwrap());
         let abis = abis
             .iter()
             .map(|(contract_name, abi)| {

@@ -146,14 +146,7 @@ impl Subgraph {
 
             let source_instance = source_instance.unwrap();
 
-            let process_time = Instant::now();
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
-            info!(
-                Subgraph,
-                format!("processed single event in {:?}", process_time.elapsed());
-                source_name => source_instance.name,
-                handler_name => event.handler
-            );
 
             if count_datasources < manifest.count_datasources() {
                 let new_datasources = manifest.datasources()[count_datasources..].to_vec();
