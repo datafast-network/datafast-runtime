@@ -1,8 +1,9 @@
 mod ethereum_filter;
 mod utils;
 
+use crate::common::ABIList;
+use crate::common::Chain;
 use crate::common::Datasource;
-use crate::common::{ABIList, Chain};
 use crate::errors::FilterError;
 use crate::messages::BlockDataMessage;
 use crate::messages::FilteredDataMessage;

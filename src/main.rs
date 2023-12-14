@@ -121,9 +121,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                subgraph
-                    .create_sources(&manifest, &db, &rpc, block_ptr.clone())
-                    .await?;
+                if block_ptr.number % 10 == 0 {
+                    subgraph
+                        .create_sources(&manifest, &db, &rpc, block_ptr.clone())
+                        .await?;
+                }
+
                 subgraph.process(block, &manifest).await?;
 
                 rpc.clear_cache().await;

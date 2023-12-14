@@ -1,8 +1,9 @@
 mod ethereum;
 mod types;
 
+use crate::common::ABIList;
+use crate::common::BlockPtr;
 use crate::common::Chain;
-use crate::common::{ABIList, BlockPtr};
 use crate::config::Config;
 use crate::errors::RPCClientError;
 use async_trait::async_trait;
