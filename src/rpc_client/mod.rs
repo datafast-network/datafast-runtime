@@ -1,16 +1,18 @@
 mod ethereum;
 mod types;
 
+use crate::common::ABIList;
 use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
+use crate::debug;
 use crate::errors::RPCClientError;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Mutex;
 pub use types::*;
-use web3::futures::executor;
 
 #[derive(Clone)]
 pub enum RPCChain {
@@ -26,7 +28,7 @@ impl RPCTrait for RPCChain {
     ) -> Result<CallResponse, RPCClientError> {
         match self {
             RPCChain::Ethereum(client) => client.handle_request(request).await,
-            RPCChain::None => Err(RPCClientError::RPCClient(
+            RPCChain::None => Err(RPCClientError::RPCInvalidChain(
                 "RPCClient is not configured".to_string(),
             )),
         }
@@ -48,10 +50,7 @@ pub struct RpcClient {
 }
 
 impl RpcClient {
-    async fn new(
-        config: &Config,
-        abis: HashMap<String, serde_json::Value>,
-    ) -> Result<Self, RPCClientError> {
+    async fn new(config: &Config, abis: ABIList) -> Result<Self, RPCClientError> {
         let rpc_client = match config.chain {
             Chain::Ethereum => {
                 let client = ethereum::EthereumRPC::new(&config.rpc_endpoint, abis).await?;
@@ -73,10 +72,10 @@ impl RpcClient {
             block_ptr: self.block_ptr.clone(),
             call_request: call,
         };
-        match self.cache.get(&call_context) {
+        match self.cache.get(&call_context.call_request) {
             None => {
                 let result = self.rpc_client.handle_request(call_context.clone()).await?;
-                self.cache.insert(call_context, result.clone());
+                self.cache.insert(call_context.call_request, result.clone());
                 Ok(result)
             }
             Some(result) => Ok(result.clone()),
@@ -94,6 +93,10 @@ impl RpcClient {
             cache: HashMap::new(),
         }
     }
+
+    pub fn clear_cache(&mut self) {
+        self.cache.clear();
+    }
 }
 
 #[derive(Clone)]
@@ -102,10 +105,7 @@ pub struct RpcAgent {
 }
 
 impl RpcAgent {
-    pub async fn new(
-        config: &Config,
-        abis: HashMap<String, serde_json::Value>,
-    ) -> Result<Self, RPCClientError> {
+    pub async fn new(config: &Config, abis: ABIList) -> Result<Self, RPCClientError> {
         let rpc_client = RpcClient::new(config, abis).await?;
         Ok(Self {
             client: Arc::new(Mutex::new(rpc_client)),
@@ -113,10 +113,27 @@ impl RpcAgent {
     }
 
     pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
-        executor::block_on(async {
-            let mut rpc_agent = self.client.lock().await;
-            rpc_agent.handle_request(call).await
+        let timer = Instant::now();
+        use std::thread;
+        let client = self.client.clone();
+
+        let result = thread::spawn(|| {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .enable_io()
+                .build()
+                .unwrap();
+            rt.block_on(async move {
+                let mut rpc_agent = client.lock().await;
+                let result = rpc_agent.handle_request(call).await;
+                result
+            })
         })
+        .join()
+        .unwrap();
+
+        debug!(RpcClient, "handle rpc call"; time => format!("{:?}ms", timer.elapsed().as_millis()));
+        result
     }
 
     pub async fn set_block_ptr(&self, block_ptr: &BlockPtr) {
@@ -127,6 +144,11 @@ impl RpcAgent {
     pub fn new_mock() -> Self {
         let client = Arc::new(Mutex::new(RpcClient::new_mock()));
         Self { client }
+    }
+
+    pub async fn clear_cache(&self) {
+        let mut rpc_agent = self.client.lock().await;
+        rpc_agent.clear_cache();
     }
 }
 
@@ -144,7 +166,7 @@ pub mod tests {
         ))
         .unwrap();
         let abi = serde_json::from_reader(abi_file).unwrap();
-        let mut abis: HashMap<String, serde_json::Value> = HashMap::new();
+        let mut abis = ABIList::default();
         abis.insert("ERC20".to_string(), abi);
 
         let client = ethereum::EthereumRPC::new(rpc, abis).await.unwrap();

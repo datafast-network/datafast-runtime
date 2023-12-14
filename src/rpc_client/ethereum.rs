@@ -4,6 +4,7 @@ use super::types::CallResponse;
 use super::RPCTrait;
 use crate::chain::ethereum::ethereum_call::EthereumContractCall;
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
+use crate::common::ABIList;
 use crate::common::BlockPtr;
 use crate::error;
 use crate::errors::RPCClientError;
@@ -13,7 +14,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::Retry;
-use web3::transports::Http;
+use web3::transports::WebSocket;
 use web3::types::BlockId;
 use web3::types::H256;
 use web3::Web3;
@@ -22,17 +23,14 @@ const ETH_CALL_GAS: u32 = 50_000_000;
 
 #[derive(Clone)]
 pub struct EthereumRPC {
-    client: Web3<Http>,
+    client: Web3<WebSocket>,
     supports_eip_1898: bool,
     abis: HashMap<String, ethabi::Contract>,
 }
 
 impl EthereumRPC {
-    pub async fn new(
-        url: &str,
-        abis: HashMap<String, serde_json::Value>,
-    ) -> Result<Self, RPCClientError> {
-        let client = Web3::new(Http::new(url).unwrap());
+    pub async fn new(url: &str, abis: ABIList) -> Result<Self, RPCClientError> {
+        let client = Web3::new(WebSocket::new(url).await.unwrap());
         let abis = abis
             .iter()
             .map(|(contract_name, abi)| {
@@ -70,7 +68,14 @@ impl EthereumRPC {
             .iter()
             .find(|(name, _)| **name == contract_name)
             .ok_or_else(|| {
-                RPCClientError::RPCClient(format!("Contract \"{}\" not found", contract_name))
+                error!(
+                    RPCClientError,
+                    "get abi failed";
+                    contract_name => contract_name,
+                    function_name => function_name,
+                    contract_address => contract_address
+                );
+                RPCClientError::BadABI
             })?
             .1;
 
@@ -85,9 +90,9 @@ impl EthereumRPC {
                     contract_name => contract_name,
                     function_name => function_name,
                     contract_address => contract_address,
-                    error => format!("{:?}", e)
+                    e => format!("{:?}", e)
                 );
-                RPCClientError::RPCClient(e.to_string())
+                RPCClientError::FunctionNotFound
             })?,
 
             // Behavior for apiVersion >= 0.0.04: look up function by signature of
@@ -105,7 +110,7 @@ impl EthereumRPC {
                         function_signature => fn_signature,
                         error => format!("{:?}", e)
                     );
-                    RPCClientError::RPCClient(e.to_string())
+                    RPCClientError::FunctionNotFound
                 })?
                 .iter()
                 .find(|f| f.signature() == fn_signature)
@@ -118,10 +123,7 @@ impl EthereumRPC {
                         contract_address => contract_address,
                         function_signature => fn_signature
                     );
-                    RPCClientError::RPCClient(format!(
-                        "Contract function not found: {}",
-                        fn_signature
-                    ))
+                    RPCClientError::SignatureNotFound
                 })?,
         };
 
@@ -138,10 +140,7 @@ impl EthereumRPC {
             .zip(result.function.inputs.iter().map(|p| &p.kind))
         {
             if !token.type_check(kind) {
-                return Err(RPCClientError::RPCClient(format!(
-                    "Invalid argument {:?} for function {:?}",
-                    token, result.function
-                )));
+                return Err(RPCClientError::InvalidArguments);
             }
         }
 
@@ -167,7 +166,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                return Err(RPCClientError::RPCClient(e.to_string()));
+                return Err(RPCClientError::Revert(format!("{:?}", e)));
             }
         };
 
@@ -204,7 +203,7 @@ impl EthereumRPC {
                 block_number => block_ptr.number,
                 block_hash => block_ptr.hash
             );
-            RPCClientError::RPCClient(e.to_string())
+            RPCClientError::ContractCallFail
         })?;
 
         let data_result = request_data
@@ -220,7 +219,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                RPCClientError::RPCClient(e.to_string())
+                RPCClientError::Revert(format!("{:?}", e))
             })?;
         let response = CallResponse::EthereumContractCall(Some(data_result));
         Ok(response)
@@ -238,5 +237,42 @@ impl RPCTrait for EthereumRPC {
                 self.handle_contract_call(data, call.block_ptr).await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
+    use crate::common::ABIList;
+    use ethabi::Address;
+    use std::fs;
+    use std::str::FromStr;
+
+    #[tokio::test]
+    async fn test_rpc_call_symbol() {
+        env_logger::try_init().unwrap_or_default();
+        let data = UnresolvedContractCall {
+            contract_name: "ERC20".to_string(),
+            contract_address: Address::from_str("0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2")
+                .unwrap(),
+            function_name: "symbol".to_string(),
+            function_signature: None,
+            function_args: vec![],
+        };
+        let abi =
+            fs::read_to_string("./subgraph/NonfungiblePositionManager/abis/ERC20.json").unwrap();
+        let mut abis = ABIList::default();
+        abis.insert("ERC20".to_string(), serde_json::from_str(&abi).unwrap());
+        let rpc = super::EthereumRPC::new("https://eth.llamarpc.com", abis)
+            .await
+            .unwrap();
+        let block_ptr = crate::common::BlockPtr {
+            number: 12369879,
+            hash: "0x7d81e60e5a2296dc38f36e343a7f3e416b1fc2f766568b2d81a63159752b8885".to_string(),
+            parent_hash: "0x6c768e2debe6d3cb09e078387c20ea90b41e3899ecd0f65e523be9f9bb0033b7"
+                .to_string(),
+        };
+        let result = rpc.handle_contract_call(data, block_ptr).await.unwrap();
+        log::info!("result: {:?}", result);
     }
 }

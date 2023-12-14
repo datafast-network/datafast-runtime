@@ -95,6 +95,8 @@ pub enum ManifestLoaderError {
     InvalidSubgraphDir(String),
     #[error("Invalid schema")]
     SchemaParsingError,
+    #[error("Invalid datasource name: {0}")]
+    CreateDatasourceFail(String),
 }
 
 #[derive(Debug, Error)]
@@ -184,6 +186,22 @@ pub enum SourceError {
 
 #[derive(Debug, Error)]
 pub enum RPCClientError {
-    #[error("RPCClient error: {0}")]
-    RPCClient(String),
+    #[error("ABI is not valid")]
+    BadABI,
+    #[error("Contract call failed")]
+    ContractCallFail,
+    #[error("Function not found")]
+    FunctionNotFound,
+    #[error("Function Signature not found")]
+    SignatureNotFound,
+    #[error("Invalid Argument")]
+    InvalidArguments,
+    #[error("Data encoding failed")]
+    DataEncodingFail,
+    #[error("Data decoding failed")]
+    DataDecodingFail,
+    #[error("RPC Client Error: {0}")]
+    RPCInvalidChain(String),
+    #[error("call reverted: {0}")]
+    Revert(String),
 }

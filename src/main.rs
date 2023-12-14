@@ -18,6 +18,15 @@ use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
+use std::fs;
+
+fn welcome() {
+    let contents =
+        fs::read_to_string("./welcome.txt").expect("Should have been able to read the file");
+
+    warn!(DatafastRuntime, "\nA product of Datafast - [df|runtime]");
+    log::info!("\n\n{contents}");
+}
 
 fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
     info!(main, format!("{task_name} has finished"); result => format!("{:?}", r));
@@ -26,6 +35,7 @@ fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::try_init().unwrap_or_default();
+    welcome();
 
     let config = Config::load();
     info!(main, "Config loaded");
@@ -33,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = default_registry();
 
     // TODO: impl IPFS Loader
-    let manifest = ManifestLoader::new(&config.subgraph_dir).await?;
+    let manifest = ManifestAgent::new(&config.subgraph_dir).await?;
     info!(main, "Manifest loaded");
 
     let valve = Valve::new(&config.valve);
@@ -52,10 +62,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
     info!(main, "BlockSource ready");
 
-    let filter = DataFilter::new(config.chain.clone(), manifest.datasources())?;
+    let filter = DataFilter::new(
+        config.chain.clone(),
+        manifest.datasource_and_templates(),
+        manifest.get_abis(),
+    )?;
     info!(main, "DataFilter ready");
 
-    let rpc = RpcAgent::new(&config, manifest.get_abis().clone()).await?;
+    let rpc = RpcAgent::new(&config, manifest.get_abis()).await?;
     info!(main, "Rpc-Client ready");
 
     let mut subgraph = Subgraph::new_empty(&config, registry);
@@ -107,8 +121,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                subgraph.create_sources(&manifest, &db, &rpc).await?;
-                subgraph.process(block).await?;
+                if block_ptr.number % 10 == 0 {
+                    subgraph
+                        .create_sources(&manifest, &db, &rpc, block_ptr.clone())
+                        .await?;
+                }
+
+                subgraph.process(block, &manifest).await?;
 
                 if block_ptr.number % 500 == 0 {
                     valve.set_finished(block_ptr.number);
@@ -119,6 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 db.commit_data(block_ptr.clone()).await?;
                 db.remove_outdated_snapshots(block_ptr.number).await?;
                 db.flush_cache().await?;
+                rpc.clear_cache().await;
 
                 if let Some(history_size) = config.block_data_retention {
                     if block_ptr.number > history_size {

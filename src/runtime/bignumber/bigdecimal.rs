@@ -150,10 +150,6 @@ impl Div for BigDecimal {
     type Output = Self;
 
     fn div(self, other: Self) -> Self {
-        if other == BigDecimal::from(0) {
-            panic!("Cannot divide by zero-valued `BigDecimal`!")
-        }
-
         Self::from(self.0.div(other.0))
     }
 }

@@ -35,7 +35,7 @@ pub struct EthereumHandlers {
 }
 
 pub struct DatasourceWasmInstance {
-    pub id: String,
+    pub name: String,
     // NOTE: Add more chain-based handler here....
     pub ethereum_handlers: EthereumHandlers,
     pub host: AscHost,
@@ -86,7 +86,7 @@ impl TryFrom<(AscHost, Datasource)> for DatasourceWasmInstance {
         }
 
         Ok(DatasourceWasmInstance {
-            id: source.name.to_owned(),
+            name: source.name.to_owned(),
             ethereum_handlers: EthereumHandlers {
                 block: eth_block_handlers,
                 events: eth_event_handlers,

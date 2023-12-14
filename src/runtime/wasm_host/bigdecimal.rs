@@ -40,11 +40,6 @@ pub fn big_decimal_times(
 ) -> Result<AscPtr<AscBigDecimal>, RuntimeError> {
     let x: BigDecimal = asc_get(&fenv, big_decimal_x_ptr, 0)?;
     let y: BigDecimal = asc_get(&fenv, big_decimal_y_ptr, 0)?;
-
-    if y == BigDecimal::from(0) {
-        return Err(RuntimeError::new("Divide by zero"));
-    }
-
     let result = x * y;
     let asc_pt = asc_new(&mut fenv, &result)?;
     Ok(asc_pt)
@@ -57,9 +52,10 @@ pub fn big_decimal_divided_by(
 ) -> Result<AscPtr<AscBigDecimal>, RuntimeError> {
     let x: BigDecimal = asc_get(&fenv, big_decimal_x_ptr, 0)?;
     let y: BigDecimal = asc_get(&fenv, big_decimal_y_ptr, 0)?;
-
     if y == BigDecimal::from(0) {
-        return Err(RuntimeError::new("Divide by zero"));
+        return Err(RuntimeError::new(
+            "Divide by zero | big_decimal_divided_by error!",
+        ));
     }
 
     let result = x / y;

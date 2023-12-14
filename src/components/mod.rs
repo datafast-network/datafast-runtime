@@ -9,6 +9,6 @@ pub use block_source::BlockSource;
 pub use data_filter::DataFilter;
 pub use inspector::BlockInspectionResult;
 pub use inspector::Inspector;
-pub use manifest_loader::ManifestLoader;
+pub use manifest_loader::ManifestAgent;
 pub use subgraph::Subgraph;
 pub use valve::Valve;
