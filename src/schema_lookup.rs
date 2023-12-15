@@ -18,7 +18,7 @@ pub struct FieldKind {
     pub list_inner_kind: Option<StoreValueKind>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct SchemaLookup {
     schema: HashMap<EntityType, Schema>,
 }

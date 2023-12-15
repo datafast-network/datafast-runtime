@@ -2,168 +2,80 @@ mod local;
 
 use crate::common::ABIs;
 use crate::common::BlockPtr;
-use crate::common::Datasource;
-use crate::common::Source;
+use crate::common::DatasourceBundles;
+use crate::common::SubgraphYaml;
+use crate::common::WASMs;
+use crate::config::Config;
+use crate::error;
 use crate::errors::ManifestLoaderError;
-use crate::info;
 use crate::schema_lookup::SchemaLookup;
-use local::LocalFileLoader;
+use serde::Serialize;
 use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::RwLock;
 
-pub trait LoaderTrait {
-    fn get_abis(&self) -> ABIs;
-    fn get_schema(&self) -> SchemaLookup;
-    fn get_sources(&self) -> Vec<Source>;
-    fn get_wasm(&self, source_name: &str) -> Vec<u8>;
-
-    fn create_datasource(
-        &mut self,
-        name: &str,
-        params: Vec<String>,
-        block_ptr: BlockPtr,
-    ) -> Result<(), ManifestLoaderError>;
-
-    fn datasources_and_templates(&self) -> Vec<Datasource>;
+pub trait ManifestOpenable {
+    fn open<T: Serialize>(path: &str) -> T;
 }
 
-enum ManifestLoader {
-    Local(LocalFileLoader),
-}
-
-impl ManifestLoader {
-    async fn new(path: &str) -> Result<Self, ManifestLoaderError> {
-        let parts = path
-            .split("://")
-            .map(|s| s.to_owned())
-            .collect::<Vec<String>>();
-
-        let protocol = parts[0].clone();
-
-        match protocol.as_str() {
-            "fs" => {
-                let local_path = format!("/{}", parts[1]);
-                info!(
-                    ManifestLoader,
-                    "Using LocalFile Loader, loading subgraph build bundle";
-                    build_bundle_path => local_path
-                );
-                let loader = LocalFileLoader::new(&local_path)?;
-                Ok(ManifestLoader::Local(loader))
-            }
-            _ => {
-                unimplemented!()
-            }
-        }
-    }
-
-    pub fn get_abis(&self) -> ABIs {
-        match self {
-            ManifestLoader::Local(loader) => loader.get_abis(),
-        }
-    }
-
-    pub fn get_schema(&self) -> SchemaLookup {
-        match self {
-            ManifestLoader::Local(loader) => loader.get_schema(),
-        }
-    }
-
-    pub fn get_sources(&self) -> Vec<Source> {
-        match self {
-            ManifestLoader::Local(loader) => loader.get_sources(),
-        }
-    }
-
-    pub fn get_wasm(&self, source_name: &str) -> Vec<u8> {
-        match self {
-            ManifestLoader::Local(loader) => loader.get_wasm(source_name),
-        }
-    }
-
-    pub fn datasources(&self) -> Vec<Datasource> {
-        match self {
-            Self::Local(loader) => loader.subgraph_yaml.dataSources.to_vec(),
-        }
-    }
-
-    pub fn count_datasources(&self) -> usize {
-        match self {
-            Self::Local(loader) => loader.subgraph_yaml.dataSources.len(),
-        }
-    }
-
-    pub fn datasource_and_templates(&self) -> Vec<Datasource> {
-        match self {
-            Self::Local(loader) => loader.datasources_and_templates(),
-        }
-    }
-
-    pub fn create_datasource(
-        &mut self,
-        name: &str,
-        params: Vec<String>,
-        block_ptr: BlockPtr,
-    ) -> Result<(), ManifestLoaderError> {
-        match self {
-            Self::Local(loader) => loader.create_datasource(name, params, block_ptr),
-        }
-    }
+#[derive(Debug)]
+struct ManifestBundle {
+    subgraph_yaml: SubgraphYaml,
+    templates: DatasourceBundles,
+    abis: ABIs,
+    wasms: WASMs,
+    schema: SchemaLookup,
+    datasources: DatasourceBundles,
 }
 
 #[derive(Clone)]
-pub struct ManifestAgent {
-    loader: Arc<Mutex<ManifestLoader>>,
-}
+pub struct ManifestAgent(Arc<RwLock<ManifestBundle>>);
 
 impl ManifestAgent {
-    pub fn mock() -> Self {
-        let loader = ManifestLoader::Local(LocalFileLoader::default());
-        ManifestAgent {
-            loader: Arc::new(Mutex::new(loader)),
-        }
+    pub async fn new(cfg: &Config) -> Result<Self, ManifestLoaderError> {
+        todo!()
     }
 
-    pub async fn new(path: &str) -> Result<Self, ManifestLoaderError> {
-        let loader = ManifestLoader::new(path).await?;
-        Ok(ManifestAgent {
-            loader: Arc::new(Mutex::new(loader)),
-        })
+    pub fn get_abi(&self, source_name: &str) -> serde_json::Value {
+        let manifest = self.0.read().unwrap();
+        manifest.abis.get(source_name).unwrap()
     }
 
-    pub fn get_abis(&self) -> ABIs {
-        let loader = self.loader.lock().unwrap();
-        loader.get_abis()
+    pub fn abis(&self) -> ABIs {
+        let manifest = self.0.read().unwrap();
+        manifest.abis.clone()
     }
 
-    pub fn get_schema(&self) -> SchemaLookup {
-        let loader = self.loader.lock().unwrap();
-        loader.get_schema()
-    }
-
-    pub fn get_sources(&self) -> Vec<Source> {
-        let loader = self.loader.lock().unwrap();
-        loader.get_sources()
+    pub fn schema(&self) -> SchemaLookup {
+        let manifest = self.0.read().unwrap();
+        manifest.schema.clone()
     }
 
     pub fn get_wasm(&self, source_name: &str) -> Vec<u8> {
-        let loader = self.loader.lock().unwrap();
-        loader.get_wasm(source_name)
+        let manifest = self.0.read().unwrap();
+        manifest.wasms.get(source_name).unwrap()
     }
 
-    pub fn datasources(&self) -> Vec<Datasource> {
-        let loader = self.loader.lock().unwrap();
-        loader.datasources()
+    pub fn datasources(&self) -> DatasourceBundles {
+        let manifest = self.0.read().unwrap();
+        manifest.datasources.clone()
     }
 
     pub fn count_datasources(&self) -> usize {
-        let loader = self.loader.lock().unwrap();
-        loader.count_datasources()
+        let manifest = self.0.read().unwrap();
+        manifest.datasources.len()
     }
 
-    pub fn datasource_and_templates(&self) -> Vec<Datasource> {
-        let loader = self.loader.lock().unwrap();
-        loader.datasource_and_templates()
+    pub fn min_start_block(&self) -> u64 {
+        let manifest = self.0.read().unwrap();
+        manifest.subgraph_yaml.min_start_block()
+    }
+
+    pub fn datasource_and_templates(&self) -> DatasourceBundles {
+        let manifest = self.0.read().unwrap();
+        let mut active_ds = manifest.datasources.clone();
+        let pending_ds = manifest.templates.clone();
+        active_ds.extend(pending_ds);
+        active_ds
     }
 
     pub fn create_datasource(
@@ -172,7 +84,23 @@ impl ManifestAgent {
         params: Vec<String>,
         block_ptr: BlockPtr,
     ) -> Result<(), ManifestLoaderError> {
-        let mut loader = self.loader.lock().unwrap();
-        loader.create_datasource(&name, params, block_ptr)
+        let mut manifest = self.0.write().unwrap();
+        let address = params.first().cloned();
+        let mut new_ds = manifest
+            .templates
+            .get(name, address.clone())
+            .ok_or_else(|| {
+                error!(
+                    ManifestAgent,
+                    format!("no template match datasource name={name}")
+                );
+                ManifestLoaderError::CreateDatasourceFail
+            })?;
+        new_ds.ds.source.address = address;
+        manifest.datasources.add(new_ds).map_err(|e| {
+            error!(ManifestAgent, format!("{:?}", e));
+            ManifestLoaderError::CreateDatasourceFail
+        })?;
+        Ok(())
     }
 }

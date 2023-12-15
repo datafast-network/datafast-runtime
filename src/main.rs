@@ -43,18 +43,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = default_registry();
 
     // TODO: impl IPFS Loader
-    let manifest = ManifestAgent::new(&config.subgraph_dir).await?;
+    let manifest = ManifestAgent::new(&config).await?;
     info!(main, "Manifest loaded");
 
     let valve = Valve::new(&config.valve);
     let source_valve = valve.clone();
 
-    let db = DatabaseAgent::new(&config.database, manifest.get_schema(), registry).await?;
+    let db = DatabaseAgent::new(&config.database, manifest.schema(), registry).await?;
     info!(main, "Database set up");
 
     let mut inspector = Inspector::new(
         db.get_recent_block_pointers(config.reorg_threshold).await?,
-        manifest.get_sources(),
+        manifest.min_start_block(),
         config.reorg_threshold,
     );
     info!(main, "BlockInspector ready"; next_start_block => inspector.get_expected_block_number());
@@ -64,12 +64,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let filter = DataFilter::new(
         config.chain.clone(),
-        manifest.datasource_and_templates(),
-        manifest.get_abis(),
+        manifest.datasource_and_templates().into(),
+        manifest.abis(),
     )?;
     info!(main, "DataFilter ready");
 
-    let rpc = RpcAgent::new(&config, manifest.get_abis()).await?;
+    let rpc = RpcAgent::new(&config, manifest.abis()).await?;
     info!(main, "Rpc-Client ready");
 
     let mut subgraph = Subgraph::new_empty(&config, registry);

@@ -57,7 +57,43 @@ pub struct Source {
 #[allow(non_snake_case)]
 pub struct SubgraphYaml {
     pub dataSources: Vec<Datasource>,
-    pub templates: Vec<Datasource>,
+    pub templates: Option<Vec<Datasource>>,
+}
+
+impl SubgraphYaml {
+    pub fn abis(&self) -> HashMap<String, String> {
+        let mut abis = HashMap::new();
+        for ds in self.dataSources {
+            for mapping_abi in ds.mapping.abis {
+                abis.insert(mapping_abi.name, mapping_abi.file);
+            }
+        }
+        for ds in self.templates.unwrap_or(vec![]) {
+            for mapping_abi in ds.mapping.abis {
+                abis.insert(mapping_abi.name, mapping_abi.file);
+            }
+        }
+        abis
+    }
+
+    pub fn wasms(&self) -> HashMap<String, String> {
+        let mut wasms = HashMap::new();
+        for ds in self.dataSources {
+            wasms.insert(ds.name, ds.mapping.file);
+        }
+        for ds in self.templates.unwrap_or(vec![]) {
+            wasms.insert(ds.name, ds.mapping.file);
+        }
+        wasms
+    }
+
+    pub fn min_start_block(&self) -> u64 {
+        self.dataSources
+            .iter()
+            .map(|ds| ds.source.startBlock.unwrap_or(0))
+            .min()
+            .unwrap_or(0)
+    }
 }
 
 #[derive(Debug)]
@@ -98,6 +134,12 @@ impl Display for BlockPtr {
 #[derive(Debug, Default, Clone)]
 pub struct ABIs(HashMap<String, serde_json::Value>);
 
+impl FromIterator<(String, serde_json::Value)> for ABIs {
+    fn from_iter<I: IntoIterator<Item = (String, serde_json::Value)>>(mut iter: I) -> Self {
+        Self(iter.into_iter().collect::<HashMap<_, _>>())
+    }
+}
+
 impl ABIs {
     pub fn get(&self, name: &str) -> Option<serde_json::Value> {
         self.0.get(name).cloned()
@@ -117,5 +159,89 @@ impl ABIs {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WASMs(HashMap<String, Vec<u8>>);
+
+impl FromIterator<(String, Vec<u8>)> for WASMs {
+    fn from_iter<I: IntoIterator<Item = (String, Vec<u8>)>>(mut iter: I) -> Self {
+        Self(iter.into_iter().collect::<HashMap<_, _>>())
+    }
+}
+
+impl WASMs {
+    pub fn get(&self, name: &str) -> Option<Vec<u8>> {
+        self.0.get(name).cloned()
+    }
+
+    pub fn insert(&mut self, name: String, wasm: Vec<u8>) {
+        self.0.insert(name, wasm);
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DatasourceBundle {
+    pub ds: Datasource,
+    pub abi: serde_json::Value,
+    pub wasm: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DatasourceBundles(HashMap<(String, Option<String>), DatasourceBundle>);
+
+impl DatasourceBundles {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, name: &str, address: Option<String>) -> Option<DatasourceBundle> {
+        self.0.get(&(name.to_owned(), address)).cloned()
+    }
+
+    pub fn add(&self, ds: DatasourceBundle) -> Result<(), String> {
+        if self.0.contains_key(&(ds.ds.name, ds.ds.source.address)) {
+            return Err("Datasource already exist".to_owned());
+        }
+
+        self.0.insert((ds.ds.name, ds.ds.source.address), ds);
+        Ok(())
+    }
+
+    pub fn extend(&mut self, ds: DatasourceBundles) {
+        self.0.extend(ds.0)
+    }
+}
+
+impl From<(&Vec<Datasource>, &ABIs, &WASMs)> for DatasourceBundles {
+    fn from((sources, abis, wasms): (&Vec<Datasource>, &ABIs, &WASMs)) -> Self {
+        let bundles = sources
+            .iter()
+            .map(|ds| {
+                let bundle = DatasourceBundle {
+                    ds: ds.clone(),
+                    abi: abis.get(&ds.name).unwrap(),
+                    wasm: wasms.get(&ds.name).unwrap(),
+                };
+                ((ds.name.clone(), ds.source.address.clone()), bundle)
+            })
+            .collect::<HashMap<_, _>>();
+        Self(bundles)
+    }
+}
+
+impl Into<Vec<Datasource>> for DatasourceBundles {
+    fn into(self) -> Vec<Datasource> {
+        self.0
+            .values()
+            .cloned()
+            .into_iter()
+            .map(|ds| ds.ds)
+            .collect()
     }
 }

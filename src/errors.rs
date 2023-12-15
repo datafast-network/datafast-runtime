@@ -95,8 +95,8 @@ pub enum ManifestLoaderError {
     InvalidSubgraphDir(String),
     #[error("Invalid schema")]
     SchemaParsingError,
-    #[error("Invalid datasource name: {0}")]
-    CreateDatasourceFail(String),
+    #[error("Create datasource failed")]
+    CreateDatasourceFail,
 }
 
 #[derive(Debug, Error)]

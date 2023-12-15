@@ -1,23 +1,16 @@
-use super::LoaderTrait;
+use super::ManifestBundle;
 use super::SchemaLookup;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
-use std::collections::HashMap;
 use std::fs;
 use std::fs::read_to_string;
 use std::io::BufReader;
 
 #[derive(Default)]
-pub struct LocalFileLoader {
-    pub subgraph_dir: String,
-    pub subgraph_yaml: SubgraphYaml,
-    pub abis: ABIs,
-    pub schema: SchemaLookup,
-    wasm_per_source: HashMap<String, Vec<u8>>,
-}
+pub struct LocalFileLoader;
 
 impl LocalFileLoader {
-    pub fn new(subgraph_dir: &str) -> Result<Self, ManifestLoaderError> {
+    pub fn try_subgraph_dir(subgraph_dir: &str) -> Result<ManifestBundle, ManifestLoaderError> {
         let md = fs::metadata(subgraph_dir)
             .map_err(|_| ManifestLoaderError::InvalidSubgraphDir(subgraph_dir.to_string()))?;
 
@@ -27,135 +20,75 @@ impl LocalFileLoader {
             ));
         }
 
-        let mut this = Self {
-            subgraph_dir: subgraph_dir.to_owned(),
-            subgraph_yaml: SubgraphYaml::default(),
-            abis: ABIs::default(),
-            schema: SchemaLookup::new(),
-            wasm_per_source: HashMap::new(),
+        let subgraph_yaml = LocalFileLoader::load_yaml(subgraph_dir)?;
+        let abis = LocalFileLoader::load_abis(subgraph_dir, &subgraph_yaml)?;
+        let wasms = LocalFileLoader::load_wasm(subgraph_dir, &subgraph_yaml)?;
+        let schema = LocalFileLoader::load_schema(subgraph_dir)?;
+        let datasources = DatasourceBundles::from((&subgraph_yaml.dataSources, &abis, &wasms));
+        let templates =
+            DatasourceBundles::from((&subgraph_yaml.templates.unwrap_or(vec![]), &abis, &wasms));
+
+        let manifest = ManifestBundle {
+            subgraph_yaml,
+            abis,
+            wasms,
+            schema,
+            datasources,
+            templates,
         };
 
-        this.load_yaml()?;
-        this.load_abis()?;
-        this.load_schema()?;
-        Ok(this)
+        Ok(manifest)
     }
 
-    fn load_schema(&mut self) -> Result<(), ManifestLoaderError> {
-        let schema_path = format!("{}/schema.graphql", self.subgraph_dir);
+    fn load_schema(subgraph_dir: &str) -> Result<SchemaLookup, ManifestLoaderError> {
+        let schema_path = format!("{}/schema.graphql", subgraph_dir);
         let schema =
             read_to_string(schema_path).map_err(|_| ManifestLoaderError::SchemaParsingError)?;
-        self.schema = SchemaLookup::new_from_graphql_schema(&schema);
-        Ok(())
+        Ok(SchemaLookup::new_from_graphql_schema(&schema))
     }
 
-    fn load_yaml(&mut self) -> Result<(), ManifestLoaderError> {
-        let yaml_path = format!("{}/subgraph.yaml", self.subgraph_dir);
+    fn load_yaml(subgraph_dir: &str) -> Result<SubgraphYaml, ManifestLoaderError> {
+        let yaml_path = format!("{}/subgraph.yaml", subgraph_dir);
         let f = fs::File::open(&yaml_path)
             .map_err(|_| ManifestLoaderError::InvalidSubgraphYAML(yaml_path.to_owned()))?;
         let reader = BufReader::new(f);
 
         let subgraph_yaml: SubgraphYaml = serde_yaml::from_reader(reader)
             .map_err(|_| ManifestLoaderError::InvalidSubgraphYAML(yaml_path))?;
-
-        self.subgraph_yaml = subgraph_yaml;
-        Ok(())
+        Ok(subgraph_yaml)
     }
 
-    fn load_abis(&mut self) -> Result<(), ManifestLoaderError> {
-        let ds = self.datasources_and_templates();
-        for datasource in ds {
-            for mapping_abi in datasource.mapping.abis.iter() {
-                let abi_name = &mapping_abi.name;
-                let abi_path = format!("{}/{}", self.subgraph_dir, mapping_abi.file);
-                let abi_file = fs::File::open(&abi_path)
-                    .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
-                let value = serde_json::from_reader(abi_file)
-                    .map_err(|_| ManifestLoaderError::InvalidABI(abi_path.to_owned()))?;
-                self.abis.insert(abi_name.to_owned(), value);
-            }
-        }
-        Ok(())
+    fn load_abis(
+        subgraph_dir: &str,
+        subgraph_yaml: &SubgraphYaml,
+    ) -> Result<ABIs, ManifestLoaderError> {
+        let raw_abis = subgraph_yaml.abis();
+        let abis = raw_abis
+            .into_iter()
+            .map(|(name, file_path)| {
+                let abi_path = format!("{}/{}", subgraph_dir, file_path);
+                let abi_file = fs::File::open(&abi_path).unwrap();
+                let value = serde_json::from_reader(abi_file).unwrap();
+                (name, value)
+            })
+            .collect();
+        Ok(abis)
     }
 
-    fn load_wasm(&mut self, datasource_name: &str) -> Result<Vec<u8>, ManifestLoaderError> {
-        if let Some(wasm_bytes) = self.wasm_per_source.get(datasource_name) {
-            return Ok(wasm_bytes.clone());
-        }
-
-        let datasources = self.datasources_and_templates();
-
-        let datasource = datasources.iter().find(|ds| ds.name == datasource_name);
-        if datasource.is_none() {
-            return Err(ManifestLoaderError::InvalidDataSource(
-                datasource_name.to_owned(),
-            ));
-        }
-
-        let file_path = datasource.unwrap().mapping.file.clone();
-        let wasm_file = format!("{}/{file_path}", self.subgraph_dir);
-
-        let wasm_bytes =
-            fs::read(&wasm_file).map_err(|_| ManifestLoaderError::InvalidWASM(wasm_file))?;
-
-        self.wasm_per_source
-            .insert(datasource_name.to_string(), wasm_bytes.clone());
-        Ok(wasm_bytes)
-    }
-}
-
-impl LoaderTrait for LocalFileLoader {
-    fn get_abis(&self) -> ABIs {
-        self.abis.clone()
-    }
-
-    fn get_schema(&self) -> SchemaLookup {
-        self.schema.to_owned()
-    }
-
-    fn get_sources(&self) -> Vec<Source> {
-        self.subgraph_yaml
-            .dataSources
-            .iter()
-            .map(|ds| ds.source.clone())
-            .collect()
-    }
-
-    fn get_wasm(&self, source_name: &str) -> Vec<u8> {
-        self.wasm_per_source
-            .get(source_name)
-            .expect("invalid source name")
-            .to_vec()
-    }
-
-    fn create_datasource(
-        &mut self,
-        name: &str,
-        params: Vec<String>,
-        block_ptr: BlockPtr,
-    ) -> Result<(), ManifestLoaderError> {
-        let mut template = self
-            .subgraph_yaml
-            .templates
-            .iter()
-            .find(|t| t.name == name)
-            .ok_or(ManifestLoaderError::InvalidDataSource(name.to_owned()))
-            .cloned()?;
-        template.source = Source {
-            abi: template.source.abi,
-            address: params.get(0).cloned(),
-            startBlock: Some(block_ptr.number),
-        };
-        self.subgraph_yaml.dataSources.push(template);
-        self.load_abis()?;
-        self.load_wasm(name)?;
-        Ok(())
-    }
-
-    fn datasources_and_templates(&self) -> Vec<Datasource> {
-        let mut datasources = self.subgraph_yaml.dataSources.clone();
-        datasources.extend(self.subgraph_yaml.templates.clone());
-        datasources
+    fn load_wasm(
+        subgraph_dir: &str,
+        subgraph_yaml: &SubgraphYaml,
+    ) -> Result<WASMs, ManifestLoaderError> {
+        let wasms = subgraph_yaml.wasms();
+        let wasms = wasms
+            .into_iter()
+            .map(|(datasource_name, wasm_file)| {
+                let wasm_file = format!("{subgraph_dir}/{wasm_file}");
+                let wasm_bytes = fs::read(&wasm_file).unwrap();
+                (datasource_name, wasm_bytes)
+            })
+            .collect();
+        Ok(wasms)
     }
 }
 
@@ -166,26 +99,18 @@ mod test {
     #[test]
     fn test_local_file_loader() {
         env_logger::try_init().unwrap_or_default();
-        let mut loader = LocalFileLoader::new("../subgraph-testing/packages/v0_0_5/build").unwrap();
+        let mut loader =
+            LocalFileLoader::try_subgraph_dir("../subgraph-testing/packages/v0_0_5/build").unwrap();
 
         assert_eq!(loader.subgraph_yaml.dataSources.len(), 5);
         assert_eq!(loader.abis.len(), 5);
-
-        loader.load_wasm("TestTypes").unwrap();
-        loader.load_wasm("TestStore").unwrap();
-        loader.load_wasm("TestDataSource").unwrap();
-
-        loader.load_abis().unwrap();
-        loader.load_yaml().unwrap();
     }
 
     #[test]
     fn test_get_template() {
         env_logger::try_init().unwrap_or_default();
-        let loader = LocalFileLoader::new("./subgraph").unwrap();
-        let sources = loader.datasources_and_templates();
-        let template = sources.iter().find(|s| s.name == "Pool").unwrap();
-        log::log!(log::Level::Info, "{:?}", template);
-        assert_eq!(3, sources.len());
+        let loader =
+            LocalFileLoader::try_subgraph_dir("../subgraph-testing/packages/uniswap-v3/build")
+                .unwrap();
     }
 }
