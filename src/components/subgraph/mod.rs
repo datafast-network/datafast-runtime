@@ -15,12 +15,10 @@ use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::time::Instant;
-use web3::types::Address;
 
 pub struct Subgraph {
-    sources: Vec<(String, Option<String>, DatasourceWasmInstance)>,
+    sources: HashMap<(String, Option<String>), DatasourceWasmInstance>,
     metrics: SubgraphMetrics,
     rpc: RpcAgent,
     db: DatabaseAgent,
@@ -35,7 +33,7 @@ impl Subgraph {
         registry: &Registry,
     ) -> Self {
         Self {
-            sources: Vec::new(),
+            sources: HashMap::new(),
             metrics: SubgraphMetrics::new(registry),
             rpc: rpc.clone(),
             db: db.clone(),
@@ -46,41 +44,43 @@ impl Subgraph {
     pub fn create_sources(&mut self) -> Result<(), SubgraphError> {
         self.sources.clear();
         for ds in self.manifest.datasources().iter() {
-            self.sources.push((
-                ds.name(),
-                ds.address(),
+            self.sources.insert(
+                (ds.name(), ds.address()),
                 DatasourceWasmInstance::try_from((
                     ds,
                     self.db.clone(),
                     self.rpc.clone(),
                     self.manifest.clone(),
                 ))?,
-            ));
+            );
         }
         Ok(())
     }
 
     fn check_for_new_datasource(&mut self) -> Result<usize, SubgraphError> {
-        let active_ds_instance_count = self.sources.len();
-        let pending_ds = self.manifest.count_datasources() - active_ds_instance_count;
+        let active_ds_count = self.sources.len();
+        let all_ds_count = self.manifest.count_datasources();
+        let pending_ds = all_ds_count - active_ds_count;
 
         if pending_ds == 0 {
             return Ok(0);
         }
 
-        for ds in self.manifest.datasources_take_last(pending_ds) {
-            self.sources.push((
-                ds.name(),
-                ds.address(),
+        let bundles = self.manifest.datasources_take_from(active_ds_count);
+        assert_eq!(bundles.len(), pending_ds, "get latest ds failed");
+
+        for ds in bundles {
+            self.sources.insert(
+                (ds.name(), ds.address()),
                 DatasourceWasmInstance::try_from((
                     &ds,
                     self.db.clone(),
                     self.rpc.clone(),
                     self.manifest.clone(),
                 ))?,
-            ));
+            );
         }
-
+        assert_eq!(self.sources.len(), all_ds_count, "adding datasource failed");
         Ok(pending_ds)
     }
 
@@ -92,7 +92,7 @@ impl Subgraph {
         let block_number = block.number.as_u64();
         let mut block_handlers = HashMap::new();
 
-        for (source_name, _, source_instance) in self.sources.iter() {
+        for ((source_name, _), source_instance) in self.sources.iter() {
             let source_block_handlers = source_instance
                 .ethereum_handlers
                 .block
@@ -105,10 +105,10 @@ impl Subgraph {
         for (source_name, ethereum_handlers) in block_handlers {
             // FIXME: this is not correct, block-handler may have filter itself,
             // thus not all datasource would handle the same block
-            let (_, _, source_instance) = self
+            let (_, source_instance) = self
                 .sources
                 .iter_mut()
-                .find(|(name, _, _)| name == &source_name)
+                .find(|((name, _), _)| name == &source_name)
                 .ok_or(SubgraphError::InvalidSourceID(source_name.to_owned()))?;
             for handler in ethereum_handlers {
                 source_instance.invoke(HandlerTypes::EthereumBlock, &handler, block.clone())?;
@@ -118,24 +118,23 @@ impl Subgraph {
         let timer = Instant::now();
         let event_count = events.len();
         for event in events {
-            let source_instance = self
-                .sources
-                .iter_mut()
-                .find(|(name, address, _)| {
-                    if let Some(addr) = address {
-                        let addr = Address::from_str(addr).unwrap();
-                        name == &event.datasource && addr == event.event.address
-                    } else {
-                        name == &event.datasource
-                    }
-                })
-                .map(|(_, _, source)| source);
+            let maybe_key1 = (
+                event.datasource.clone(),
+                Some(format!("{:?}", event.event.address).to_lowercase()),
+            );
+            let maybe_key2: (String, Option<String>) = (event.datasource.clone(), None);
 
-            if source_instance.is_none() {
+            let mut maybe_source = self.sources.get_mut(&maybe_key1);
+
+            if maybe_source.is_none() {
+                maybe_source = self.sources.get_mut(&maybe_key2);
+            }
+
+            if maybe_source.is_none() {
                 continue;
             }
 
-            let source_instance = source_instance.unwrap();
+            let source_instance = maybe_source.unwrap();
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
             self.check_for_new_datasource()?;
         }
