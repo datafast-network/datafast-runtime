@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rpc = RpcAgent::new(&config, manifest.abis()).await?;
     info!(main, "Rpc-Client ready");
 
-    let mut subgraph = Subgraph::new_empty(&config, registry);
+    let mut subgraph = Subgraph::new(&db, &rpc, &manifest, registry);
     info!(main, "Subgraph ready");
 
     let (sender, recv) = kanal::bounded_async(1);
@@ -122,12 +122,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
 
                 if block_ptr.number % 10 == 0 {
-                    subgraph
-                        .create_sources(&manifest, &db, &rpc, block_ptr.clone())
-                        .await?;
+                    subgraph.create_sources()?;
                 }
 
-                subgraph.process(block, &manifest).await?;
+                subgraph.process(block)?;
 
                 if block_ptr.number % 500 == 0 {
                     valve.set_finished(block_ptr.number);

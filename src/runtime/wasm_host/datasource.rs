@@ -18,8 +18,8 @@ pub fn datasource_create(
     let source_name: String = asc_get(&fenv, name_ptr, 0)?;
     let source_params: Vec<String> = asc_get(&fenv, params_ptr, 0)?;
     let env = fenv.data_mut();
-    env.manifest_agent
-        .create_datasource(&source_name, source_params.clone(), &env.block_ptr)
+    env.manifest
+        .create_datasource(&source_name, source_params.clone(), env.block_ptr)
         .unwrap();
     info!(
         wasm_host,
@@ -45,8 +45,8 @@ pub fn datasource_address(
 ) -> Result<AscPtr<Uint8Array>, RuntimeError> {
     let address = fenv
         .data()
-        .datasource_address
-        .clone()
+        .address
+        .as_ref()
         .map(|a| a.as_bytes().to_vec())
         .unwrap_or(vec![]);
     let address_ptr = asc_new(&mut fenv, address.as_slice())?;
@@ -56,7 +56,7 @@ pub fn datasource_address(
 pub fn datasource_network(
     mut fenv: FunctionEnvMut<Env>,
 ) -> Result<AscPtr<AscString>, RuntimeError> {
-    let network = fenv.data().datasource_network.clone();
+    let network = fenv.data().network.clone();
     let network_ptr = asc_new(&mut fenv, &network).unwrap();
     Ok(network_ptr)
 }

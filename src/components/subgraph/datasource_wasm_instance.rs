@@ -1,6 +1,10 @@
 use crate::common::Datasource;
+use crate::common::DatasourceBundle;
 use crate::common::HandlerTypes;
+use crate::components::ManifestAgent;
+use crate::database::DatabaseAgent;
 use crate::errors::SubgraphError;
+use crate::rpc_client::RpcAgent;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscIndexId;
 use crate::runtime::asc::base::AscType;
@@ -38,7 +42,51 @@ pub struct DatasourceWasmInstance {
     pub name: String,
     // NOTE: Add more chain-based handler here....
     pub ethereum_handlers: EthereumHandlers,
-    pub host: AscHost,
+    host: AscHost,
+}
+
+impl TryFrom<(&AscHost, &Datasource)> for EthereumHandlers {
+    type Error = SubgraphError;
+    fn try_from((host, ds): (&AscHost, &Datasource)) -> Result<Self, SubgraphError> {
+        let mut eth_event_handlers = HashMap::new();
+        let mut eth_block_handlers = HashMap::new();
+
+        for event_handler in ds.mapping.eventHandlers.clone().unwrap_or_default().iter() {
+            // FIXME: assuming handlers are ethereum-event handler, must fix later
+            let handler = Handler::new(&host.instance.exports, &event_handler.handler)?;
+            eth_event_handlers.insert(event_handler.handler.to_owned(), handler);
+        }
+
+        for block_handler in ds.mapping.blockHandlers.clone().unwrap_or_default().iter() {
+            // FIXME: assuming handlers are ethereum-block handler, must fix later
+            let handler = Handler::new(&host.instance.exports, &block_handler.handler)?;
+            eth_block_handlers.insert(block_handler.handler.to_owned(), handler);
+        }
+
+        Ok(EthereumHandlers {
+            block: eth_block_handlers,
+            events: eth_event_handlers,
+        })
+    }
+}
+
+impl TryFrom<(&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)>
+    for DatasourceWasmInstance
+{
+    type Error = SubgraphError;
+    fn try_from(
+        value: (&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
+    ) -> Result<Self, Self::Error> {
+        let host = AscHost::try_from(value.clone())
+            .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
+        let ethereum_handlers = EthereumHandlers::try_from((&host, &value.0.ds))?;
+        let name = value.0.name();
+        Ok(Self {
+            host,
+            name,
+            ethereum_handlers,
+        })
+    }
 }
 
 impl DatasourceWasmInstance {
@@ -61,37 +109,5 @@ impl DatasourceWasmInstance {
         )?;
 
         Ok(())
-    }
-}
-
-impl TryFrom<(AscHost, Datasource)> for DatasourceWasmInstance {
-    type Error = SubgraphError;
-
-    fn try_from((host, source): (AscHost, Datasource)) -> Result<Self, Self::Error> {
-        let mut eth_event_handlers = HashMap::new();
-        let mut eth_block_handlers = HashMap::new();
-
-        let mapping = source.mapping;
-
-        for event_handler in mapping.eventHandlers.unwrap_or_default().iter() {
-            // FIXME: assuming handlers are ethereum-event handler, must fix later
-            let handler = Handler::new(&host.instance.exports, &event_handler.handler)?;
-            eth_event_handlers.insert(event_handler.handler.to_owned(), handler);
-        }
-
-        for block_handler in mapping.blockHandlers.unwrap_or_default().iter() {
-            // FIXME: assuming handlers are ethereum-block handler, must fix later
-            let handler = Handler::new(&host.instance.exports, &block_handler.handler)?;
-            eth_block_handlers.insert(block_handler.handler.to_owned(), handler);
-        }
-
-        Ok(DatasourceWasmInstance {
-            name: source.name.to_owned(),
-            ethereum_handlers: EthereumHandlers {
-                block: eth_block_handlers,
-                events: eth_event_handlers,
-            },
-            host,
-        })
     }
 }

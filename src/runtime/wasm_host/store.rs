@@ -20,7 +20,7 @@ pub fn store_set(
     data_ptr: AscPtr<AscEntity>,
 ) -> Result<(), RuntimeError> {
     let env = fenv.data();
-    let db = env.db_agent.clone();
+    let db = env.db.clone();
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let mut data: HashMap<String, Value> = asc_get(&fenv, data_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
@@ -47,7 +47,7 @@ pub fn store_get(
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let env = fenv.data();
-    let db = env.db_agent.clone();
+    let db = env.db.clone();
     let request = StoreOperationMessage::Load((entity_type, entity_id));
     let result = db
         .wasm_send_store_request(request)
@@ -75,7 +75,7 @@ pub fn store_remove(
     entity_id_ptr: AscPtr<AscString>,
 ) -> Result<(), RuntimeError> {
     let env = fenv.data();
-    let db = env.db_agent.clone();
+    let db = env.db.clone();
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
 
@@ -94,7 +94,7 @@ pub fn store_get_in_block(
 ) -> Result<AscPtr<AscEntity>, RuntimeError> {
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
-    let db = fenv.data().db_agent.clone();
+    let db = fenv.data().db.clone();
     let request = StoreOperationMessage::LoadInBlock((entity_type, entity_id));
     let result = db
         .wasm_send_store_request(request)
@@ -121,7 +121,7 @@ pub fn store_load_related(
     field_ptr: AscPtr<AscString>,
 ) -> Result<AscPtr<Array<AscPtr<AscEntity>>>, RuntimeError> {
     let env = fenv.data();
-    let db = env.db_agent.clone();
+    let db = env.db.clone();
     let entity_id: String = asc_get(&fenv, entity_id_ptr, 0)?;
     let entity_type: String = asc_get(&fenv, entity_type_ptr, 0)?;
     let field_name: String = asc_get(&fenv, field_ptr, 0)?;
@@ -175,7 +175,7 @@ mod test {
     host_fn_test!("TestStore", test_store_set, host {
         let entity_type = "Token".to_string();
         let entity_id = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string();
-        let data = host.db_agent.wasm_send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
+        let data = host.db.wasm_send_store_request(StoreOperationMessage::Load((entity_type.clone(), entity_id.clone()))).unwrap();
 
         if let StoreRequestResult::Load(Some(entity)) = data {
             let id = entity.get("id").unwrap().to_owned();
@@ -223,7 +223,7 @@ mod test {
         // "id": String("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
         entity_data.insert("id".to_string(), Value::String(entity_id.clone()));
 
-        let db = host.db_agent.clone();
+        let db = host.db.clone();
         db.wasm_send_store_request(StoreOperationMessage::Update((entity_type.clone(), entity_id,entity_data))).unwrap();
         []
     } {

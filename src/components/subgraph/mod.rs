@@ -3,10 +3,7 @@ mod metrics;
 
 use super::ManifestAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
-use crate::common::BlockPtr;
-use crate::common::DatasourceBundle;
 use crate::common::HandlerTypes;
-use crate::config::Config;
 use crate::database::DatabaseAgent;
 use crate::debug;
 use crate::errors::SubgraphError;
@@ -14,7 +11,6 @@ use crate::info;
 use crate::messages::EthereumFilteredEvent;
 use crate::messages::FilteredDataMessage;
 use crate::rpc_client::RpcAgent;
-use crate::runtime::wasm_host::create_wasm_host;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
@@ -24,72 +20,79 @@ use std::time::Instant;
 use web3::types::Address;
 
 pub struct Subgraph {
-    // NOTE: using IPFS might lead to subgraph-id using a hex/hash
-    pub name: String,
-    sources: Vec<(String, Option<String>, DatasourceWasmInstance)>, //name, address, instance
+    sources: Vec<(String, Option<String>, DatasourceWasmInstance)>,
     metrics: SubgraphMetrics,
+    rpc: RpcAgent,
+    db: DatabaseAgent,
+    manifest: ManifestAgent,
 }
 
 impl Subgraph {
-    pub fn new_empty(config: &Config, registry: &Registry) -> Self {
+    pub fn new(
+        db: &DatabaseAgent,
+        rpc: &RpcAgent,
+        manifest: &ManifestAgent,
+        registry: &Registry,
+    ) -> Self {
         Self {
             sources: Vec::new(),
-            name: config.subgraph_name.clone(),
             metrics: SubgraphMetrics::new(registry),
+            rpc: rpc.clone(),
+            db: db.clone(),
+            manifest: manifest.clone(),
         }
     }
 
-    fn create_single_source(
-        &self,
-        ds: &DatasourceBundle,
-        manifest: &ManifestAgent,
-        db: &DatabaseAgent,
-        rpc: &RpcAgent,
-        block_ptr: &BlockPtr,
-    ) -> Result<DatasourceWasmInstance, SubgraphError> {
-        let wasm_host = create_wasm_host(
-            ds.api_version(),
-            ds.wasm(),
-            db.clone(),
-            ds.name(),
-            rpc.clone(),
-            manifest.clone(),
-            ds.address(),
-            block_ptr.clone(),
-            ds.network(),
-        )
-        .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
-        let source = DatasourceWasmInstance::try_from((wasm_host, ds.into()))?;
-        Ok(source)
-    }
-
-    pub async fn create_sources(
-        &mut self,
-        manifest: &ManifestAgent,
-        db: &DatabaseAgent,
-        rpc: &RpcAgent,
-        block_ptr: BlockPtr,
-    ) -> Result<(), SubgraphError> {
+    pub fn create_sources(&mut self) -> Result<(), SubgraphError> {
         self.sources.clear();
-        for datasource in manifest.datasources().iter() {
-            let address = datasource.address();
-            let name = datasource.name();
-            let wasm_source =
-                self.create_single_source(datasource, manifest, db, rpc, &block_ptr)?;
-            self.sources.push((name, address, wasm_source));
+        for ds in self.manifest.datasources().iter() {
+            self.sources.push((
+                ds.name(),
+                ds.address(),
+                DatasourceWasmInstance::try_from((
+                    ds,
+                    self.db.clone(),
+                    self.rpc.clone(),
+                    self.manifest.clone(),
+                ))?,
+            ));
         }
         Ok(())
     }
 
-    async fn handle_ethereum_filtered_data(
+    fn check_for_new_datasource(&mut self) -> Result<usize, SubgraphError> {
+        let active_ds_instance_count = self.sources.len();
+        let pending_ds = self.manifest.count_datasources() - active_ds_instance_count;
+
+        if pending_ds == 0 {
+            return Ok(0);
+        }
+
+        for ds in self.manifest.datasources_take_last(pending_ds) {
+            self.sources.push((
+                ds.name(),
+                ds.address(),
+                DatasourceWasmInstance::try_from((
+                    &ds,
+                    self.db.clone(),
+                    self.rpc.clone(),
+                    self.manifest.clone(),
+                ))?,
+            ));
+        }
+
+        Ok(pending_ds)
+    }
+
+    fn handle_ethereum_filtered_data(
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
-        manifest: &ManifestAgent,
-        block_ptr: BlockPtr,
     ) -> Result<(), SubgraphError> {
+        let block_number = block.number.as_u64();
         let mut block_handlers = HashMap::new();
-        for (source_name, _, source_instance) in self.sources.iter_mut() {
+
+        for (source_name, _, source_instance) in self.sources.iter() {
             let source_block_handlers = source_instance
                 .ethereum_handlers
                 .block
@@ -115,7 +118,6 @@ impl Subgraph {
         let timer = Instant::now();
         let event_count = events.len();
         for event in events {
-            let count_datasources = self.sources.len();
             let source_instance = self
                 .sources
                 .iter_mut()
@@ -134,61 +136,39 @@ impl Subgraph {
             }
 
             let source_instance = source_instance.unwrap();
-
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
-
-            let count_new_datasouces = manifest.count_datasources() - count_datasources;
-            if count_new_datasouces > 0 {
-                let db = source_instance.host.db_agent.clone();
-                let rpc = source_instance.host.rpc_agent.clone();
-                for ds in manifest.datasources_take_last(count_new_datasouces) {
-                    let wasm_source = self
-                        .create_single_source(&ds, manifest, &db, &rpc, &block_ptr)
-                        .unwrap();
-                    self.sources.push((ds.name(), ds.address(), wasm_source));
-                }
-            }
+            self.check_for_new_datasource()?;
         }
+
         if event_count > 0 {
             debug!(
                 Subgraph,
                 "processed all events in block";
                 events => event_count,
                 exec_time => format!("{:?}", timer.elapsed()),
-                block => block_ptr.number
+                block => block_number
             );
         }
 
         Ok(())
     }
 
-    async fn handle_filtered_data(
-        &mut self,
-        data: FilteredDataMessage,
-        manifest: &ManifestAgent,
-        block_ptr: BlockPtr,
-    ) -> Result<(), SubgraphError> {
+    fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
         match data {
             FilteredDataMessage::Ethereum { events, block } => {
-                self.handle_ethereum_filtered_data(events, block, manifest, block_ptr)
-                    .await
+                self.handle_ethereum_filtered_data(events, block)
             }
         }
     }
 
-    pub async fn process(
-        &mut self,
-        msg: FilteredDataMessage,
-        manifest: &ManifestAgent,
-    ) -> Result<(), SubgraphError> {
+    pub fn process(&mut self, msg: FilteredDataMessage) -> Result<(), SubgraphError> {
         let block_ptr = msg.get_block_ptr();
 
         self.metrics
             .current_block_number
             .set(block_ptr.number as i64);
 
-        self.handle_filtered_data(msg, manifest, block_ptr.clone())
-            .await?;
+        self.handle_filtered_data(msg)?;
 
         if block_ptr.number % 1000 == 0 {
             info!(

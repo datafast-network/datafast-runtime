@@ -218,6 +218,10 @@ impl DatasourceBundle {
     pub fn name(&self) -> String {
         self.ds.name.clone()
     }
+
+    pub fn start_block(&self) -> u64 {
+        self.ds.source.startBlock.unwrap_or(0)
+    }
 }
 
 #[derive(Debug, Clone, Default)]

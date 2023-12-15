@@ -2,7 +2,6 @@ use crate::chain::ethereum::asc::EthereumValueKind;
 use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCall;
 use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCallV4;
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
-use crate::error;
 use crate::errors::AscError;
 use crate::rpc_client::CallRequest;
 use crate::rpc_client::CallResponse;
@@ -78,14 +77,7 @@ pub fn ethereum_call(
         asc_get::<_, AscUnresolvedContractCall, _>(&fenv, asc_ptr.into(), 0)?
     };
     let request = CallRequest::EthereumContractCall(call);
-    let result = env.rpc_agent.handle_request(request).map_err(|e| {
-        error!(
-            ethereum_call,
-            "Contract function call failed";
-            error => format!("{:?}", e)
-        );
-        AscError::Plain(format!("Contract function call failed: {:?}", e))
-    });
+    let result = env.rpc.handle_request(request);
 
     match result {
         Ok(CallResponse::EthereumContractCall(tokens)) => {
