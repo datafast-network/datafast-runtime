@@ -91,7 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let time = std::time::Instant::now();
             let sorted_blocks = filter.filter_multi(blocks)?;
             let count_blocks = sorted_blocks.len();
-            let last_block = sorted_blocks.last().map(|b| b.get_block_ptr());
+            let last_block = sorted_blocks.last().map(|b| b.get_block_ptr()).unwrap();
 
             info!(
                 main,
@@ -121,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                if block_ptr.number % 10 == 0 {
+                if block_ptr.number % 100 == 0 {
                     subgraph.create_sources()?;
                 }
 
@@ -132,17 +132,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            if let Some(block_ptr) = last_block {
-                db.commit_data(block_ptr.clone()).await?;
-                db.remove_outdated_snapshots(block_ptr.number).await?;
-                db.flush_cache().await?;
-                rpc.clear_cache().await;
+            db.commit_data(last_block.clone()).await?;
+            db.remove_outdated_snapshots(last_block.number).await?;
+            db.flush_cache().await?;
+            rpc.clear_cache().await;
 
-                if let Some(history_size) = config.block_data_retention {
-                    if block_ptr.number > history_size {
-                        db.clean_data_history(block_ptr.number - history_size)
-                            .await?;
-                    }
+            if let Some(history_size) = config.block_data_retention {
+                if last_block.number > history_size {
+                    db.clean_data_history(last_block.number - history_size)
+                        .await?;
                 }
             }
 
