@@ -67,7 +67,7 @@ impl From<Datasource> for WrappedDatasource {
     fn from(ds: Datasource) -> Self {
         let name = ds.name.clone();
         let address = ds.source.address.clone();
-        let created_at_block = ds.source.startBlock.clone();
+        let created_at_block = ds.source.startBlock;
         WrappedDatasource {
             datasource: ds,
             name,

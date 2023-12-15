@@ -1,5 +1,4 @@
 use crate::common::BlockPtr;
-use crate::common::Source;
 use crate::critical;
 use crate::error;
 use crate::info;
@@ -19,37 +18,31 @@ pub enum BlockInspectionResult {
 #[derive(Clone)]
 pub struct Inspector {
     recent_block_ptrs: VecDeque<BlockPtr>,
-    sources: Vec<Source>,
+    ds_min_start_block: u64,
     reorg_threshold: u16,
 }
 
 impl Inspector {
     pub fn new(
         mut recent_block_ptrs: Vec<BlockPtr>,
-        sources: Vec<Source>,
+        ds_min_start_block: u64,
         reorg_threshold: u16,
     ) -> Self {
         recent_block_ptrs.sort_by_key(|b| b.number);
         recent_block_ptrs.reverse();
         Self {
             recent_block_ptrs: VecDeque::from(recent_block_ptrs),
-            sources,
+            ds_min_start_block,
             reorg_threshold,
         }
     }
 
     pub fn get_expected_block_number(&self) -> u64 {
-        let min_start_block = self
-            .sources
-            .iter()
-            .filter_map(|s| s.startBlock)
-            .min()
-            .unwrap_or(0);
         let last_processed_block = self.recent_block_ptrs.front().cloned();
         last_processed_block
             .map(|b| b.number + 1)
             .unwrap_or(0)
-            .max(min_start_block)
+            .max(self.ds_min_start_block)
     }
 
     pub fn check_block(&mut self, new_block_ptr: BlockPtr) -> BlockInspectionResult {
@@ -148,29 +141,13 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    fn test_block_inspector(#[values(None, Some(0), Some(1), Some(2))] start_block: Option<u64>) {
+    fn test_block_inspector(#[values(0, 1, 2)] start_block: u64) {
         env_logger::try_init().unwrap_or_default();
-        let sources = vec![
-            Source {
-                address: None,
-                abi: "".to_owned(),
-                startBlock: start_block,
-            },
-            Source {
-                address: None,
-                abi: "".to_owned(),
-                startBlock: start_block.map(|n| n + 1),
-            },
-        ];
-        let mut pc = Inspector::new(vec![], sources, 10);
+        let mut pc = Inspector::new(vec![], start_block, 10);
         assert!(pc.recent_block_ptrs.is_empty());
 
         let actual_start_block = pc.get_expected_block_number();
-
-        match start_block {
-            None => assert_eq!(actual_start_block, 0),
-            Some(block_number) => assert_eq!(actual_start_block, block_number),
-        }
+        assert_eq!(actual_start_block, start_block);
 
         for n in 0..20 {
             if n == pc.get_expected_block_number() {

@@ -4,7 +4,7 @@ mod metrics;
 use super::ManifestAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::common::BlockPtr;
-use crate::common::Datasource;
+use crate::common::DatasourceBundle;
 use crate::common::HandlerTypes;
 use crate::config::Config;
 use crate::database::DatabaseAgent;
@@ -39,35 +39,27 @@ impl Subgraph {
         }
     }
 
-    async fn create_single_source(
+    fn create_single_source(
         &self,
-        datasource: Datasource,
+        ds: &DatasourceBundle,
         manifest: &ManifestAgent,
         db: &DatabaseAgent,
         rpc: &RpcAgent,
         block_ptr: &BlockPtr,
     ) -> Result<DatasourceWasmInstance, SubgraphError> {
-        let api_version = datasource.mapping.apiVersion.to_owned();
-        let wasm_bytes = manifest.get_wasm(&datasource.name);
-        let address = datasource
-            .clone()
-            .source
-            .address
-            .map(|s| Address::from_str(&s).ok())
-            .flatten();
         let wasm_host = create_wasm_host(
-            api_version,
-            wasm_bytes,
+            ds.api_version(),
+            ds.wasm(),
             db.clone(),
-            datasource.name.clone(),
+            ds.name(),
             rpc.clone(),
             manifest.clone(),
-            address,
+            ds.address(),
             block_ptr.clone(),
-            datasource.network.clone(),
+            ds.network(),
         )
         .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
-        let source = DatasourceWasmInstance::try_from((wasm_host, datasource))?;
+        let source = DatasourceWasmInstance::try_from((wasm_host, ds.into()))?;
         Ok(source)
     }
 
@@ -79,13 +71,12 @@ impl Subgraph {
         block_ptr: BlockPtr,
     ) -> Result<(), SubgraphError> {
         self.sources.clear();
-        for datasource in manifest.datasources() {
-            let address = datasource.source.address.clone();
-            let wasm_source = self
-                .create_single_source(datasource, manifest, db, rpc, &block_ptr)
-                .await?;
-            self.sources
-                .push((wasm_source.name.clone(), address, wasm_source));
+        for datasource in manifest.datasources().iter() {
+            let address = datasource.address();
+            let name = datasource.name();
+            let wasm_source =
+                self.create_single_source(datasource, manifest, db, rpc, &block_ptr)?;
+            self.sources.push((name, address, wasm_source));
         }
         Ok(())
     }
@@ -146,18 +137,15 @@ impl Subgraph {
 
             source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
 
-            if count_datasources < manifest.count_datasources() {
-                let new_datasources = manifest.datasources()[count_datasources..].to_vec();
-
+            let count_new_datasouces = manifest.count_datasources() - count_datasources;
+            if count_new_datasouces > 0 {
                 let db = source_instance.host.db_agent.clone();
                 let rpc = source_instance.host.rpc_agent.clone();
-                for ds in new_datasources {
-                    let address = ds.source.address.clone();
+                for ds in manifest.datasources_take_last(count_new_datasouces) {
                     let wasm_source = self
-                        .create_single_source(ds, manifest, &db, &rpc, &block_ptr)
-                        .await?;
-                    self.sources
-                        .push((wasm_source.name.clone(), address, wasm_source));
+                        .create_single_source(&ds, manifest, &db, &rpc, &block_ptr)
+                        .unwrap();
+                    self.sources.push((ds.name(), ds.address(), wasm_source));
                 }
             }
         }

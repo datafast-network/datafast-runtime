@@ -10,7 +10,12 @@ mod store;
 mod types_conversion;
 mod wasm_log;
 
+use crate::common::BlockPtr;
+use crate::components::ManifestAgent;
+use crate::database::DatabaseAgent;
 use crate::errors::WasmHostError;
+use crate::rpc_client::RpcAgent;
+pub use asc::AscHost;
 use semver::Version;
 use wasmer::imports;
 use wasmer::Function;
@@ -20,13 +25,6 @@ use wasmer::Memory;
 use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
-use web3::types::Address;
-
-use crate::common::BlockPtr;
-use crate::components::ManifestAgent;
-use crate::database::DatabaseAgent;
-use crate::rpc_client::RpcAgent;
-pub use asc::AscHost;
 
 #[derive(Clone)]
 pub struct Env {
@@ -38,7 +36,7 @@ pub struct Env {
     pub db_agent: DatabaseAgent,
     pub datasource_name: String,
     pub datasource_network: String,
-    pub datasource_address: Option<Address>,
+    pub datasource_address: Option<String>,
     pub rpc_agent: RpcAgent,
     pub manifest_agent: ManifestAgent,
     pub block_ptr: BlockPtr,
@@ -51,7 +49,7 @@ pub fn create_wasm_host(
     datasource_name: String,
     rpc_agent: RpcAgent,
     manifest_agent: ManifestAgent,
-    datasource_address: Option<Address>,
+    datasource_address: Option<String>,
     block_ptr: BlockPtr,
     datasource_network: String,
 ) -> Result<AscHost, WasmHostError> {
@@ -226,7 +224,7 @@ pub fn create_wasm_host(
 
     let memory = instance.exports.get_memory("memory").unwrap().clone();
     let id_of_type = data_mut.id_of_type.clone();
-    let arena_start_ptr = data_mut.arena_start_ptr.clone();
+    let arena_start_ptr = data_mut.arena_start_ptr;
     let memory_allocate = data_mut.memory_allocate.clone();
 
     let host = AscHost {
@@ -272,7 +270,7 @@ pub mod test {
             db_agent,
             "Test".to_string(),
             rpc_agent,
-            ManifestAgent::mock(),
+            ManifestAgent::default(),
             None,
             BlockPtr::default(),
             "test".to_string(),
