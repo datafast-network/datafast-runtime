@@ -54,7 +54,7 @@ impl Subgraph {
             ds.name(),
             rpc.clone(),
             manifest.clone(),
-            ds.address().into(),
+            ds.address(),
             block_ptr.clone(),
             ds.network(),
         )

@@ -134,25 +134,23 @@ impl EthereumFilter {
                                 block_header.to_owned(),
                                 tx.clone(),
                             )
-                            .map(|e| {
+                            .and_then(|e| {
                                 let handler = get_handler_for_log(&ds.ds, &log.topics[0]);
-                                if handler.is_none() {
-                                    debug!(DataFilter,
-                                        "No handler found for log";
-                                        log => format!("{:?}", log),
-                                        datasource => ds.ds.name.clone(),
-                                        block => format!("{:?}", block_header)
-                                    );
-                                    None
-                                } else {
-                                    Some(EthereumFilteredEvent {
+                                if let Some(event_handler) = handler {
+                                    return Some(EthereumFilteredEvent {
                                         event: e,
-                                        handler: handler.unwrap().handler,
+                                        handler: event_handler.handler,
                                         datasource: ds.ds.name.clone(),
-                                    })
+                                    });
                                 }
+                                debug!(DataFilter,
+                                    "No handler found for log";
+                                    log => format!("{:?}", log),
+                                    datasource => ds.ds.name.clone(),
+                                    block => format!("{:?}", block_header)
+                                );
+                                None
                             })
-                            .flatten()
                         })
                 }
             })

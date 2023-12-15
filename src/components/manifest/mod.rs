@@ -74,6 +74,7 @@ impl ManifestAgent {
         &self,
         name: &str,
         params: Vec<String>,
+        block_ptr: &BlockPtr,
     ) -> Result<(), ManifestLoaderError> {
         let mut manifest = self.0.write().unwrap();
         let address = params.first().cloned();
@@ -98,6 +99,7 @@ impl ManifestAgent {
             })?;
 
         new_ds.ds.source.address = address;
+        new_ds.ds.source.startBlock = Some(block_ptr.number);
 
         manifest.datasources.add(new_ds).map_err(|e| {
             error!(ManifestAgent, format!("{:?}", e));

@@ -70,7 +70,7 @@ impl LocalFileLoader {
             .into_iter()
             .map(|(name, file_path)| {
                 let abi_path = format!("{}/{}", subgraph_dir, file_path);
-                let abi_file = fs::File::open(&abi_path).unwrap();
+                let abi_file = fs::File::open(abi_path).unwrap();
                 let value = serde_json::from_reader(abi_file).unwrap();
                 (name, value)
             })
@@ -87,7 +87,7 @@ impl LocalFileLoader {
             .into_iter()
             .map(|(datasource_name, wasm_file)| {
                 let wasm_file = format!("{subgraph_dir}/{wasm_file}");
-                let wasm_bytes = fs::read(&wasm_file).unwrap();
+                let wasm_bytes = fs::read(wasm_file).unwrap();
                 (datasource_name, wasm_bytes)
             })
             .collect();

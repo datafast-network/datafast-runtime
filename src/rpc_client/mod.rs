@@ -125,8 +125,7 @@ impl RpcAgent {
                 .unwrap();
             rt.block_on(async move {
                 let mut rpc_agent = client.lock().await;
-                let result = rpc_agent.handle_request(call).await;
-                result
+                rpc_agent.handle_request(call).await
             })
         })
         .join()

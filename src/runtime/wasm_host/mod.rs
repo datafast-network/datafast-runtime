@@ -224,7 +224,7 @@ pub fn create_wasm_host(
 
     let memory = instance.exports.get_memory("memory").unwrap().clone();
     let id_of_type = data_mut.id_of_type.clone();
-    let arena_start_ptr = data_mut.arena_start_ptr.clone();
+    let arena_start_ptr = data_mut.arena_start_ptr;
     let memory_allocate = data_mut.memory_allocate.clone();
 
     let host = AscHost {

@@ -150,8 +150,7 @@ impl ABIs {
         self.0
             .get(name)
             .cloned()
-            .map(|v| serde_json::from_value(v).ok())
-            .flatten()
+            .and_then(|v| serde_json::from_value(v).ok())
     }
 
     pub fn insert(&mut self, name: String, abi: serde_json::Value) {
@@ -272,13 +271,8 @@ impl From<(&Vec<Datasource>, &ABIs, &WASMs)> for DatasourceBundles {
     }
 }
 
-impl Into<Vec<Datasource>> for DatasourceBundles {
-    fn into(self) -> Vec<Datasource> {
-        self.0
-            .values()
-            .cloned()
-            .into_iter()
-            .map(|ds| ds.ds)
-            .collect()
+impl From<DatasourceBundles> for Vec<Datasource> {
+    fn from(bundles: DatasourceBundles) -> Self {
+        bundles.0.values().cloned().map(|ds| ds.ds).collect()
     }
 }
