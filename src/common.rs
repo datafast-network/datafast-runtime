@@ -213,7 +213,7 @@ impl DatasourceBundle {
     }
 
     pub fn address(&self) -> Option<String> {
-        self.ds.source.address.clone()
+        self.ds.source.address.clone().map(|s| s.to_lowercase())
     }
 
     pub fn wasm(&self) -> Vec<u8> {
