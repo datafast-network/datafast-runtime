@@ -1,4 +1,3 @@
-use crate::info;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscPtr;
@@ -21,13 +20,6 @@ pub fn datasource_create(
     env.manifest
         .create_datasource(&source_name, source_params.clone(), env.block_ptr)
         .unwrap();
-    info!(
-        wasm_host,
-        "new datasource added";
-        block_ptr => env.block_ptr,
-        source_name => source_name,
-        source_params => format!("{:?}", source_params)
-    );
     Ok(())
 }
 
