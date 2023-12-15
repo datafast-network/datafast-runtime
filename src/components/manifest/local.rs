@@ -98,22 +98,39 @@ impl LocalFileLoader {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::components::ManifestAgent;
 
     #[test]
     fn test_local_file_loader() {
         env_logger::try_init().unwrap_or_default();
-        let loader =
+        let m =
             LocalFileLoader::try_subgraph_dir("../subgraph-testing/packages/v0_0_5/build").unwrap();
 
-        assert_eq!(loader.subgraph_yaml.dataSources.len(), 5);
-        assert_eq!(loader.abis.len(), 5);
+        assert_eq!(
+            vec![
+                "ERC20NameBytes",
+                "ERC20SymbolBytes",
+                "ERC20",
+                "Pool",
+                "Factory"
+            ]
+            .sort(),
+            m.abis.names().sort()
+        );
+
+        assert_eq!(m.subgraph_yaml.dataSources.len(), 6);
+        assert!(m.subgraph_yaml.templates.is_none());
     }
 
-    #[test]
-    fn test_get_template() {
+    #[tokio::test]
+    async fn test_get_template() {
         env_logger::try_init().unwrap_or_default();
-        let _loader =
-            LocalFileLoader::try_subgraph_dir("../subgraph-testing/packages/uniswap-v3/build")
-                .unwrap();
+        let m = ManifestAgent::new("../subgraph-testing/packages/uniswap-v3/build")
+            .await
+            .unwrap();
+        assert_eq!(m.abis().len(), 6);
+        assert_eq!(m.schema().get_entity_names().len(), 20);
+        assert_eq!(m.datasources().len(), 2);
+        assert_eq!(m.datasource_and_templates().len(), 3);
     }
 }

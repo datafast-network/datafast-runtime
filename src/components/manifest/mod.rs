@@ -87,16 +87,13 @@ impl ManifestAgent {
             return Err(ManifestLoaderError::CreateDatasourceFail);
         }
 
-        let mut new_ds = manifest
-            .templates
-            .get(name, address.clone())
-            .ok_or_else(|| {
-                error!(
-                    ManifestAgent,
-                    format!("no template match datasource name={name}")
-                );
-                ManifestLoaderError::CreateDatasourceFail
-            })?;
+        let mut new_ds = manifest.templates.get(name, None).ok_or_else(|| {
+            error!(
+                ManifestAgent,
+                format!("no template match datasource name={name}")
+            );
+            ManifestLoaderError::CreateDatasourceFail
+        })?;
 
         new_ds.ds.source.address = address;
         new_ds.ds.source.startBlock = Some(block_number);

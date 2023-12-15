@@ -142,6 +142,11 @@ impl FromIterator<(String, serde_json::Value)> for ABIs {
 }
 
 impl ABIs {
+    #[cfg(test)]
+    pub fn names(&self) -> Vec<String> {
+        self.0.keys().cloned().collect()
+    }
+
     pub fn get(&self, name: &str) -> Option<serde_json::Value> {
         self.0.get(name).cloned()
     }
@@ -265,7 +270,7 @@ impl From<(&Vec<Datasource>, &ABIs, &WASMs)> for DatasourceBundles {
             .map(|ds| {
                 let bundle = DatasourceBundle {
                     ds: ds.clone(),
-                    abi: abis.get(&ds.name).unwrap(),
+                    abi: abis.get(&ds.source.abi).unwrap(),
                     wasm: wasms.get(&ds.name).unwrap(),
                 };
                 ((ds.name.clone(), ds.source.address.clone()), bundle)
