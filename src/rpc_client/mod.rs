@@ -72,10 +72,10 @@ impl RpcClient {
             block_ptr: self.block_ptr.clone(),
             call_request: call,
         };
-        match self.cache.get(&call_context.call_request) {
+        match self.cache.get(&call_context) {
             None => {
                 let result = self.rpc_client.handle_request(call_context.clone()).await?;
-                self.cache.insert(call_context.call_request, result.clone());
+                self.cache.insert(call_context, result.clone());
                 Ok(result)
             }
             Some(result) => Ok(result.clone()),

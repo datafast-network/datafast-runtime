@@ -18,4 +18,4 @@ pub enum CallResponse {
     EthereumContractCall(Vec<ethabi::Token>),
 }
 
-pub type RPCCache = HashMap<CallRequest, CallResponse>;
+pub type RPCCache = HashMap<CallRequestContext, CallResponse>;
