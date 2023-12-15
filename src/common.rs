@@ -2,8 +2,8 @@ use ethabi::Contract;
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fmt::Display;
 
@@ -230,58 +230,65 @@ impl DatasourceBundle {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct DatasourceBundles(BTreeMap<(String, Option<String>), DatasourceBundle>);
+pub struct DatasourceBundles {
+    ds: Vec<DatasourceBundle>,
+    keys: HashSet<(String, Option<String>)>,
+}
 
 impl DatasourceBundles {
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.ds.len()
     }
 
     pub fn get(&self, name: &str, address: Option<String>) -> Option<DatasourceBundle> {
-        self.0.get(&(name.to_owned(), address)).cloned()
+        self.ds
+            .iter()
+            .find(|ds| ds.name() == name && ds.address() == address)
+            .cloned()
+            .clone()
     }
 
     pub fn add(&mut self, ds: DatasourceBundle) -> Result<(), String> {
-        if self.0.contains_key(&(ds.name(), ds.address())) {
+        if !self.keys.insert((ds.name(), ds.address())) {
             return Err("Datasource already exist".to_owned());
         }
 
-        self.0.insert((ds.name(), ds.address()), ds);
+        self.ds.push(ds);
         Ok(())
     }
 
     pub fn extend(&mut self, ds: DatasourceBundles) {
-        self.0.extend(ds.0)
+        for ds in ds.iter() {
+            self.add(ds.clone()).ok();
+        }
     }
 
     pub fn iter(&self) -> Vec<&DatasourceBundle> {
-        self.0.values().collect()
+        self.ds.iter().collect()
     }
 
-    pub fn take_last(&self, last_n: usize) -> Vec<DatasourceBundle> {
-        self.0.values().rev().take(last_n).cloned().collect()
+    pub fn take_from(&self, last_n: usize) -> Vec<DatasourceBundle> {
+        self.ds[last_n..].to_vec()
     }
 }
 
 impl From<(&Vec<Datasource>, &ABIs, &WASMs)> for DatasourceBundles {
     fn from((sources, abis, wasms): (&Vec<Datasource>, &ABIs, &WASMs)) -> Self {
-        let bundles = sources
+        let ds = sources
             .iter()
-            .map(|ds| {
-                let bundle = DatasourceBundle {
-                    ds: ds.clone(),
-                    abi: abis.get(&ds.source.abi).unwrap(),
-                    wasm: wasms.get(&ds.name).unwrap(),
-                };
-                ((ds.name.clone(), ds.source.address.clone()), bundle)
+            .map(|ds| DatasourceBundle {
+                ds: ds.clone(),
+                abi: abis.get(&ds.source.abi).unwrap(),
+                wasm: wasms.get(&ds.name).unwrap(),
             })
-            .collect::<BTreeMap<_, _>>();
-        Self(bundles)
+            .collect::<Vec<DatasourceBundle>>();
+        let keys = ds.iter().map(|dsb| (dsb.name(), dsb.address())).collect();
+        Self { ds, keys }
     }
 }
 
 impl From<DatasourceBundles> for Vec<Datasource> {
     fn from(bundles: DatasourceBundles) -> Self {
-        bundles.0.values().cloned().map(|ds| ds.ds).collect()
+        bundles.ds.into_iter().map(|ds| ds.ds).collect()
     }
 }
