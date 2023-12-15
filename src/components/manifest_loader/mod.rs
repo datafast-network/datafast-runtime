@@ -4,15 +4,9 @@ use crate::common::*;
 use crate::error;
 use crate::errors::ManifestLoaderError;
 use crate::schema_lookup::SchemaLookup;
-use serde::Serialize;
+use local::LocalFileLoader;
 use std::sync::Arc;
 use std::sync::RwLock;
-
-use self::local::LocalFileLoader;
-
-pub trait ManifestOpenable {
-    fn open<T: Serialize>(path: &str) -> T;
-}
 
 #[derive(Debug, Default)]
 struct ManifestBundle {
