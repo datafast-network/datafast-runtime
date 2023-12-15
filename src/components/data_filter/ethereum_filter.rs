@@ -184,10 +184,8 @@ impl DataFilterTrait for EthereumFilter {
 
 #[cfg(test)]
 mod test {
-    use crate::components::ManifestAgent;
-    use crate::config::Config;
-
     use super::*;
+    use crate::components::ManifestAgent;
 
     fn erc20_contract() -> Contract {
         let erc20_abi = r#"
@@ -282,12 +280,8 @@ mod test {
         let test_manifest = ManifestAgent::new("fs://Users/vutran/Desktop/build")
             .await
             .unwrap();
-        let datasources_1: Vec<Datasource> = test_manifest
-            .datasources()
-            .into_iter()
-            // USDT Contract datasource
-            .take(1)
-            .collect();
+        let datasources_1: Vec<Datasource> = test_manifest.datasources().into();
+
         let mut filter = EthereumFilter::new(datasources_1.clone(), ABIs::default());
         let header = EthereumBlockData::default();
         let txs = vec![EthereumTransactionData::default()];

@@ -102,7 +102,7 @@ mod test {
     #[test]
     fn test_local_file_loader() {
         env_logger::try_init().unwrap_or_default();
-        let mut loader =
+        let loader =
             LocalFileLoader::try_subgraph_dir("../subgraph-testing/packages/v0_0_5/build").unwrap();
 
         assert_eq!(loader.subgraph_yaml.dataSources.len(), 5);
@@ -112,7 +112,7 @@ mod test {
     #[test]
     fn test_get_template() {
         env_logger::try_init().unwrap_or_default();
-        let loader =
+        let _loader =
             LocalFileLoader::try_subgraph_dir("../subgraph-testing/packages/uniswap-v3/build")
                 .unwrap();
     }
