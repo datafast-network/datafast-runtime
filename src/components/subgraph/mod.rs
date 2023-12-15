@@ -84,7 +84,7 @@ impl Subgraph {
         Ok(pending_ds)
     }
 
-    fn handle_ethereum_filtered_data(
+    fn handle_ethereum_data(
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
@@ -153,14 +153,6 @@ impl Subgraph {
         Ok(())
     }
 
-    fn handle_filtered_data(&mut self, data: FilteredDataMessage) -> Result<(), SubgraphError> {
-        match data {
-            FilteredDataMessage::Ethereum { events, block } => {
-                self.handle_ethereum_filtered_data(events, block)
-            }
-        }
-    }
-
     pub fn process(&mut self, msg: FilteredDataMessage) -> Result<(), SubgraphError> {
         let block_ptr = msg.get_block_ptr();
 
@@ -168,7 +160,11 @@ impl Subgraph {
             .current_block_number
             .set(block_ptr.number as i64);
 
-        self.handle_filtered_data(msg)?;
+        match msg {
+            FilteredDataMessage::Ethereum { events, block } => {
+                self.handle_ethereum_data(events, block)?
+            }
+        };
 
         if block_ptr.number % 1000 == 0 {
             info!(
