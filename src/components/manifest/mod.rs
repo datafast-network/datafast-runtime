@@ -3,6 +3,7 @@ mod local;
 use crate::common::*;
 use crate::error;
 use crate::errors::ManifestLoaderError;
+use crate::info;
 use crate::schema_lookup::SchemaLookup;
 use local::LocalFileLoader;
 use std::sync::Arc;
@@ -47,9 +48,9 @@ impl ManifestAgent {
         manifest.datasources.clone()
     }
 
-    pub fn datasources_take_last(&self, last_n: usize) -> Vec<DatasourceBundle> {
+    pub fn datasources_take_from(&self, last_n: usize) -> Vec<DatasourceBundle> {
         let manifest = self.0.read().unwrap();
-        manifest.datasources.take_last(last_n)
+        manifest.datasources.take_from(last_n)
     }
 
     pub fn count_datasources(&self) -> usize {
@@ -77,7 +78,7 @@ impl ManifestAgent {
         block_number: u64,
     ) -> Result<(), ManifestLoaderError> {
         let mut manifest = self.0.write().unwrap();
-        let address = params.first().cloned();
+        let address = params.first().cloned().map(|s| s.to_lowercase());
 
         if address.is_none() {
             error!(
@@ -95,13 +96,19 @@ impl ManifestAgent {
             ManifestLoaderError::CreateDatasourceFail
         })?;
 
-        new_ds.ds.source.address = address;
+        new_ds.ds.source.address = address.clone();
         new_ds.ds.source.startBlock = Some(block_number);
-
         manifest.datasources.add(new_ds).map_err(|e| {
             error!(ManifestAgent, format!("{:?}", e));
             ManifestLoaderError::CreateDatasourceFail
         })?;
+
+        info!(
+            ManifestAgent,
+            "added new datasource";
+            address => address.unwrap(),
+            block => block_number
+        );
 
         Ok(())
     }
