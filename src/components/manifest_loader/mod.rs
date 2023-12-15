@@ -73,6 +73,15 @@ impl ManifestAgent {
     ) -> Result<(), ManifestLoaderError> {
         let mut manifest = self.0.write().unwrap();
         let address = params.first().cloned();
+
+        if address.is_none() {
+            error!(
+                ManifestAgent,
+                "invalid datasource create, address must not be None"
+            );
+            return Err(ManifestLoaderError::CreateDatasourceFail);
+        }
+
         let mut new_ds = manifest
             .templates
             .get(name, address.clone())
@@ -83,11 +92,14 @@ impl ManifestAgent {
                 );
                 ManifestLoaderError::CreateDatasourceFail
             })?;
+
         new_ds.ds.source.address = address;
+
         manifest.datasources.add(new_ds).map_err(|e| {
             error!(ManifestAgent, format!("{:?}", e));
             ManifestLoaderError::CreateDatasourceFail
         })?;
+
         Ok(())
     }
 }
