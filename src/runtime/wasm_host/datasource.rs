@@ -32,9 +32,9 @@ pub fn datasource_create(
 }
 
 pub fn datasource_create_context(
-    fenv: FunctionEnvMut<Env>,
-    name_ptr: AscPtr<AscString>,
-    params_ptr: AscPtr<Array<AscPtr<AscString>>>,
+    _fenv: FunctionEnvMut<Env>,
+    _name_ptr: AscPtr<AscString>,
+    _params_ptr: AscPtr<Array<AscPtr<AscString>>>,
     _context_ptr: AscPtr<AscEntity>,
 ) -> Result<(), RuntimeError> {
     todo!()

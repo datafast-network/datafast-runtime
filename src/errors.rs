@@ -4,7 +4,6 @@ use kanal::SendError;
 use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
-use wasmer::InstantiationError;
 use wasmer::MemoryAccessError;
 use wasmer::RuntimeError;
 
@@ -75,8 +74,6 @@ impl From<AscError> for RuntimeError {
 pub enum WasmHostError {
     #[error("Wasm Compiling failed: {0}")]
     Compile(#[from] CompileError),
-    #[error("Wasm Instantiation Failed: {0}")]
-    Instantiation(#[from] InstantiationError),
 }
 
 #[derive(Debug, Error)]

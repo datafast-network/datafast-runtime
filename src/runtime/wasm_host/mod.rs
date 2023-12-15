@@ -174,7 +174,7 @@ pub fn create_wasm_host(
     };
 
     // Running cargo-run will immediately tell which functions are missing
-    let instance = Instance::new(&mut store, &module, &import_object)?;
+    let instance = Instance::new(&mut store, &module, &import_object).unwrap();
 
     // Bind guest memory ref & __alloc to env
     let mut env_mut = env.into_mut(&mut store);
