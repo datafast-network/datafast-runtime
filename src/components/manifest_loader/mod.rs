@@ -33,11 +33,6 @@ impl ManifestAgent {
         Ok(Self(Arc::new(RwLock::new(manifest))))
     }
 
-    pub fn get_abi(&self, source_name: &str) -> serde_json::Value {
-        let manifest = self.0.read().unwrap();
-        manifest.abis.get(source_name).unwrap()
-    }
-
     pub fn abis(&self) -> ABIs {
         let manifest = self.0.read().unwrap();
         manifest.abis.clone()
