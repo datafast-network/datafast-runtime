@@ -272,7 +272,7 @@ pub mod test {
             db_agent,
             "Test".to_string(),
             rpc_agent,
-            ManifestAgent::mock(),
+            ManifestAgent::default(),
             None,
             BlockPtr::default(),
             "test".to_string(),

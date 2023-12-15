@@ -187,6 +187,7 @@ impl DataFilterTrait for EthereumFilter {
 #[cfg(test)]
 mod test {
     use crate::components::ManifestAgent;
+    use crate::config::Config;
 
     use super::*;
 

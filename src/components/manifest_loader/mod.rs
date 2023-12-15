@@ -1,11 +1,6 @@
 mod local;
 
-use crate::common::ABIs;
-use crate::common::BlockPtr;
-use crate::common::DatasourceBundles;
-use crate::common::SubgraphYaml;
-use crate::common::WASMs;
-use crate::config::Config;
+use crate::common::*;
 use crate::error;
 use crate::errors::ManifestLoaderError;
 use crate::schema_lookup::SchemaLookup;
@@ -13,11 +8,13 @@ use serde::Serialize;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+use self::local::LocalFileLoader;
+
 pub trait ManifestOpenable {
     fn open<T: Serialize>(path: &str) -> T;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct ManifestBundle {
     subgraph_yaml: SubgraphYaml,
     templates: DatasourceBundles,
@@ -27,12 +24,13 @@ struct ManifestBundle {
     datasources: DatasourceBundles,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ManifestAgent(Arc<RwLock<ManifestBundle>>);
 
 impl ManifestAgent {
-    pub async fn new(cfg: &Config) -> Result<Self, ManifestLoaderError> {
-        todo!()
+    pub async fn new(subgraph_path: &str) -> Result<Self, ManifestLoaderError> {
+        let manifest = LocalFileLoader::try_subgraph_dir(subgraph_path)?;
+        Ok(Self(Arc::new(RwLock::new(manifest))))
     }
 
     pub fn get_abi(&self, source_name: &str) -> serde_json::Value {

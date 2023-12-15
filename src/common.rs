@@ -192,7 +192,7 @@ pub struct DatasourceBundle {
     pub wasm: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DatasourceBundles(HashMap<(String, Option<String>), DatasourceBundle>);
 
 impl DatasourceBundles {

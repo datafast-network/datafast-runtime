@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = default_registry();
 
     // TODO: impl IPFS Loader
-    let manifest = ManifestAgent::new(&config).await?;
+    let manifest = ManifestAgent::new(&config.subgraph_dir).await?;
     info!(main, "Manifest loaded");
 
     let valve = Valve::new(&config.valve);
