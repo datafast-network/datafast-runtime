@@ -2,6 +2,7 @@ use ethabi::Contract;
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
@@ -63,14 +64,14 @@ pub struct SubgraphYaml {
 impl SubgraphYaml {
     pub fn abis(&self) -> HashMap<String, String> {
         let mut abis = HashMap::new();
-        for ds in self.dataSources {
-            for mapping_abi in ds.mapping.abis {
-                abis.insert(mapping_abi.name, mapping_abi.file);
+        for ds in self.dataSources.iter() {
+            for mapping_abi in ds.mapping.abis.iter() {
+                abis.insert(mapping_abi.name.clone(), mapping_abi.file.clone());
             }
         }
-        for ds in self.templates.unwrap_or(vec![]) {
-            for mapping_abi in ds.mapping.abis {
-                abis.insert(mapping_abi.name, mapping_abi.file);
+        for ds in self.templates.clone().unwrap_or(vec![]).iter() {
+            for mapping_abi in ds.mapping.abis.iter() {
+                abis.insert(mapping_abi.name.clone(), mapping_abi.file.clone());
             }
         }
         abis
@@ -78,10 +79,10 @@ impl SubgraphYaml {
 
     pub fn wasms(&self) -> HashMap<String, String> {
         let mut wasms = HashMap::new();
-        for ds in self.dataSources {
-            wasms.insert(ds.name, ds.mapping.file);
+        for ds in self.dataSources.iter() {
+            wasms.insert(ds.name.clone(), ds.mapping.file.clone());
         }
-        for ds in self.templates.unwrap_or(vec![]) {
+        for ds in self.templates.clone().unwrap_or(vec![]) {
             wasms.insert(ds.name, ds.mapping.file);
         }
         wasms
@@ -135,7 +136,7 @@ impl Display for BlockPtr {
 pub struct ABIs(HashMap<String, serde_json::Value>);
 
 impl FromIterator<(String, serde_json::Value)> for ABIs {
-    fn from_iter<I: IntoIterator<Item = (String, serde_json::Value)>>(mut iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = (String, serde_json::Value)>>(iter: I) -> Self {
         Self(iter.into_iter().collect::<HashMap<_, _>>())
     }
 }
@@ -166,7 +167,7 @@ impl ABIs {
 pub struct WASMs(HashMap<String, Vec<u8>>);
 
 impl FromIterator<(String, Vec<u8>)> for WASMs {
-    fn from_iter<I: IntoIterator<Item = (String, Vec<u8>)>>(mut iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = (String, Vec<u8>)>>(iter: I) -> Self {
         Self(iter.into_iter().collect::<HashMap<_, _>>())
     }
 }
@@ -192,8 +193,36 @@ pub struct DatasourceBundle {
     pub wasm: Vec<u8>,
 }
 
+impl From<&DatasourceBundle> for Datasource {
+    fn from(source: &DatasourceBundle) -> Self {
+        source.ds.clone()
+    }
+}
+
+impl DatasourceBundle {
+    pub fn api_version(&self) -> Version {
+        self.ds.mapping.apiVersion.clone()
+    }
+
+    pub fn network(&self) -> String {
+        self.ds.network.clone()
+    }
+
+    pub fn address(&self) -> Option<String> {
+        self.ds.source.address.clone()
+    }
+
+    pub fn wasm(&self) -> Vec<u8> {
+        self.wasm.clone()
+    }
+
+    pub fn name(&self) -> String {
+        self.ds.name.clone()
+    }
+}
+
 #[derive(Debug, Clone, Default)]
-pub struct DatasourceBundles(HashMap<(String, Option<String>), DatasourceBundle>);
+pub struct DatasourceBundles(BTreeMap<(String, Option<String>), DatasourceBundle>);
 
 impl DatasourceBundles {
     pub fn len(&self) -> usize {
@@ -204,17 +233,25 @@ impl DatasourceBundles {
         self.0.get(&(name.to_owned(), address)).cloned()
     }
 
-    pub fn add(&self, ds: DatasourceBundle) -> Result<(), String> {
-        if self.0.contains_key(&(ds.ds.name, ds.ds.source.address)) {
+    pub fn add(&mut self, ds: DatasourceBundle) -> Result<(), String> {
+        if self.0.contains_key(&(ds.name(), ds.address())) {
             return Err("Datasource already exist".to_owned());
         }
 
-        self.0.insert((ds.ds.name, ds.ds.source.address), ds);
+        self.0.insert((ds.name(), ds.address()), ds);
         Ok(())
     }
 
     pub fn extend(&mut self, ds: DatasourceBundles) {
         self.0.extend(ds.0)
+    }
+
+    pub fn iter(&self) -> Vec<&DatasourceBundle> {
+        self.0.values().collect()
+    }
+
+    pub fn take_last(&self, last_n: usize) -> Vec<DatasourceBundle> {
+        self.0.values().rev().take(last_n).cloned().collect()
     }
 }
 
@@ -230,7 +267,7 @@ impl From<(&Vec<Datasource>, &ABIs, &WASMs)> for DatasourceBundles {
                 };
                 ((ds.name.clone(), ds.source.address.clone()), bundle)
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<BTreeMap<_, _>>();
         Self(bundles)
     }
 }

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 #[derive(Debug, Default)]
-struct ManifestBundle {
+pub struct ManifestBundle {
     subgraph_yaml: SubgraphYaml,
     templates: DatasourceBundles,
     abis: ABIs,
@@ -47,6 +47,11 @@ impl ManifestAgent {
         manifest.datasources.clone()
     }
 
+    pub fn datasources_take_last(&self, last_n: usize) -> Vec<DatasourceBundle> {
+        let manifest = self.0.read().unwrap();
+        manifest.datasources.take_last(last_n)
+    }
+
     pub fn count_datasources(&self) -> usize {
         let manifest = self.0.read().unwrap();
         manifest.datasources.len()
@@ -69,7 +74,6 @@ impl ManifestAgent {
         &self,
         name: &str,
         params: Vec<String>,
-        block_ptr: BlockPtr,
     ) -> Result<(), ManifestLoaderError> {
         let mut manifest = self.0.write().unwrap();
         let address = params.first().cloned();

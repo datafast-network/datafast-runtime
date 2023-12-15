@@ -25,8 +25,11 @@ impl LocalFileLoader {
         let wasms = LocalFileLoader::load_wasm(subgraph_dir, &subgraph_yaml)?;
         let schema = LocalFileLoader::load_schema(subgraph_dir)?;
         let datasources = DatasourceBundles::from((&subgraph_yaml.dataSources, &abis, &wasms));
-        let templates =
-            DatasourceBundles::from((&subgraph_yaml.templates.unwrap_or(vec![]), &abis, &wasms));
+        let templates = DatasourceBundles::from((
+            subgraph_yaml.templates.clone().unwrap_or(vec![]).as_ref(),
+            &abis,
+            &wasms,
+        ));
 
         let manifest = ManifestBundle {
             subgraph_yaml,

@@ -19,7 +19,7 @@ pub fn datasource_create(
     let source_params: Vec<String> = asc_get(&fenv, params_ptr, 0)?;
     let env = fenv.data_mut();
     env.manifest_agent
-        .create_datasource(&source_name, source_params.clone(), env.block_ptr.clone())
+        .create_datasource(&source_name, source_params.clone())
         .unwrap();
     info!(
         wasm_host,
