@@ -103,7 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             for block in sorted_blocks {
                 let block_ptr = block.get_block_ptr();
-                rpc.set_block_ptr(&block_ptr);
+                rpc.set_block_ptr(&block_ptr).await;
                 manifest.set_block_ptr(&block_ptr);
 
                 match inspector.check_block(block_ptr.clone()) {

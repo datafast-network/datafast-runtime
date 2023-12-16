@@ -137,6 +137,7 @@ impl EthereumRPC {
         data: UnresolvedContractCall,
         block_ptr: BlockPtr,
     ) -> Result<CallResponse, RPCClientError> {
+        assert!(block_ptr.number > 0, "bad block");
         let request_data = self.parse_contract_call_request(data)?;
         // Encode the call parameters according to the ABI
         let call_data = request_data
