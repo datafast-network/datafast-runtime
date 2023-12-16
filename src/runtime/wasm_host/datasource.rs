@@ -18,7 +18,7 @@ pub fn datasource_create(
     let source_params: Vec<String> = asc_get(&fenv, params_ptr, 0)?;
     let env = fenv.data_mut();
     env.manifest
-        .create_datasource(&source_name, source_params.clone(), env.block_ptr)
+        .create_datasource(&source_name, source_params)
         .unwrap();
     Ok(())
 }

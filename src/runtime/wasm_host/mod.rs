@@ -39,7 +39,6 @@ pub struct Env {
     pub db: DatabaseAgent,
     pub rpc: RpcAgent,
     pub manifest: ManifestAgent,
-    pub block_ptr: u64,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -50,7 +49,6 @@ fn create_wasm_host(
     rpc: RpcAgent,
     manifest: ManifestAgent,
     address: Option<String>,
-    block_ptr: u64,
     network: String,
     db: DatabaseAgent,
 ) -> Result<AscHost, WasmHostError> {
@@ -70,7 +68,6 @@ fn create_wasm_host(
             rpc,
             manifest,
             address,
-            block_ptr,
             network,
         },
     );
@@ -252,7 +249,6 @@ impl TryFrom<(&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for As
             rpc,
             manifest,
             ds.address(),
-            ds.start_block(),
             ds.network(),
             db,
         )
@@ -288,7 +284,6 @@ pub mod test {
             rpc,
             ManifestAgent::default(),
             None,
-            0,
             "Test".to_string(),
             db,
         )

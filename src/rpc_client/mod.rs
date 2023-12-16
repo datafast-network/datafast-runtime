@@ -45,7 +45,6 @@ pub trait RPCTrait {
 
 pub struct RpcClient {
     rpc_client: RPCChain,
-    block_ptr: BlockPtr,
     cache: RPCCache,
 }
 
@@ -59,7 +58,6 @@ impl RpcClient {
         };
         Ok(Self {
             rpc_client,
-            block_ptr: BlockPtr::default(),
             cache: HashMap::new(),
         })
     }
@@ -67,9 +65,10 @@ impl RpcClient {
     pub async fn handle_request(
         &mut self,
         call: CallRequest,
+        block_ptr: &BlockPtr,
     ) -> Result<CallResponse, RPCClientError> {
         let call_context = CallRequestContext {
-            block_ptr: self.block_ptr.clone(),
+            block_ptr: block_ptr.clone(),
             call_request: call,
         };
         match self.cache.get(&call_context) {
@@ -82,14 +81,9 @@ impl RpcClient {
         }
     }
 
-    pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
-        self.block_ptr = block_ptr.clone();
-    }
-
     pub fn new_mock() -> Self {
         Self {
             rpc_client: RPCChain::None,
-            block_ptr: BlockPtr::default(),
             cache: HashMap::new(),
         }
     }
@@ -102,6 +96,7 @@ impl RpcClient {
 #[derive(Clone)]
 pub struct RpcAgent {
     client: Arc<Mutex<RpcClient>>,
+    block_ptr: BlockPtr,
 }
 
 impl RpcAgent {
@@ -109,6 +104,7 @@ impl RpcAgent {
         let rpc_client = RpcClient::new(config, abis).await?;
         Ok(Self {
             client: Arc::new(Mutex::new(rpc_client)),
+            block_ptr: BlockPtr::default(),
         })
     }
 
@@ -116,6 +112,7 @@ impl RpcAgent {
         let timer = Instant::now();
         use std::thread;
         let client = self.client.clone();
+        let block_ptr = self.block_ptr.clone();
 
         let result = thread::spawn(|| {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -125,7 +122,7 @@ impl RpcAgent {
                 .unwrap();
             rt.block_on(async move {
                 let mut rpc_agent = client.lock().await;
-                rpc_agent.handle_request(call).await
+                rpc_agent.handle_request(call, &block_ptr).await
             })
         })
         .join()
@@ -135,14 +132,16 @@ impl RpcAgent {
         result
     }
 
-    pub async fn set_block_ptr(&self, block_ptr: &BlockPtr) {
-        let mut rpc_agent = self.client.lock().await;
-        rpc_agent.set_block_ptr(block_ptr);
+    pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
+        self.block_ptr = block_ptr.to_owned()
     }
 
     pub fn new_mock() -> Self {
         let client = Arc::new(Mutex::new(RpcClient::new_mock()));
-        Self { client }
+        Self {
+            client,
+            block_ptr: BlockPtr::default(),
+        }
     }
 
     pub async fn clear_cache(&self) {
@@ -178,12 +177,12 @@ pub mod tests {
         let chain = RPCChain::Ethereum(client);
         let client = RpcClient {
             rpc_client: chain,
-            block_ptr,
             cache: HashMap::new(),
         };
 
         RpcAgent {
             client: Arc::new(Mutex::new(client)),
+            block_ptr,
         }
     }
 }

@@ -20,51 +20,61 @@ pub struct ManifestBundle {
 }
 
 #[derive(Clone, Default)]
-pub struct ManifestAgent(Arc<RwLock<ManifestBundle>>);
+pub struct ManifestAgent {
+    m: Arc<RwLock<ManifestBundle>>,
+    block_ptr: BlockPtr,
+}
 
 impl ManifestAgent {
     pub async fn new(subgraph_path: &str) -> Result<Self, ManifestLoaderError> {
         let manifest = LocalFileLoader::try_subgraph_dir(subgraph_path)?;
-        Ok(Self(Arc::new(RwLock::new(manifest))))
+        Ok(Self {
+            m: Arc::new(RwLock::new(manifest)),
+            block_ptr: BlockPtr::default(),
+        })
+    }
+
+    pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
+        self.block_ptr = block_ptr.clone();
     }
 
     pub fn abis(&self) -> ABIs {
-        let manifest = self.0.read().unwrap();
+        let manifest = self.m.read().unwrap();
         manifest.abis.clone()
     }
 
     pub fn schema(&self) -> SchemaLookup {
-        let manifest = self.0.read().unwrap();
+        let manifest = self.m.read().unwrap();
         manifest.schema.clone()
     }
 
     pub fn get_wasm(&self, source_name: &str) -> Vec<u8> {
-        let manifest = self.0.read().unwrap();
+        let manifest = self.m.read().unwrap();
         manifest.wasms.get(source_name).unwrap()
     }
 
     pub fn datasources(&self) -> DatasourceBundles {
-        let manifest = self.0.read().unwrap();
+        let manifest = self.m.read().unwrap();
         manifest.datasources.clone()
     }
 
     pub fn datasources_take_from(&self, last_n: usize) -> Vec<DatasourceBundle> {
-        let manifest = self.0.read().unwrap();
+        let manifest = self.m.read().unwrap();
         manifest.datasources.take_from(last_n)
     }
 
     pub fn count_datasources(&self) -> usize {
-        let manifest = self.0.read().unwrap();
+        let manifest = self.m.read().unwrap();
         manifest.datasources.len()
     }
 
     pub fn min_start_block(&self) -> u64 {
-        let manifest = self.0.read().unwrap();
+        let manifest = self.m.read().unwrap();
         manifest.subgraph_yaml.min_start_block()
     }
 
     pub fn datasource_and_templates(&self) -> DatasourceBundles {
-        let manifest = self.0.read().unwrap();
+        let manifest = self.m.read().unwrap();
         let mut active_ds = manifest.datasources.clone();
         let pending_ds = manifest.templates.clone();
         active_ds.extend(pending_ds);
@@ -75,9 +85,8 @@ impl ManifestAgent {
         &self,
         name: &str,
         params: Vec<String>,
-        block_number: u64,
     ) -> Result<(), ManifestLoaderError> {
-        let mut manifest = self.0.write().unwrap();
+        let mut manifest = self.m.write().unwrap();
         let address = params.first().cloned().map(|s| s.to_lowercase());
 
         if address.is_none() {
@@ -97,7 +106,7 @@ impl ManifestAgent {
         })?;
 
         new_ds.ds.source.address = address.clone();
-        new_ds.ds.source.startBlock = Some(block_number);
+        new_ds.ds.source.startBlock = Some(self.block_ptr.number);
         manifest.datasources.add(new_ds).map_err(|e| {
             error!(ManifestAgent, format!("{:?}", e));
             ManifestLoaderError::CreateDatasourceFail
@@ -107,7 +116,7 @@ impl ManifestAgent {
             ManifestAgent,
             "added new datasource";
             address => address.unwrap(),
-            block => block_number
+            block => self.block_ptr.number
         );
 
         Ok(())
