@@ -3,7 +3,7 @@ use super::DataFilterTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::common::ABIList;
+use crate::common::ABIs;
 use crate::common::Datasource;
 use crate::debug;
 use crate::errors::FilterError;
@@ -25,12 +25,12 @@ pub struct EthereumFilter {
 }
 
 impl EthereumFilter {
-    pub fn new(datasources: Vec<Datasource>, abi_list: ABIList) -> Self {
+    pub fn new(datasources: Vec<Datasource>, abis: ABIs) -> Self {
         let ds = datasources
             .into_iter()
             .map(|ds| {
                 let abi_name = ds.source.abi.clone();
-                let contract = abi_list
+                let contract = abis
                     .get(&abi_name)
                     .map(|abi| serde_json::from_value(abi.clone()).expect("invalid abi"))
                     .unwrap();
@@ -134,25 +134,23 @@ impl EthereumFilter {
                                 block_header.to_owned(),
                                 tx.clone(),
                             )
-                            .map(|e| {
+                            .and_then(|e| {
                                 let handler = get_handler_for_log(&ds.ds, &log.topics[0]);
-                                if handler.is_none() {
-                                    debug!(DataFilter,
-                                        "No handler found for log";
-                                        log => format!("{:?}", log),
-                                        datasource => ds.ds.name.clone(),
-                                        block => format!("{:?}", block_header)
-                                    );
-                                    None
-                                } else {
-                                    Some(EthereumFilteredEvent {
+                                if let Some(event_handler) = handler {
+                                    return Some(EthereumFilteredEvent {
                                         event: e,
-                                        handler: handler.unwrap().handler,
+                                        handler: event_handler.handler,
                                         datasource: ds.ds.name.clone(),
-                                    })
+                                    });
                                 }
+                                debug!(DataFilter,
+                                    "No handler found for log";
+                                    log => format!("{:?}", log),
+                                    datasource => ds.ds.name.clone(),
+                                    block => format!("{:?}", block_header)
+                                );
+                                None
                             })
-                            .flatten()
                         })
                 }
             })
@@ -186,9 +184,8 @@ impl DataFilterTrait for EthereumFilter {
 
 #[cfg(test)]
 mod test {
-    use crate::components::ManifestAgent;
-
     use super::*;
+    use crate::components::ManifestAgent;
 
     fn erc20_contract() -> Contract {
         let erc20_abi = r#"
@@ -283,13 +280,9 @@ mod test {
         let test_manifest = ManifestAgent::new("fs://Users/vutran/Desktop/build")
             .await
             .unwrap();
-        let datasources_1: Vec<Datasource> = test_manifest
-            .datasources()
-            .into_iter()
-            // USDT Contract datasource
-            .take(1)
-            .collect();
-        let mut filter = EthereumFilter::new(datasources_1.clone(), ABIList::default());
+        let datasources_1: Vec<Datasource> = test_manifest.datasources().into();
+
+        let mut filter = EthereumFilter::new(datasources_1.clone(), ABIs::default());
         let header = EthereumBlockData::default();
         let txs = vec![EthereumTransactionData::default()];
 

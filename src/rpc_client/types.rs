@@ -15,7 +15,7 @@ pub enum CallRequest {
 
 #[derive(Clone, Debug)]
 pub enum CallResponse {
-    EthereumContractCall(Option<Vec<ethabi::Token>>),
+    EthereumContractCall(Vec<ethabi::Token>),
 }
 
-pub type RPCCache = HashMap<CallRequest, CallResponse>;
+pub type RPCCache = HashMap<CallRequestContext, CallResponse>;

@@ -10,7 +10,12 @@ mod store;
 mod types_conversion;
 mod wasm_log;
 
+use crate::common::DatasourceBundle;
+use crate::components::ManifestAgent;
+use crate::database::DatabaseAgent;
 use crate::errors::WasmHostError;
+use crate::rpc_client::RpcAgent;
+pub use asc::AscHost;
 use semver::Version;
 use wasmer::imports;
 use wasmer::Function;
@@ -20,13 +25,6 @@ use wasmer::Memory;
 use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
-use web3::types::Address;
-
-use crate::common::BlockPtr;
-use crate::components::ManifestAgent;
-use crate::database::DatabaseAgent;
-use crate::rpc_client::RpcAgent;
-pub use asc::AscHost;
 
 #[derive(Clone)]
 pub struct Env {
@@ -35,25 +33,24 @@ pub struct Env {
     pub api_version: Version,
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub arena_start_ptr: i32,
-    pub db_agent: DatabaseAgent,
-    pub datasource_name: String,
-    pub datasource_network: String,
-    pub datasource_address: Option<Address>,
-    pub rpc_agent: RpcAgent,
-    pub manifest_agent: ManifestAgent,
-    pub block_ptr: BlockPtr,
+    pub host_name: String,
+    pub network: String,
+    pub address: Option<String>,
+    pub db: DatabaseAgent,
+    pub rpc: RpcAgent,
+    pub manifest: ManifestAgent,
 }
 
-pub fn create_wasm_host(
+#[allow(clippy::too_many_arguments)]
+fn create_wasm_host(
     api_version: Version,
     wasm_bytes: Vec<u8>,
-    db_agent: DatabaseAgent,
-    datasource_name: String,
-    rpc_agent: RpcAgent,
-    manifest_agent: ManifestAgent,
-    datasource_address: Option<Address>,
-    block_ptr: BlockPtr,
-    datasource_network: String,
+    host_name: String,
+    rpc: RpcAgent,
+    manifest: ManifestAgent,
+    address: Option<String>,
+    network: String,
+    db: DatabaseAgent,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -66,13 +63,12 @@ pub fn create_wasm_host(
             id_of_type: None,
             api_version: api_version.clone(),
             arena_start_ptr: 0,
-            db_agent: db_agent.clone(),
-            datasource_name,
-            rpc_agent: rpc_agent.clone(),
-            manifest_agent,
-            datasource_address,
-            block_ptr,
-            datasource_network,
+            host_name,
+            db,
+            rpc,
+            manifest,
+            address,
+            network,
         },
     );
 
@@ -176,7 +172,7 @@ pub fn create_wasm_host(
     };
 
     // Running cargo-run will immediately tell which functions are missing
-    let instance = Instance::new(&mut store, &module, &import_object)?;
+    let instance = Instance::new(&mut store, &module, &import_object).unwrap();
 
     // Bind guest memory ref & __alloc to env
     let mut env_mut = env.into_mut(&mut store);
@@ -226,10 +222,10 @@ pub fn create_wasm_host(
 
     let memory = instance.exports.get_memory("memory").unwrap().clone();
     let id_of_type = data_mut.id_of_type.clone();
-    let arena_start_ptr = data_mut.arena_start_ptr.clone();
+    let arena_start_ptr = data_mut.arena_start_ptr;
     let memory_allocate = data_mut.memory_allocate.clone();
 
-    let host = AscHost {
+    Ok(AscHost {
         store,
         instance,
         api_version,
@@ -237,11 +233,26 @@ pub fn create_wasm_host(
         memory_allocate,
         id_of_type,
         arena_start_ptr,
-        db_agent,
-        rpc_agent,
-    };
+    })
+}
 
-    Ok(host)
+impl TryFrom<(&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for AscHost {
+    type Error = WasmHostError;
+
+    fn try_from(
+        (ds, db, rpc, manifest): (&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
+    ) -> Result<Self, Self::Error> {
+        create_wasm_host(
+            ds.api_version(),
+            ds.wasm(),
+            ds.name(),
+            rpc,
+            manifest,
+            ds.address(),
+            ds.network(),
+            db,
+        )
+    }
 }
 
 #[cfg(test)]
@@ -254,7 +265,7 @@ pub mod test {
         api_version: Version,
         wasm_path: &str,
         registry: &Registry,
-        rpc_agent: RpcAgent,
+        rpc: RpcAgent,
     ) -> AscHost {
         ::log::warn!(
             r#"New test-host-instance being created with:
@@ -264,31 +275,27 @@ pub mod test {
         );
 
         let wasm_bytes = std::fs::read(wasm_path).expect("Bad wasm file, cannot load");
-        let db_agent = DatabaseAgent::empty(registry);
+        let db = DatabaseAgent::empty(registry);
 
         create_wasm_host(
             api_version,
             wasm_bytes,
-            db_agent,
-            "Test".to_string(),
-            rpc_agent,
-            ManifestAgent::mock(),
-            None,
-            BlockPtr::default(),
             "test".to_string(),
+            rpc,
+            ManifestAgent::default(),
+            None,
+            "Test".to_string(),
+            db,
         )
         .unwrap()
     }
 
-    pub fn get_subgraph_testing_resource(
-        version: &str,
-        datasource_name: &str,
-    ) -> (Version, String) {
+    pub fn get_subgraph_testing_resource(version: &str, host_name: &str) -> (Version, String) {
         let version = Version::parse(version).expect("Bad api-version");
         let mut project_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let version_as_package_dir = version.to_string().replace('.', "_");
         project_path.push(format!(
-            "../subgraph-testing/packages/v{version_as_package_dir}/build/{datasource_name}/{datasource_name}.wasm"
+            "../subgraph-testing/packages/v{version_as_package_dir}/build/{host_name}/{host_name}.wasm"
         ));
         let wasm_path = project_path.into_os_string().into_string().unwrap();
 

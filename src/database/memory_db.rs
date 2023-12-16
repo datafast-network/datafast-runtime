@@ -141,6 +141,7 @@ impl MemoryDb {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_memory_01_db_insert() {
         env_logger::try_init().unwrap_or_default();

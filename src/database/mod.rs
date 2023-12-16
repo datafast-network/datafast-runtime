@@ -24,7 +24,7 @@ use metrics::DatabaseMetrics;
 use prometheus::Registry;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 pub struct Database {
     pub mem: MemoryDb,
@@ -211,13 +211,13 @@ impl Database {
 
 #[derive(Clone)]
 pub struct DatabaseAgent {
-    db: Arc<Mutex<Database>>,
+    db: Arc<RwLock<Database>>,
 }
 
 impl From<Database> for DatabaseAgent {
     fn from(value: Database) -> Self {
         Self {
-            db: Arc::new(Mutex::new(value)),
+            db: Arc::new(RwLock::new(value)),
         }
     }
 }
@@ -233,11 +233,11 @@ impl DatabaseAgent {
     }
 
     pub async fn load_datasources(&self) -> Result<Option<Vec<Datasource>>, DatabaseError> {
-        self.db.lock().await.db.load_datasources().await
+        self.db.read().await.db.load_datasources().await
     }
 
     pub async fn save_datasources(&self, ds: Vec<Datasource>) -> Result<(), DatabaseError> {
-        self.db.lock().await.db.save_datasources(ds).await
+        self.db.write().await.db.save_datasources(ds).await
     }
 
     pub fn wasm_send_store_request(
@@ -253,7 +253,7 @@ impl DatabaseAgent {
                 .build()
                 .unwrap();
             rt.block_on(async move {
-                let mut db = db.lock().await;
+                let mut db = db.write().await;
                 let result = db.handle_store_request(message).await?;
                 Ok::<StoreRequestResult, DatabaseError>(result)
             })
@@ -267,7 +267,7 @@ impl DatabaseAgent {
         number_of_blocks: u16,
     ) -> Result<Vec<BlockPtr>, DatabaseError> {
         self.db
-            .lock()
+            .read()
             .await
             .db
             .load_recent_block_ptrs(number_of_blocks)
@@ -277,7 +277,7 @@ impl DatabaseAgent {
     pub async fn commit_data(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         let time = Instant::now();
         let block_number = block_ptr.number;
-        let mut db = self.db.lock().await;
+        let mut db = self.db.write().await;
         db.migrate_from_mem_to_db(block_ptr).await?;
         info!(
             Database,
@@ -289,20 +289,24 @@ impl DatabaseAgent {
     }
 
     pub async fn flush_cache(&self) -> Result<(), DatabaseError> {
-        self.db.lock().await.mem.clear();
+        self.db.write().await.mem.clear();
         info!(Database, "flushed entity cache");
         Ok(())
     }
 
     pub async fn revert_from_block(&self, block_number: u64) -> Result<(), DatabaseError> {
         warn!(Database, "Reverting data (probably due to reorg)"; revert_from_block_number => block_number);
-        self.db.lock().await.revert_from_block(block_number).await?;
+        self.db
+            .write()
+            .await
+            .revert_from_block(block_number)
+            .await?;
         warn!(Database, "Database reverted OK"; revert_from_block_number => block_number);
         Ok(())
     }
 
     pub async fn remove_outdated_snapshots(&self, at_block: u64) -> Result<usize, DatabaseError> {
-        let db = self.db.lock().await;
+        let db = self.db.write().await;
         let entities = db.mem.get_latest_entity_ids();
         let count = db.db.remove_snapshots(entities, at_block).await?;
         info!(Database, "entities' snapshot removed"; number_of_entity => count);
@@ -310,7 +314,7 @@ impl DatabaseAgent {
     }
 
     pub async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
-        let mut db = self.db.lock().await;
+        let mut db = self.db.write().await;
 
         if db.earliest_block < to_block {
             let removed = db.db.clean_data_history(to_block).await?;

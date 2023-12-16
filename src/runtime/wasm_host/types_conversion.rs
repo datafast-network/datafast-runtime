@@ -8,7 +8,6 @@ use crate::runtime::asc::native_types::AscH160;
 use crate::runtime::asc::native_types::Uint8Array;
 use crate::runtime::bignumber::bigint::BigInt;
 use crate::runtime::wasm_host::Env;
-use anyhow::Context;
 use std::str::FromStr;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
@@ -36,8 +35,7 @@ fn convert_string_to_h160(string: &str) -> Result<H160, AscError> {
     // `H160::from_str` takes a hex string with no leading `0x`.
     let s = string.trim_start_matches("0x");
     H160::from_str(s)
-        .with_context(|| format!("Failed to convert string to Address/H160: '{}'", s))
-        .map_err(|e| AscError::Plain(e.to_string()))
+        .map_err(|e| AscError::Plain(format!("Failed to convert string to Address/H160: '{}'", e)))
 }
 
 pub fn bytes_to_string(

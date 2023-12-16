@@ -42,19 +42,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let registry = default_registry();
 
-    // TODO: impl IPFS Loader
-    let manifest = ManifestAgent::new(&config.subgraph_dir).await?;
+    let mut manifest = ManifestAgent::new(&config.subgraph_dir).await?;
     info!(main, "Manifest loaded");
 
     let valve = Valve::new(&config.valve);
     let source_valve = valve.clone();
 
-    let db = DatabaseAgent::new(&config.database, manifest.get_schema(), registry).await?;
+    let db = DatabaseAgent::new(&config.database, manifest.schema(), registry).await?;
     info!(main, "Database set up");
 
     let mut inspector = Inspector::new(
         db.get_recent_block_pointers(config.reorg_threshold).await?,
-        manifest.get_sources(),
+        manifest.min_start_block(),
         config.reorg_threshold,
     );
     info!(main, "BlockInspector ready"; next_start_block => inspector.get_expected_block_number());
@@ -64,15 +63,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let filter = DataFilter::new(
         config.chain.clone(),
-        manifest.datasource_and_templates(),
-        manifest.get_abis(),
+        manifest.datasource_and_templates().into(),
+        manifest.abis(),
     )?;
     info!(main, "DataFilter ready");
 
-    let rpc = RpcAgent::new(&config, manifest.get_abis()).await?;
+    let mut rpc = RpcAgent::new(&config, manifest.abis()).await?;
     info!(main, "Rpc-Client ready");
 
-    let mut subgraph = Subgraph::new_empty(&config, registry);
+    let mut subgraph = Subgraph::new(&db, &rpc, &manifest, registry);
     info!(main, "Subgraph ready");
 
     let (sender, recv) = kanal::bounded_async(1);
@@ -91,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let time = std::time::Instant::now();
             let sorted_blocks = filter.filter_multi(blocks)?;
             let count_blocks = sorted_blocks.len();
-            let last_block = sorted_blocks.last().map(|b| b.get_block_ptr());
+            let last_block = sorted_blocks.last().map(|b| b.get_block_ptr()).unwrap();
 
             info!(
                 main,
@@ -104,7 +103,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             for block in sorted_blocks {
                 let block_ptr = block.get_block_ptr();
-                rpc.set_block_ptr(&block_ptr).await;
+                rpc.set_block_ptr(&block_ptr);
+                manifest.set_block_ptr(&block_ptr);
 
                 match inspector.check_block(block_ptr.clone()) {
                     BlockInspectionResult::UnexpectedBlock
@@ -121,30 +121,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                if block_ptr.number % 10 == 0 {
-                    subgraph
-                        .create_sources(&manifest, &db, &rpc, block_ptr.clone())
-                        .await?;
+                if block_ptr.number % 100 == 0 {
+                    subgraph.create_sources()?;
                 }
 
-                subgraph.process(block, &manifest).await?;
+                subgraph.process(block)?;
 
                 if block_ptr.number % 500 == 0 {
                     valve.set_finished(block_ptr.number);
                 }
             }
 
-            if let Some(block_ptr) = last_block {
-                db.commit_data(block_ptr.clone()).await?;
-                db.remove_outdated_snapshots(block_ptr.number).await?;
-                db.flush_cache().await?;
-                rpc.clear_cache().await;
+            db.commit_data(last_block.clone()).await?;
+            db.remove_outdated_snapshots(last_block.number).await?;
+            db.flush_cache().await?;
+            rpc.clear_cache().await;
 
-                if let Some(history_size) = config.block_data_retention {
-                    if block_ptr.number > history_size {
-                        db.clean_data_history(block_ptr.number - history_size)
-                            .await?;
-                    }
+            if let Some(history_size) = config.block_data_retention {
+                if last_block.number > history_size {
+                    db.clean_data_history(last_block.number - history_size)
+                        .await?;
                 }
             }
 
