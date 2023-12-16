@@ -5,8 +5,8 @@ use crate::common::ABIs;
 use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
-use crate::debug;
 use crate::errors::RPCClientError;
+use crate::warn;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -46,6 +46,7 @@ pub trait RPCTrait {
 pub struct RpcClient {
     rpc_client: RPCChain,
     cache: RPCCache,
+    block_ptr: BlockPtr,
 }
 
 impl RpcClient {
@@ -59,16 +60,16 @@ impl RpcClient {
         Ok(Self {
             rpc_client,
             cache: HashMap::new(),
+            block_ptr: BlockPtr::default(),
         })
     }
 
     pub async fn handle_request(
         &mut self,
         call: CallRequest,
-        block_ptr: &BlockPtr,
     ) -> Result<CallResponse, RPCClientError> {
         let call_context = CallRequestContext {
-            block_ptr: block_ptr.clone(),
+            block_ptr: self.block_ptr.clone(),
             call_request: call,
         };
         match self.cache.get(&call_context) {
@@ -85,34 +86,32 @@ impl RpcClient {
         Self {
             rpc_client: RPCChain::None,
             cache: HashMap::new(),
+            block_ptr: BlockPtr::default(),
         }
     }
 
     pub fn clear_cache(&mut self) {
         self.cache.clear();
     }
+
+    pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
+        self.block_ptr = block_ptr.clone();
+    }
 }
 
 #[derive(Clone)]
-pub struct RpcAgent {
-    client: Arc<Mutex<RpcClient>>,
-    block_ptr: BlockPtr,
-}
+pub struct RpcAgent(Arc<Mutex<RpcClient>>);
 
 impl RpcAgent {
     pub async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCClientError> {
         let rpc_client = RpcClient::new(config, abis).await?;
-        Ok(Self {
-            client: Arc::new(Mutex::new(rpc_client)),
-            block_ptr: BlockPtr::default(),
-        })
+        Ok(Self(Arc::new(Mutex::new(rpc_client))))
     }
 
     pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
         let timer = Instant::now();
         use std::thread;
-        let client = self.client.clone();
-        let block_ptr = self.block_ptr.clone();
+        let client = self.0.clone();
 
         let result = thread::spawn(|| {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -122,30 +121,28 @@ impl RpcAgent {
                 .unwrap();
             rt.block_on(async move {
                 let mut rpc_agent = client.lock().await;
-                rpc_agent.handle_request(call, &block_ptr).await
+                rpc_agent.handle_request(call).await
             })
         })
         .join()
         .unwrap();
 
-        debug!(RpcClient, "handle rpc call"; time => format!("{:?}ms", timer.elapsed().as_millis()));
+        warn!(RpcClient, "json-rpc call"; time => format!("{:?}ms", timer.elapsed().as_millis()));
         result
     }
 
-    pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
-        self.block_ptr = block_ptr.to_owned()
+    pub async fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
+        let mut rpc = self.0.lock().await;
+        rpc.set_block_ptr(block_ptr);
     }
 
     pub fn new_mock() -> Self {
         let client = Arc::new(Mutex::new(RpcClient::new_mock()));
-        Self {
-            client,
-            block_ptr: BlockPtr::default(),
-        }
+        Self(client)
     }
 
     pub async fn clear_cache(&self) {
-        let mut rpc_agent = self.client.lock().await;
+        let mut rpc_agent = self.0.lock().await;
         rpc_agent.clear_cache();
     }
 }
@@ -178,11 +175,9 @@ pub mod tests {
         let client = RpcClient {
             rpc_client: chain,
             cache: HashMap::new(),
+            block_ptr,
         };
 
-        RpcAgent {
-            client: Arc::new(Mutex::new(client)),
-            block_ptr,
-        }
+        RpcAgent(Arc::new(Mutex::new(client)))
     }
 }
