@@ -91,7 +91,7 @@ impl ManifestAgent {
 
         if address.is_none() {
             error!(
-                ManifestAgent,
+                Manifest,
                 "invalid datasource create, address must not be None"
             );
             return Err(ManifestLoaderError::CreateDatasourceFail);
@@ -99,7 +99,7 @@ impl ManifestAgent {
 
         let mut new_ds = manifest.templates.get(name, None).ok_or_else(|| {
             error!(
-                ManifestAgent,
+                Manifest,
                 format!("no template match datasource name={name}")
             );
             ManifestLoaderError::CreateDatasourceFail
@@ -108,12 +108,12 @@ impl ManifestAgent {
         new_ds.ds.source.address = address.clone();
         new_ds.ds.source.startBlock = Some(self.block_ptr.number);
         manifest.datasources.add(new_ds).map_err(|e| {
-            error!(ManifestAgent, format!("{:?}", e));
+            error!(Manifest, format!("{:?}", e));
             ManifestLoaderError::CreateDatasourceFail
         })?;
 
         info!(
-            ManifestAgent,
+            Manifest,
             "added new datasource";
             address => address.unwrap(),
             block => self.block_ptr.number
