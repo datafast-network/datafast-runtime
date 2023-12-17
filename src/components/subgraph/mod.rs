@@ -43,7 +43,7 @@ impl Subgraph {
 
     pub fn create_sources(&mut self) -> Result<(), SubgraphError> {
         self.sources.clear();
-        for ds in self.manifest.datasources().iter() {
+        for ds in self.manifest.datasource_and_templates().iter() {
             self.sources.insert(
                 (ds.name(), ds.address()),
                 DatasourceWasmInstance::try_from((

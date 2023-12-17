@@ -182,7 +182,7 @@ impl RpcAgent {
 
         let rpc_duration = timer.elapsed().as_millis();
 
-        if rpc_duration >= 200 {
+        if rpc_duration >= 100 {
             warn!(
                 RpcClient,
                 "json-rpc call took a bit long";

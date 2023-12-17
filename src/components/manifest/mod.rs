@@ -86,35 +86,36 @@ impl ManifestAgent {
         name: &str,
         params: Vec<String>,
     ) -> Result<(), ManifestLoaderError> {
-        let mut manifest = self.m.write().unwrap();
+        // let mut manifest = self.m.write().unwrap();
         let address = params.first().cloned().map(|s| s.to_lowercase());
 
-        if address.is_none() {
-            error!(
-                Manifest,
-                "invalid datasource create, address must not be None"
-            );
-            return Err(ManifestLoaderError::CreateDatasourceFail);
-        }
+        // if address.is_none() {
+        //     error!(
+        //         Manifest,
+        //         "invalid datasource create, address must not be None"
+        //     );
+        //     return Err(ManifestLoaderError::CreateDatasourceFail);
+        // }
 
-        let mut new_ds = manifest.templates.get(name, None).ok_or_else(|| {
-            error!(
-                Manifest,
-                format!("no template match datasource name={name}")
-            );
-            ManifestLoaderError::CreateDatasourceFail
-        })?;
+        // let mut new_ds = manifest.templates.get(name, None).ok_or_else(|| {
+        //     error!(
+        //         Manifest,
+        //         format!("no template match datasource name={name}")
+        //     );
+        //     ManifestLoaderError::CreateDatasourceFail
+        // })?;
 
-        new_ds.ds.source.address = address.clone();
-        new_ds.ds.source.startBlock = Some(self.block_ptr.number);
-        manifest.datasources.add(new_ds).map_err(|e| {
-            error!(Manifest, format!("{:?}", e));
-            ManifestLoaderError::CreateDatasourceFail
-        })?;
+        // new_ds.ds.source.address = address.clone();
+        // new_ds.ds.source.startBlock = Some(self.block_ptr.number);
+        // manifest.datasources.add(new_ds).map_err(|e| {
+        //     error!(Manifest, format!("{:?}", e));
+        //     ManifestLoaderError::CreateDatasourceFail
+        // })?;
 
         info!(
             Manifest,
             "added new datasource";
+            datasource => name,
             address => address.unwrap(),
             block => self.block_ptr.number
         );
