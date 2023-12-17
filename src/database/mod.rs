@@ -15,7 +15,7 @@ use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
 use crate::info;
 use crate::runtime::asc::native_types::store::Value;
-use crate::schema_lookup::SchemaLookup;
+use crate::schemas::Schemas;
 use crate::warn;
 use extern_db::ExternDB;
 use extern_db::ExternDBTrait;
@@ -31,13 +31,13 @@ pub struct Database {
     pub db: ExternDB,
     pub earliest_block: u64,
     metrics: DatabaseMetrics,
-    schema: SchemaLookup,
+    schema: Schemas,
 }
 
 impl Database {
     pub async fn new(
         config: &DatabaseConfig,
-        schema: SchemaLookup,
+        schema: Schemas,
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {
         let mem = MemoryDb::default();
@@ -225,7 +225,7 @@ impl From<Database> for DatabaseAgent {
 impl DatabaseAgent {
     pub async fn new(
         config: &DatabaseConfig,
-        schema: SchemaLookup,
+        schema: Schemas,
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {
         let db = Database::new(config, schema.to_owned(), registry).await?;
@@ -340,7 +340,7 @@ impl DatabaseAgent {
             mem,
             db,
             metrics,
-            schema: SchemaLookup::default(),
+            schema: Schemas::default(),
             earliest_block: 0,
         };
         DatabaseAgent::from(database)

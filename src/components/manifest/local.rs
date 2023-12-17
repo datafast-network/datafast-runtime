@@ -1,5 +1,5 @@
 use super::ManifestBundle;
-use super::SchemaLookup;
+use super::Schemas;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
 use std::fs;
@@ -43,11 +43,11 @@ impl LocalFileLoader {
         Ok(manifest)
     }
 
-    fn load_schema(subgraph_dir: &str) -> Result<SchemaLookup, ManifestLoaderError> {
+    fn load_schema(subgraph_dir: &str) -> Result<Schemas, ManifestLoaderError> {
         let schema_path = format!("{}/schema.graphql", subgraph_dir);
         let schema =
             read_to_string(schema_path).map_err(|_| ManifestLoaderError::SchemaParsingError)?;
-        Ok(SchemaLookup::new_from_graphql_schema(&schema))
+        Ok(Schemas::new_from_graphql_schema(&schema))
     }
 
     fn load_yaml(subgraph_dir: &str) -> Result<SubgraphYaml, ManifestLoaderError> {
