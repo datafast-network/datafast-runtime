@@ -1,12 +1,12 @@
 use super::ExternDBTrait;
 use crate::common::BlockPtr;
+use crate::common::EntityID;
+use crate::common::EntityType;
+use crate::common::RawEntity;
 use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
 use crate::info;
-use crate::messages::EntityID;
-use crate::messages::EntityType;
-use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;

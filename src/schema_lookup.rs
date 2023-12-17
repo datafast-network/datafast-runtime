@@ -1,5 +1,5 @@
+use crate::common::EntityType;
 use crate::error;
-use crate::messages::EntityType;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use apollo_parser::cst::CstNode;
 use apollo_parser::cst::Definition;

@@ -1,6 +1,6 @@
+use crate::common::BlockDataMessage;
 use crate::config::ValveConfig;
 use crate::info;
-use crate::messages::BlockDataMessage;
 use std::sync::Arc;
 use std::sync::RwLock;
 

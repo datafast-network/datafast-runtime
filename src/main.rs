@@ -5,7 +5,6 @@ mod config;
 mod database;
 mod errors;
 mod logger_macros;
-mod messages;
 mod metrics;
 mod rpc_client;
 mod runtime;

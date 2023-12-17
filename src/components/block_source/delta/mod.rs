@@ -1,11 +1,11 @@
 mod ethereum;
 pub mod proto;
 
+use crate::common::BlockDataMessage;
 use crate::components::Valve;
 use crate::config::DeltaConfig;
 use crate::errors::SourceError;
 use crate::info;
-use crate::messages::BlockDataMessage;
 use crate::warn;
 use deltalake::datafusion::common::arrow::array::RecordBatch;
 use deltalake::datafusion::prelude::DataFrame;
