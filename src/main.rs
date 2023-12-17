@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                if block_ptr.number % 20 == 0 {
+                if block_ptr.number % 5 == 0 {
                     // NOTE: creating sources takes ~ 20ms, which is quite a lot
                     // we need to determine precisely when we should drop the current sources
                     // & create new ones and when to reuse
