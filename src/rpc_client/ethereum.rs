@@ -230,9 +230,12 @@ impl RPCTrait for EthereumRPC {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
     use crate::common::ABIs;
+    use crate::common::BlockPtr;
     use ethabi::Address;
+    use ethabi::Token;
     use std::fs;
     use std::str::FromStr;
 
@@ -241,26 +244,28 @@ mod tests {
         env_logger::try_init().unwrap_or_default();
         let data = UnresolvedContractCall {
             contract_name: "ERC20".to_string(),
-            contract_address: Address::from_str("0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2")
+            contract_address: Address::from_str("0xdAC17F958D2ee523a2206206994597C13D831ec7")
                 .unwrap(),
             function_name: "symbol".to_string(),
             function_signature: None,
             function_args: vec![],
         };
         let abi =
-            fs::read_to_string("./subgraph/NonfungiblePositionManager/abis/ERC20.json").unwrap();
+            fs::read_to_string("../subgraph-testing/packages/uniswap-v3/build/NonfungiblePositionManager/abis/ERC20.json").unwrap();
         let mut abis = ABIs::default();
         abis.insert("ERC20".to_string(), serde_json::from_str(&abi).unwrap());
-        let rpc = super::EthereumRPC::new("https://eth.llamarpc.com", abis)
-            .await
-            .unwrap();
-        let block_ptr = crate::common::BlockPtr {
-            number: 12369879,
-            hash: "0x7d81e60e5a2296dc38f36e343a7f3e416b1fc2f766568b2d81a63159752b8885".to_string(),
-            parent_hash: "0x6c768e2debe6d3cb09e078387c20ea90b41e3899ecd0f65e523be9f9bb0033b7"
+        let rpc = EthereumRPC::new("wss://eth.merkle.io", abis).await.unwrap();
+        let block_ptr = BlockPtr {
+            number: 18_500_000,
+            hash: "0x80ce6bb0e244fbdf66cf0a1108273fe1ca58788efb7fb8d3a0d783d2b06d433d".to_string(),
+            parent_hash: "0x38e2aa07d0d1e3c9e5d0dd74d87dfd6a2f3981c6caa44c098eb0b55f3e04d99f"
                 .to_string(),
         };
         let result = rpc.handle_contract_call(data, block_ptr).await.unwrap();
-        log::info!("result: {:?}", result);
+
+        assert_eq!(
+            result,
+            CallResponse::EthereumContractCall(vec![Token::String("USDT".to_string())])
+        );
     }
 }
