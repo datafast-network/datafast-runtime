@@ -129,7 +129,7 @@ mod test {
             .await
             .unwrap();
         assert_eq!(m.abis().len(), 6);
-        assert_eq!(m.schema().get_entity_names().len(), 20);
+        assert_eq!(m.schemas().get_entity_names().len(), 20);
         assert_eq!(m.datasources().len(), 2);
         assert_eq!(m.datasource_and_templates().len(), 3);
     }
