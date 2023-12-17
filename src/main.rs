@@ -134,7 +134,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             db.commit_data(last_block.clone()).await?;
             db.remove_outdated_snapshots(last_block.number).await?;
             db.flush_cache().await?;
-            rpc.clear_cache().await;
 
             if let Some(history_size) = config.block_data_retention {
                 if last_block.number > history_size {

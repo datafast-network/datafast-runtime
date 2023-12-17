@@ -43,7 +43,7 @@ impl Display for CallRequest {
             CallRequest::EthereumContractCall(call) => {
                 write!(
                     f,
-                    "contract_name={}, function={}, address={}",
+                    "contract_name={}, function={}, address={:?}",
                     call.contract_name, call.function_name, call.contract_address
                 )
             }

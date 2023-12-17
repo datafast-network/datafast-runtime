@@ -65,6 +65,7 @@ pub struct RpcClient {
     rpc_client: RPCChain,
     block_ptr: BlockPtr,
     cache_hit_count: u64,
+    cache_miss_count: u64,
 }
 
 impl RpcClient {
@@ -79,13 +80,20 @@ impl RpcClient {
             rpc_client,
             block_ptr: BlockPtr::default(),
             cache_hit_count: 0,
+            cache_miss_count: 0,
         })
     }
 
     pub async fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         if let Some(result) = self.rpc_client.cache_get(&call) {
             self.cache_hit_count += 1;
-            warn!(RpcClient, "cache-hit"; count => format!("{} hits", self.cache_hit_count), call => call);
+            warn!(
+                RpcClient,
+                "cache hit";
+                hit_count => format!("{} hits", self.cache_hit_count),
+                miss_count => format!("{} hits", self.cache_miss_count),
+                call => call
+            );
             return Ok(result);
         }
 
@@ -99,7 +107,7 @@ impl RpcClient {
         let result = self.rpc_client.handle_request(call_context).await?;
 
         if is_cachable {
-            info!(RpcClient, "caching rpc call"; call => call);
+            self.cache_miss_count += 1;
             self.rpc_client.cache_set(&call, &result);
         }
 
@@ -111,11 +119,8 @@ impl RpcClient {
             rpc_client: RPCChain::None,
             block_ptr: BlockPtr::default(),
             cache_hit_count: 0,
+            cache_miss_count: 0,
         }
-    }
-
-    pub fn clear_cache(&mut self) {
-        todo!()
     }
 
     pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
@@ -151,7 +156,12 @@ impl RpcAgent {
         .join()
         .unwrap();
 
-        warn!(RpcClient, "json-rpc call"; time => format!("{:?}ms", timer.elapsed().as_millis()));
+        let rpc_duration = timer.elapsed().as_millis();
+
+        if rpc_duration >= 200 {
+            warn!(RpcClient, "json-rpc call took a bit long"; time => format!("{:?}ms", timer.elapsed().as_millis()));
+        }
+
         result
     }
 
@@ -163,11 +173,6 @@ impl RpcAgent {
     pub fn new_mock() -> Self {
         let client = Arc::new(Mutex::new(RpcClient::new_mock()));
         Self(client)
-    }
-
-    pub async fn clear_cache(&self) {
-        let mut rpc_agent = self.0.lock().await;
-        rpc_agent.clear_cache();
     }
 }
 
@@ -200,6 +205,7 @@ pub mod tests {
             rpc_client: chain,
             block_ptr,
             cache_hit_count: 0,
+            cache_miss_count: 0,
         };
 
         RpcAgent(Arc::new(Mutex::new(client)))
