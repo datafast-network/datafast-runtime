@@ -34,7 +34,7 @@ macro_rules! generate_log_message {
 macro_rules! generate_special_log {
     ($log_level:ident, $target:ident, $msg: expr) => {
         let msg = match stringify!($log_level) {
-            "success" => format!("🎉 \x1b[32;1m{}\x1b[0m 🎉", $msg),
+            "success" => format!("🎉 \x1b[32;1m{}\x1b[0m", $msg),
             _ => unimplemented!()
         };
 
@@ -42,7 +42,7 @@ macro_rules! generate_special_log {
     };
     ($log_level:ident, $target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
         let msg = match stringify!($log_level) {
-            "success" => format!("🎉 \x1b[32;1m{}\x1b[0m 🎉", $msg),
+            "success" => format!("🎉 \x1b[32;1m{}\x1b[0m", $msg),
             _ => unimplemented!()
         };
 
