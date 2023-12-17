@@ -1,7 +1,47 @@
+use crate::chain::ethereum::block::EthereumBlockData;
+use crate::chain::ethereum::event::EthereumEventData;
+use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Datasource;
 use crate::common::EventHandler;
+use ethabi::Contract;
 use tiny_keccak::Hasher;
+use web3::types::Log;
 use web3::types::H256;
+
+pub fn parse_event(
+    contract: &Contract,
+    log: Log,
+    block_header: EthereumBlockData,
+    transaction: EthereumTransactionData,
+) -> Option<EthereumEventData> {
+    if log.topics.is_empty() {
+        return None;
+    }
+
+    let event = contract
+        .events()
+        .find(|event| event.signature() == log.topics[0]);
+
+    event?;
+
+    let event = event.unwrap();
+
+    event
+        .parse_log(ethabi::RawLog {
+            topics: log.topics.clone(),
+            data: log.data.0.clone(),
+        })
+        .map(|event| EthereumEventData {
+            params: event.params,
+            address: log.address,
+            log_index: log.log_index.unwrap_or_default(),
+            transaction_log_index: log.transaction_log_index.unwrap_or_default(),
+            log_type: log.log_type,
+            block: block_header,
+            transaction,
+        })
+        .ok()
+}
 
 pub fn get_handler_for_log(source: &Datasource, topic0: &H256) -> Option<EventHandler> {
     source

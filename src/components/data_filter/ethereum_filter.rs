@@ -1,7 +1,7 @@
 use super::utils::get_handler_for_log;
+use super::utils::parse_event;
 use super::DataFilterTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::ABIs;
 use crate::common::BlockDataMessage;
@@ -37,42 +37,6 @@ impl EthereumFilter {
         Self { ds }
     }
 
-    fn parse_event(
-        &self,
-        contract: &Contract,
-        log: Log,
-        block_header: EthereumBlockData,
-        transaction: EthereumTransactionData,
-    ) -> Option<EthereumEventData> {
-        if log.topics.is_empty() {
-            return None;
-        }
-
-        let event = contract
-            .events()
-            .find(|event| event.signature() == log.topics[0]);
-
-        event?;
-
-        let event = event.unwrap();
-
-        event
-            .parse_log(ethabi::RawLog {
-                topics: log.topics.clone(),
-                data: log.data.0.clone(),
-            })
-            .map(|event| EthereumEventData {
-                params: event.params,
-                address: log.address,
-                log_index: log.log_index.unwrap_or_default(),
-                transaction_log_index: log.transaction_log_index.unwrap_or_default(),
-                log_type: log.log_type,
-                block: block_header,
-                transaction,
-            })
-            .ok()
-    }
-
     fn filter_events(
         &self,
         block_header: EthereumBlockData,
@@ -105,8 +69,7 @@ impl EthereumFilter {
                         .cloned()
                         .expect("No Tx found for log");
 
-                    let event = self
-                        .parse_event(contract, log, block_header.to_owned(), tx)
+                    let event = parse_event(contract, log, block_header.to_owned(), tx)
                         .map(|e| EthereumFilteredEvent {
                             event: e,
                             handler: event_handler.handler,
@@ -125,7 +88,7 @@ impl EthereumFilter {
                         .iter()
                         .filter(|ds| ds.ds.source.address.is_none())
                         .find_map(|ds| {
-                            self.parse_event(
+                            parse_event(
                                 &ds.contract,
                                 log.clone(),
                                 block_header.to_owned(),
@@ -287,7 +250,7 @@ mod test {
         let events = logs
             .clone()
             .into_iter()
-            .filter_map(|log| filter.parse_event(&contract, log, header.clone(), txs[0].clone()))
+            .filter_map(|log| parse_event(&contract, log, header.clone(), txs[0].clone()))
             .collect::<Vec<_>>();
 
         assert_eq!(events.len(), 4);
