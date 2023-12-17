@@ -174,7 +174,7 @@ impl Subgraph {
         if block_ptr.number % 1000 == 0 {
             info!(
                 Subgraph,
-                format!("finished processing block {}", block_ptr.number)
+                format!("finished processing block #{}", block_ptr.number)
             );
         }
 
