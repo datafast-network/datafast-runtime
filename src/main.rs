@@ -127,7 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 subgraph.process(block)?;
 
-                if block_ptr.number % 500 == 0 {
+                if block_ptr.number % 1000 == 0 {
                     valve.set_finished(block_ptr.number);
                 }
             }
