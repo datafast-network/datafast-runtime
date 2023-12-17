@@ -39,10 +39,16 @@ impl Inspector {
 
     pub fn get_expected_block_number(&self) -> u64 {
         let last_processed_block = self.recent_block_ptrs.front().cloned();
-        last_processed_block
-            .map(|b| b.number + 1)
-            .unwrap_or(0)
-            .max(self.ds_min_start_block)
+
+        if let Some(block) = last_processed_block {
+            assert!(
+                block.number >= self.ds_min_start_block,
+                "invalid expected block pointer"
+            );
+            return block.number + 1;
+        }
+
+        return self.ds_min_start_block;
     }
 
     pub fn check_block(&mut self, new_block_ptr: BlockPtr) -> BlockInspectionResult {

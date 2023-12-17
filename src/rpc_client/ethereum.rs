@@ -10,6 +10,7 @@ use crate::error;
 use crate::errors::RPCError;
 use crate::info;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::str::FromStr;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::Retry;
@@ -22,8 +23,8 @@ use web3::Web3;
 
 const ETH_CALL_GAS: u32 = 50_000_000;
 
-impl From<Block<H256>> for BlockPtr {
-    fn from(b: Block<H256>) -> Self {
+impl<T> From<Block<T>> for BlockPtr {
+    fn from(b: Block<T>) -> Self {
         Self {
             number: b.number.unwrap().as_u64(),
             hash: format!("{:?}", b.hash.unwrap()),
@@ -32,11 +33,14 @@ impl From<Block<H256>> for BlockPtr {
     }
 }
 
-#[derive(Clone)]
+#[derive(Default)]
+struct CacheRPC(HashMap<CallRequest, CallResponse>);
+
 pub struct EthereumRPC {
     client: Web3<WebSocket>,
     supports_eip_1898: bool,
     abis: ABIs,
+    cache: CacheRPC,
 }
 
 impl EthereumRPC {
@@ -53,6 +57,7 @@ impl EthereumRPC {
             client,
             supports_eip_1898,
             abis,
+            cache: CacheRPC::default(),
         })
     }
 
@@ -247,6 +252,14 @@ impl RPCTrait for EthereumRPC {
             })?
             .map(|b| Ok(BlockPtr::from(b)))
             .unwrap()
+    }
+
+    fn cache_get(&self, call: &CallRequest) -> Option<CallResponse> {
+        self.cache.0.get(call).cloned()
+    }
+
+    fn cache_set(&mut self, call: &CallRequest, result: &CallResponse) {
+        self.cache.0.insert(call.clone(), result.to_owned());
     }
 }
 

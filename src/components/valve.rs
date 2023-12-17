@@ -44,11 +44,12 @@ impl Valve {
         if this.cfg.allowed_lag > 0 {
             info!(
                 Valve,
-                format!("should continue download? {result}");
+                format!("processing status");
                 downloaded => this.downloaded,
                 finished => this.finished,
                 lag => this.downloaded - this.finished,
-                allowed_lag => this.cfg.allowed_lag
+                allowed_lag => this.cfg.allowed_lag,
+                continue_download => result
             );
         }
 

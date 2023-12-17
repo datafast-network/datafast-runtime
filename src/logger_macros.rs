@@ -4,7 +4,7 @@
 macro_rules! generate_log_message {
     ($log_level:ident, $target:ident, $msg: expr) => {
         let msg = match stringify!($log_level) {
-            "warn" => format!("\x1b[33m{}\x1b[0m", $msg),
+            "warn" => format!("⚠️  \x1b[33m{}\x1b[0m", $msg),
             "error" => format!("\x1b[31m{}\x1b[0m", $msg),
             "debug" => format!("\x1b[34m{}\x1b[0m", $msg),
             _ => format!("{}", $msg),
@@ -14,7 +14,7 @@ macro_rules! generate_log_message {
     };
     ($log_level:ident, $target:ident, $msg:expr; $($key:ident => $value:expr),*) => {
         let msg = match stringify!($log_level) {
-            "warn" => format!("\x1b[33m{}\x1b[0m", $msg),
+            "warn" => format!("⚠️  \x1b[33m{}\x1b[0m", $msg),
             "error" => format!("\x1b[31m{}\x1b[0m", $msg),
             "debug" => format!("\x1b[34m{}\x1b[0m", $msg),
             _ => format!("{}", $msg),
@@ -85,11 +85,11 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! critical {
     ($target:ident, $msg:expr) => {
-        let msg = format!("!!![CRITICAL]!!! {}", $msg);
+        let msg = format!("💀💀💀💀  {}️", $msg);
         $crate::generate_log_message!(error, $target, msg);
     };
     ($target:ident,$msg:expr; $($key:ident => $value:expr),*) => {
-        let msg = format!("!!![CRITICAL]!!! {}", $msg);
+        let msg = format!("💀💀💀💀  {}️", $msg);
         $crate::generate_log_message!(error, $target, msg; $($key => $value),*);
     };
     ($target:ident; $($key:ident => $value:expr),*) => {
@@ -99,8 +99,9 @@ macro_rules! critical {
 
 #[cfg(test)]
 mod tests {
+
     #[test]
-    fn test_loggers_macros() {
+    fn test_loggers() {
         env_logger::try_init().unwrap_or_default();
         debug!(test_loggers_macros, "message only");
         info!(test_loggers_macros, "message only");

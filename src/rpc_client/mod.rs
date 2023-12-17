@@ -6,6 +6,7 @@ use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
 use crate::errors::RPCError;
+use crate::info;
 use crate::warn;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -18,9 +19,10 @@ pub use types::*;
 pub trait RPCTrait {
     async fn handle_request(&mut self, call: CallRequestContext) -> Result<CallResponse, RPCError>;
     async fn get_latest_block(&mut self) -> Result<BlockPtr, RPCError>;
+    fn cache_get(&self, call: &CallRequest) -> Option<CallResponse>;
+    fn cache_set(&mut self, call: &CallRequest, result: &CallResponse);
 }
 
-#[derive(Clone)]
 pub enum RPCChain {
     None,
     Ethereum(ethereum::EthereumRPC),
@@ -44,12 +46,28 @@ impl RPCTrait for RPCChain {
             RPCChain::None => Ok(BlockPtr::default()),
         }
     }
+
+    fn cache_get(&self, call: &CallRequest) -> Option<CallResponse> {
+        match self {
+            RPCChain::Ethereum(client) => client.cache_get(call),
+            RPCChain::None => None,
+        }
+    }
+
+    fn cache_set(&mut self, call: &CallRequest, result: &CallResponse) {
+        match self {
+            RPCChain::Ethereum(client) => client.cache_set(call, result),
+            RPCChain::None => (),
+        }
+    }
 }
 
 pub struct RpcClient {
     rpc_client: RPCChain,
-    cache: RPCCache,
     block_ptr: BlockPtr,
+    cache_by_block: HashMap<CallRequestContext, CallResponse>,
+    cache_hit_count: u64,
+    cache_miss_count: u64,
 }
 
 impl RpcClient {
@@ -62,40 +80,75 @@ impl RpcClient {
         };
         Ok(Self {
             rpc_client,
-            cache: HashMap::new(),
             block_ptr: BlockPtr::default(),
+            cache_by_block: HashMap::new(),
+            cache_hit_count: 0,
+            cache_miss_count: 0,
         })
     }
 
     pub async fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
+        if let Some(result) = self.rpc_client.cache_get(&call) {
+            self.cache_hit_count += 1;
+            info!(
+                RpcClient,
+                "cache hit at chain-level ⚡";
+                hit_count => format!("{} hits", self.cache_hit_count),
+                miss_count => format!("{} hits", self.cache_miss_count),
+                call => call
+            );
+            return Ok(result);
+        }
+
+        let is_cachable = call.is_cachable();
+
         let call_context = CallRequestContext {
             block_ptr: self.block_ptr.clone(),
-            call_request: call,
+            call_request: call.clone(),
         };
-        match self.cache.get(&call_context) {
-            None => {
-                let result = self.rpc_client.handle_request(call_context.clone()).await?;
-                self.cache.insert(call_context, result.clone());
-                Ok(result)
+
+        if let Some(result) = self.cache_by_block.get(&call_context) {
+            self.cache_hit_count += 1;
+            if self.cache_hit_count % 100 == 0 {
+                info!(
+                    RpcClient,
+                    "cache hit at block-level ⚡";
+                    hit_count => format!("{} hits", self.cache_hit_count),
+                    miss_count => format!("{} hits", self.cache_miss_count),
+                    call => call
+                );
             }
-            Some(result) => Ok(result.clone()),
+
+            return Ok(result.clone());
         }
+
+        let result = self.rpc_client.handle_request(call_context.clone()).await?;
+        self.cache_by_block.insert(call_context, result.clone());
+
+        if is_cachable {
+            self.cache_miss_count += 1;
+            self.rpc_client.cache_set(&call, &result);
+        }
+
+        Ok(result)
     }
 
     pub fn new_mock() -> Self {
         Self {
             rpc_client: RPCChain::None,
-            cache: HashMap::new(),
             block_ptr: BlockPtr::default(),
+            cache_by_block: HashMap::new(),
+            cache_hit_count: 0,
+            cache_miss_count: 0,
         }
-    }
-
-    pub fn clear_cache(&mut self) {
-        self.cache.clear();
     }
 
     pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
         self.block_ptr = block_ptr.clone();
+    }
+
+    pub fn clear_block_level_cache(&mut self) {
+        self.cache_by_block = HashMap::new()
     }
 }
 
@@ -112,6 +165,7 @@ impl RpcAgent {
         let timer = Instant::now();
         use std::thread;
         let client = self.0.clone();
+        let log_call = call.clone();
 
         let result = thread::spawn(|| {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -127,7 +181,17 @@ impl RpcAgent {
         .join()
         .unwrap();
 
-        warn!(RpcClient, "json-rpc call"; time => format!("{:?}ms", timer.elapsed().as_millis()));
+        let rpc_duration = timer.elapsed().as_millis();
+
+        if rpc_duration >= 100 {
+            warn!(
+                RpcClient,
+                "json-rpc call took a bit long";
+                time => format!("{:?}ms", timer.elapsed().as_millis()),
+                call => log_call
+            );
+        }
+
         result
     }
 
@@ -141,9 +205,9 @@ impl RpcAgent {
         Self(client)
     }
 
-    pub async fn clear_cache(&self) {
-        let mut rpc_agent = self.0.lock().await;
-        rpc_agent.clear_cache();
+    pub async fn clear_block_level_cache(&self) {
+        let mut rpc = self.0.lock().await;
+        rpc.clear_block_level_cache();
     }
 }
 
@@ -174,8 +238,10 @@ pub mod tests {
         let chain = RPCChain::Ethereum(client);
         let client = RpcClient {
             rpc_client: chain,
-            cache: HashMap::new(),
             block_ptr,
+            cache_by_block: HashMap::new(),
+            cache_hit_count: 0,
+            cache_miss_count: 0,
         };
 
         RpcAgent(Arc::new(Mutex::new(client)))

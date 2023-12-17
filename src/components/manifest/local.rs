@@ -38,6 +38,7 @@ impl LocalFileLoader {
             schema,
             datasources,
             templates,
+            block_ptr: BlockPtr::default(),
         };
 
         Ok(manifest)
