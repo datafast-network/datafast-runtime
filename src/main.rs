@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let valve = Valve::new(&config.valve);
     let source_valve = valve.clone();
 
-    let db = DatabaseAgent::new(&config.database, manifest.schema(), registry).await?;
+    let db = DatabaseAgent::new(&config.database, manifest.schemas(), registry).await?;
     info!(main, "Database set up");
 
     let mut inspector = Inspector::new(

@@ -43,7 +43,7 @@ impl ManifestAgent {
         manifest.abis.clone()
     }
 
-    pub fn schema(&self) -> Schemas {
+    pub fn schemas(&self) -> Schemas {
         let manifest = self.m.read().unwrap();
         manifest.schema.clone()
     }

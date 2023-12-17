@@ -3,6 +3,7 @@ use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::EntityID;
 use crate::common::EntityType;
+use crate::common::FieldKind;
 use crate::common::RawEntity;
 use crate::common::Schemas;
 use crate::errors::DatabaseError;
@@ -12,7 +13,6 @@ use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
 use crate::runtime::bignumber::bigint::BigInt;
-use crate::common::FieldKind;
 use async_trait::async_trait;
 use futures_util::future::try_join_all;
 use futures_util::StreamExt;
@@ -452,9 +452,9 @@ impl ExternDBTrait for MongoDB {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::Schema;
     use crate::entity;
     use crate::schema;
-    use crate::common::Schema;
     use futures_util::StreamExt;
     use std::env;
     use std::time::Instant;
