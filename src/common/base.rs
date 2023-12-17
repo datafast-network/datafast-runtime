@@ -1,6 +1,9 @@
+use crate::runtime::asc::native_types::store::StoreValueKind;
+use crate::runtime::asc::native_types::store::Value;
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -96,3 +99,17 @@ pub struct BlockPtr {
     pub hash: String,
     pub parent_hash: String,
 }
+
+pub type EntityType = String;
+pub type EntityID = String;
+pub type FieldName = String;
+pub type RawEntity = HashMap<FieldName, Value>;
+
+#[derive(Clone, Default, Debug)]
+pub struct FieldKind {
+    pub kind: StoreValueKind,
+    pub relation: Option<(EntityType, FieldName)>,
+    pub list_inner_kind: Option<StoreValueKind>,
+}
+
+pub type Schema = BTreeMap<FieldName, FieldKind>;

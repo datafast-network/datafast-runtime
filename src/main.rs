@@ -8,7 +8,6 @@ mod logger_macros;
 mod metrics;
 mod rpc_client;
 mod runtime;
-mod schemas;
 
 use components::*;
 use config::Config;

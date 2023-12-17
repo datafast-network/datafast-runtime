@@ -3,6 +3,7 @@ use crate::common::BlockPtr;
 use crate::common::EntityID;
 use crate::common::EntityType;
 use crate::common::RawEntity;
+use crate::common::Schemas;
 use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
@@ -12,8 +13,7 @@ use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
 use crate::runtime::bignumber::bigint::BigInt;
-use crate::schemas::FieldKind;
-use crate::schemas::Schemas;
+use crate::common::FieldKind;
 use async_trait::async_trait;
 use futures_util::future::try_join_all;
 use scylla::_macro_internal::CqlValue;
@@ -68,11 +68,7 @@ pub struct Scylladb {
 }
 
 impl Scylladb {
-    pub async fn new(
-        uri: &str,
-        keyspace: &str,
-        schemas: Schemas,
-    ) -> Result<Self, DatabaseError> {
+    pub async fn new(uri: &str, keyspace: &str, schemas: Schemas) -> Result<Self, DatabaseError> {
         info!(ExternDB, "Init db connection");
         let session: Session = SessionBuilder::new().known_node(uri).build().await?;
         let entities = schemas.get_entity_names();

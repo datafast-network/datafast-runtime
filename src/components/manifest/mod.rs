@@ -1,10 +1,10 @@
 mod local;
 
+use crate::common::Schemas;
 use crate::common::*;
 use crate::error;
 use crate::errors::ManifestLoaderError;
 use crate::info;
-use crate::schemas::Schemas;
 use local::LocalFileLoader;
 use std::sync::Arc;
 use std::sync::RwLock;

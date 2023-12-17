@@ -1,9 +1,11 @@
 use super::base::BlockPtr;
+use super::base::EntityID;
+use super::base::EntityType;
+use super::base::FieldName;
+use super::base::RawEntity;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::runtime::asc::native_types::store::Value;
-use std::collections::HashMap;
 use web3::types::Log;
 
 #[derive(Debug)]
@@ -53,11 +55,6 @@ impl FilteredDataMessage {
         }
     }
 }
-
-pub type EntityType = String;
-pub type EntityID = String;
-pub type FieldName = String;
-pub type RawEntity = HashMap<FieldName, Value>;
 
 #[derive(Debug)]
 pub enum StoreOperationMessage {

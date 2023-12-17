@@ -13,9 +13,9 @@ use crate::common::Datasource;
 use crate::common::EntityID;
 use crate::common::EntityType;
 use crate::common::RawEntity;
+use crate::common::Schemas;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
-use crate::schemas::Schemas;
 use async_trait::async_trait;
 
 #[derive(Default)]
@@ -29,10 +29,7 @@ pub enum ExternDB {
 }
 
 impl ExternDB {
-    pub async fn new(
-        config: &DatabaseConfig,
-        schemas: Schemas,
-    ) -> Result<Self, DatabaseError> {
+    pub async fn new(config: &DatabaseConfig, schemas: Schemas) -> Result<Self, DatabaseError> {
         let db = match config {
             #[cfg(feature = "scylla")]
             DatabaseConfig::Scylla { uri, keyspace } => {

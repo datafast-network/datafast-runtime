@@ -1,22 +1,14 @@
-use crate::common::EntityType;
+use super::base::EntityType;
+use super::base::FieldKind;
+use super::base::FieldName;
+use super::base::Schema;
 use crate::error;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use apollo_parser::cst::CstNode;
 use apollo_parser::cst::Definition;
 use apollo_parser::cst::Type;
 use apollo_parser::Parser;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
-
-type FieldName = String;
-pub type Schema = BTreeMap<FieldName, FieldKind>;
-
-#[derive(Clone, Default, Debug)]
-pub struct FieldKind {
-    pub kind: StoreValueKind,
-    pub relation: Option<(EntityType, FieldName)>,
-    pub list_inner_kind: Option<StoreValueKind>,
-}
 
 #[derive(Clone, Default, Debug)]
 pub struct Schemas(HashMap<EntityType, Schema>);

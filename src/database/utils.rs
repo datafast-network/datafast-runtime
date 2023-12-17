@@ -2,7 +2,7 @@
 macro_rules! schema {
     ($($k:ident => $v:expr),* $(,)?) => {{
         use std::iter::{Iterator, IntoIterator};
-        use $crate::schemas::FieldKind;
+        use $crate::common::FieldKind;
         Iterator::collect(IntoIterator::into_iter([$((stringify!($k).to_string(), FieldKind{
             kind: $v,
             relation: None,
