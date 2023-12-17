@@ -37,42 +37,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     welcome();
 
     let config = Config::load();
-    info!(main, "Config loaded.................................... ✅");
+    info!(main, "Config loaded  ✅");
 
     let registry = default_registry();
 
     let manifest = ManifestAgent::new(&config.subgraph_dir).await?;
-    info!(main, "Manifest loaded.................................. ✅");
+    info!(main, "Manifest loaded  ✅");
 
     let valve = Valve::new(&config.valve);
     let source_valve = valve.clone();
 
     let db = DatabaseAgent::new(&config.database, manifest.schemas(), registry).await?;
-    info!(main, "Database set up.................................. ✅");
+    info!(main, "Database set up  ✅");
 
     let mut inspector = Inspector::new(
         db.get_recent_block_pointers(config.reorg_threshold).await?,
         manifest.min_start_block(),
         config.reorg_threshold,
     );
-    info!(main, "BlockInspector ready............................. ✅"
-          ; next_start_block => inspector.get_expected_block_number());
+    info!(main, "BlockInspector ready  ✅"; next_start_block => inspector.get_expected_block_number());
 
     let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
-    info!(main, "BlockSource ready................................ ✅");
+    info!(main, "BlockSource ready  ✅");
 
     let filter = DataFilter::new(
         config.chain.clone(),
         manifest.datasource_and_templates().into(),
         manifest.abis(),
     )?;
-    info!(main, "DataFilter ready................................. ✅");
+    info!(main, "DataFilter ready  ✅");
 
     let mut rpc = RpcAgent::new(&config, manifest.abis()).await?;
-    info!(main, "Rpc-Client ready................................. ✅");
+    info!(main, "Rpc-Client ready  ✅");
 
     let mut subgraph = Subgraph::new(&db, &rpc, &manifest, registry);
-    info!(main, "Subgraph ready................................... ✅");
+    info!(main, "Subgraph ready  ✅");
 
     let (sender, recv) = kanal::bounded_async(1);
 
@@ -141,9 +140,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            success!(
+            info!(
                 main,
-                "BLOCK BATCH PROCESSED DONE";
+                "BLOCK BATCH PROCESSED DONE  🎉🎉🎉🎉";
                 exec_time => format!("{:?}", time.elapsed()),
                 number_of_blocks => count_blocks,
                 avg_speed => format!("~{:?} blocks/sec", { count_blocks as u64 / time.elapsed().as_secs() })
