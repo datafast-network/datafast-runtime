@@ -81,6 +81,7 @@ impl RpcClient {
 
     pub async fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         if let Some(result) = self.rpc_client.cache_get(&call) {
+            warn!(RpcClient, "cache-hit"; call => call);
             return Ok(result);
         }
 

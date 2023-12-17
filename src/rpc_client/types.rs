@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::BlockPtr;
 
@@ -31,6 +33,20 @@ impl CallRequest {
                 ) => true,
                 _ => false,
             },
+        }
+    }
+}
+
+impl Display for CallRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CallRequest::EthereumContractCall(call) => {
+                write!(
+                    f,
+                    "contract_name={}, function={}, address={}",
+                    call.contract_name, call.function_name, call.contract_address
+                )
+            }
         }
     }
 }
