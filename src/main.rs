@@ -21,6 +21,7 @@ use std::fmt::Debug;
 use std::fs;
 
 fn welcome() {
+    // TODO: include file in build script
     let contents =
         fs::read_to_string("./welcome.txt").expect("Should have been able to read the file");
 
