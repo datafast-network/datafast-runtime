@@ -84,7 +84,7 @@ impl DeltaClient {
         valve: Valve,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
-        info!(BlockSource, "source start collecting data");
+        info!(BlockSource, "start polling for block-data ⚓");
 
         loop {
             while !valve.should_continue() {
@@ -93,29 +93,22 @@ impl DeltaClient {
             }
 
             let batches = self.query_blocks(start_block).await?;
-            let all_serde_time = std::time::Instant::now();
+            let time = std::time::Instant::now();
 
             let blocks = batches
                 .into_par_iter()
                 .flat_map(|batch| {
-                    let time = std::time::Instant::now();
                     let blocks = R::try_from(batch).unwrap();
                     let messages = Into::<Vec<BlockDataMessage>>::into(blocks);
                     valve.set_downloaded(&messages);
-                    info!(
-                        DeltaClient,
-                        "batches received & serialized";
-                        serialize_time => format!("{:?}", time.elapsed()),
-                        number_of_blocks => messages.len()
-                    );
                     messages
                 })
                 .collect::<Vec<_>>();
 
             info!(
                 DeltaClient,
-                "All record-batches serde finished";
-                serialize_time => format!("{:?}", all_serde_time.elapsed()),
+                "block batch serialization finished";
+                exec_time => format!("{:?}", time.elapsed()),
                 number_of_blocks => blocks.len()
             );
 

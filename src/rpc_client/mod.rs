@@ -6,6 +6,7 @@ use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
 use crate::errors::RPCError;
+use crate::info;
 use crate::warn;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -89,9 +90,9 @@ impl RpcClient {
     pub async fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         if let Some(result) = self.rpc_client.cache_get(&call) {
             self.cache_hit_count += 1;
-            warn!(
+            info!(
                 RpcClient,
-                "cache hit at chain-level";
+                "cache hit at chain-level ⚡";
                 hit_count => format!("{} hits", self.cache_hit_count),
                 miss_count => format!("{} hits", self.cache_miss_count),
                 call => call
@@ -109,9 +110,9 @@ impl RpcClient {
         if let Some(result) = self.cache_by_block.get(&call_context) {
             self.cache_hit_count += 1;
             if self.cache_hit_count % 100 == 0 {
-                warn!(
+                info!(
                     RpcClient,
-                    "cache hit at block-level";
+                    "cache hit at block-level ⚡";
                     hit_count => format!("{} hits", self.cache_hit_count),
                     miss_count => format!("{} hits", self.cache_miss_count),
                     call => call
