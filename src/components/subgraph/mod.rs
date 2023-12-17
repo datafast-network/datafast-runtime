@@ -60,6 +60,12 @@ impl Subgraph {
     fn check_for_new_datasource(&mut self) -> Result<usize, SubgraphError> {
         let active_ds_count = self.sources.len();
         let all_ds_count = self.manifest.count_datasources();
+
+        if active_ds_count > all_ds_count {
+            // NOTE: templates are being used as un-addressed datasources
+            return Ok(0);
+        }
+
         let pending_ds = all_ds_count - active_ds_count;
 
         if pending_ds == 0 {

@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let registry = default_registry();
 
-    let mut manifest = ManifestAgent::new(&config.subgraph_dir).await?;
+    let manifest = ManifestAgent::new(&config.subgraph_dir).await?;
     info!(main, "Manifest loaded");
 
     let valve = Valve::new(&config.valve);
@@ -120,10 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                if block_ptr.number % 100 == 0 {
-                    subgraph.create_sources()?;
-                }
-
+                subgraph.create_sources()?;
                 subgraph.process(block)?;
                 rpc.clear_block_level_cache().await;
 
