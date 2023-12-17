@@ -5,11 +5,9 @@ mod config;
 mod database;
 mod errors;
 mod logger_macros;
-mod messages;
 mod metrics;
 mod rpc_client;
 mod runtime;
-mod schema_lookup;
 
 use components::*;
 use config::Config;
@@ -21,6 +19,7 @@ use std::fmt::Debug;
 use std::fs;
 
 fn welcome() {
+    // TODO: include file in build script
     let contents =
         fs::read_to_string("./welcome.txt").expect("Should have been able to read the file");
 
@@ -48,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let valve = Valve::new(&config.valve);
     let source_valve = valve.clone();
 
-    let db = DatabaseAgent::new(&config.database, manifest.schema(), registry).await?;
+    let db = DatabaseAgent::new(&config.database, manifest.schemas(), registry).await?;
     info!(main, "Database set up");
 
     let mut inspector = Inspector::new(
@@ -127,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 subgraph.process(block)?;
 
-                if block_ptr.number % 500 == 0 {
+                if block_ptr.number % 1000 == 0 {
                     valve.set_finished(block_ptr.number);
                 }
             }

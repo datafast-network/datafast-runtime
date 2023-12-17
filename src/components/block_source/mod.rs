@@ -1,11 +1,11 @@
 mod delta;
 
 use super::Valve;
+use crate::common::BlockDataMessage;
 use crate::common::Chain;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
-use crate::messages::BlockDataMessage;
 use delta::DeltaClient;
 use delta::DeltaEthereumBlocks;
 use kanal::AsyncSender;

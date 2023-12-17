@@ -1,18 +1,18 @@
 use super::ExternDBTrait;
 use crate::common::BlockPtr;
 use crate::common::Datasource;
+use crate::common::EntityID;
+use crate::common::EntityType;
+use crate::common::FieldKind;
+use crate::common::RawEntity;
+use crate::common::Schemas;
 use crate::errors::DatabaseError;
 use crate::info;
-use crate::messages::EntityID;
-use crate::messages::EntityType;
-use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
 use crate::runtime::bignumber::bigint::BigInt;
-use crate::schema_lookup::FieldKind;
-use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
 use futures_util::future::try_join_all;
 use futures_util::StreamExt;
@@ -46,7 +46,6 @@ impl From<Value> for Bson {
             Value::List(list) => Bson::Array(list.into_iter().map(Bson::from).collect()),
             Value::Bytes(bytes) => Bson::Binary(Binary {
                 subtype: mongodb::bson::spec::BinarySubtype::Generic,
-                // WARN: not yet verified!
                 bytes: bytes.to_vec(),
             }),
             Value::BigInt(n) => Bson::String(n.to_string()),
@@ -80,7 +79,7 @@ impl From<Datasource> for WrappedDatasource {
 pub struct MongoDB {
     #[allow(dead_code)]
     db: Database,
-    schema: SchemaLookup,
+    schemas: Schemas,
     entity_collections: HashMap<EntityType, Collection<Document>>,
     block_ptr_collection: Collection<BlockPtr>,
     datasource_collection: Collection<WrappedDatasource>,
@@ -90,7 +89,7 @@ impl MongoDB {
     pub async fn new(
         uri: &str,
         database_name: &str,
-        schema: SchemaLookup,
+        schemas: Schemas,
     ) -> Result<Self, DatabaseError> {
         let client = Client::with_uri_str(uri).await?;
         info!(Database, "client created OK");
@@ -101,7 +100,7 @@ impl MongoDB {
         info!(Database, "db namespace created OK");
 
         let block_ptr_collection = db.collection::<BlockPtr>("block_ptr");
-        let entity_collections = schema
+        let entity_collections = schemas
             .get_entity_names()
             .into_iter()
             .map(|entity_type| {
@@ -113,7 +112,7 @@ impl MongoDB {
 
         let this = MongoDB {
             db,
-            schema,
+            schemas,
             entity_collections,
             block_ptr_collection,
             datasource_collection,
@@ -182,15 +181,11 @@ impl MongoDB {
         }
     }
 
-    fn document_to_raw_entity(
-        schema_lookup: &SchemaLookup,
-        entity_type: &str,
-        doc: Document,
-    ) -> RawEntity {
+    fn document_to_raw_entity(schemas: &Schemas, entity_type: &str, doc: Document) -> RawEntity {
         let mut result = RawEntity::new();
 
         for (field_name, value) in doc {
-            let field_kind = schema_lookup.get_field(entity_type, &field_name);
+            let field_kind = schemas.get_field(entity_type, &field_name);
             result.insert(field_name, Self::bson_to_store_value(value, &field_kind));
         }
         result
@@ -250,7 +245,7 @@ impl ExternDBTrait for MongoDB {
         let result = collection
             .find_one(filter, Some(opts))
             .await?
-            .map(|doc| Self::document_to_raw_entity(&self.schema, entity_type, doc));
+            .map(|doc| Self::document_to_raw_entity(&self.schemas, entity_type, doc));
 
         if result.is_none() {
             return Ok(None);
@@ -457,9 +452,9 @@ impl ExternDBTrait for MongoDB {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::Schema;
     use crate::entity;
     use crate::schema;
-    use crate::schema_lookup::Schema;
     use futures_util::StreamExt;
     use std::env;
     use std::time::Instant;
@@ -469,12 +464,12 @@ mod tests {
         let uri =
             env::var("MONGO_URI").unwrap_or("mongodb://root:example@localhost:27017".to_string());
         let database_name = env::var("MONGO_DATABASE").unwrap_or("db0".to_string());
-        MongoDB::new(&uri, &database_name, SchemaLookup::default())
+        MongoDB::new(&uri, &database_name, Schemas::default())
             .await?
             .drop_db()
             .await?;
 
-        let mut schema = SchemaLookup::new();
+        let mut schema = Schemas::default();
 
         let mut test_schema: Schema = schema!(
             id => StoreValueKind::String,

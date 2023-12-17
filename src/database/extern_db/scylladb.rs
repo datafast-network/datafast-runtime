@@ -1,19 +1,19 @@
 use super::ExternDBTrait;
 use crate::common::BlockPtr;
+use crate::common::EntityID;
+use crate::common::EntityType;
+use crate::common::FieldKind;
+use crate::common::RawEntity;
+use crate::common::Schemas;
 use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
 use crate::info;
-use crate::messages::EntityID;
-use crate::messages::EntityType;
-use crate::messages::RawEntity;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
 use crate::runtime::bignumber::bigint::BigInt;
-use crate::schema_lookup::FieldKind;
-use crate::schema_lookup::SchemaLookup;
 use async_trait::async_trait;
 use futures_util::future::try_join_all;
 use scylla::_macro_internal::CqlValue;
@@ -64,22 +64,18 @@ impl Display for BlockPtrFilter {
 pub struct Scylladb {
     session: Arc<Session>,
     keyspace: String,
-    schema_lookup: SchemaLookup,
+    schemas: Schemas,
 }
 
 impl Scylladb {
-    pub async fn new(
-        uri: &str,
-        keyspace: &str,
-        schema_lookup: SchemaLookup,
-    ) -> Result<Self, DatabaseError> {
+    pub async fn new(uri: &str, keyspace: &str, schemas: Schemas) -> Result<Self, DatabaseError> {
         info!(ExternDB, "Init db connection");
         let session: Session = SessionBuilder::new().known_node(uri).build().await?;
-        let entities = schema_lookup.get_entity_names();
+        let entities = schemas.get_entity_names();
         let this = Self {
             session: Arc::new(session),
             keyspace: keyspace.to_owned(),
-            schema_lookup,
+            schemas,
         };
         this.create_keyspace().await?;
         info!(ExternDB, "Namespace created OK"; namespace => keyspace);
@@ -179,7 +175,7 @@ impl Scylladb {
             for (idx, column) in row.columns.iter().enumerate() {
                 let col_spec = col_specs[idx].clone();
                 let field_name = col_spec.name.clone();
-                let field_kind = self.schema_lookup.get_field(entity_type, &field_name);
+                let field_kind = self.schemas.get_field(entity_type, &field_name);
                 let value = Scylladb::cql_value_to_store_value(field_kind, column.clone());
                 entity.insert(field_name, value);
             }
@@ -243,7 +239,7 @@ impl Scylladb {
 
     #[cfg(test)]
     async fn drop_tables(&self) -> Result<(), DatabaseError> {
-        let entities = self.schema_lookup.get_entity_names();
+        let entities = self.schemas.get_entity_names();
         for table_name in entities {
             let query = format!(r#"DROP TABLE IF EXISTS {}."{}""#, self.keyspace, table_name);
             self.session.query(query, ()).await?;
@@ -280,7 +276,7 @@ impl Scylladb {
         data: RawEntity,
         block_ptr: BlockPtr,
     ) -> (String, Vec<CqlValue>) {
-        let schema = self.schema_lookup.get_schema(entity_type);
+        let schema = self.schemas.get_schema(entity_type);
         let mut fields: Vec<String> = vec![
             "\"__block_ptr__\"".to_string(),
             "\"__is_deleted__\"".to_string(),
@@ -328,9 +324,9 @@ impl Scylladb {
 #[async_trait]
 impl ExternDBTrait for Scylladb {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError> {
-        let entities = self.schema_lookup.get_entity_names();
+        let entities = self.schemas.get_entity_names();
         for entity_type in entities {
-            let schema = self.schema_lookup.get_schema(&entity_type);
+            let schema = self.schemas.get_schema(&entity_type);
             let mut column_definitions: Vec<String> = vec![];
             for (colum_name, store_kind) in schema.iter() {
                 let column_type = Scylladb::store_kind_to_db_type(store_kind.clone());
@@ -483,7 +479,7 @@ impl ExternDBTrait for Scylladb {
     }
 
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
-        let entity_names = self.schema_lookup.get_entity_names();
+        let entity_names = self.schemas.get_entity_names();
         let mut batch_queries: Batch = Batch::default();
         let mut batch_values = vec![];
         let block_ptr_filter = BlockPtrFilter::Gte(from_block);
@@ -637,7 +633,7 @@ WHERE sgd = ? AND block_number = {}"#,
     }
 
     async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
-        let entity_names = self.schema_lookup.get_entity_names();
+        let entity_names = self.schemas.get_entity_names();
         let mut batch_queries: Batch = Batch::default();
         let mut batch_values = vec![];
         let block_ptr_filter = BlockPtrFilter::Lt(to_block);

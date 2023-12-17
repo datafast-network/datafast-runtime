@@ -1,10 +1,10 @@
 mod local;
 
+use crate::common::Schemas;
 use crate::common::*;
 use crate::error;
 use crate::errors::ManifestLoaderError;
 use crate::info;
-use crate::schema_lookup::SchemaLookup;
 use local::LocalFileLoader;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -15,7 +15,7 @@ pub struct ManifestBundle {
     templates: DatasourceBundles,
     abis: ABIs,
     wasms: WASMs,
-    schema: SchemaLookup,
+    schema: Schemas,
     datasources: DatasourceBundles,
 }
 
@@ -43,7 +43,7 @@ impl ManifestAgent {
         manifest.abis.clone()
     }
 
-    pub fn schema(&self) -> SchemaLookup {
+    pub fn schemas(&self) -> Schemas {
         let manifest = self.m.read().unwrap();
         manifest.schema.clone()
     }

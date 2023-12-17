@@ -3,13 +3,13 @@ mod metrics;
 
 use super::ManifestAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
+use crate::common::EthereumFilteredEvent;
+use crate::common::FilteredDataMessage;
 use crate::common::HandlerTypes;
 use crate::database::DatabaseAgent;
 use crate::debug;
 use crate::errors::SubgraphError;
 use crate::info;
-use crate::messages::EthereumFilteredEvent;
-use crate::messages::FilteredDataMessage;
 use crate::rpc_client::RpcAgent;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;

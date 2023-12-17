@@ -1,41 +1,25 @@
+use super::base::EntityType;
+use super::base::FieldKind;
+use super::base::FieldName;
+use super::base::Schema;
 use crate::error;
-use crate::messages::EntityType;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use apollo_parser::cst::CstNode;
 use apollo_parser::cst::Definition;
 use apollo_parser::cst::Type;
 use apollo_parser::Parser;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 
-type FieldName = String;
-pub type Schema = BTreeMap<FieldName, FieldKind>;
-
 #[derive(Clone, Default, Debug)]
-pub struct FieldKind {
-    pub kind: StoreValueKind,
-    pub relation: Option<(EntityType, FieldName)>,
-    pub list_inner_kind: Option<StoreValueKind>,
-}
+pub struct Schemas(HashMap<EntityType, Schema>);
 
-#[derive(Clone, Default, Debug)]
-pub struct SchemaLookup {
-    schema: HashMap<EntityType, Schema>,
-}
-
-impl SchemaLookup {
-    pub fn new() -> Self {
-        Self {
-            schema: HashMap::new(),
-        }
-    }
-
+impl Schemas {
     pub fn new_from_graphql_schema(schema: &str) -> Self {
         let parser = Parser::new(schema);
         let ast = parser.parse();
         let doc = ast.document();
 
-        let mut schema_lookup = SchemaLookup::new();
+        let mut schemas = Schemas::default();
         doc.definitions().for_each(|def| {
             if let Definition::ObjectTypeDefinition(object) = def {
                 let entity_type = object
@@ -43,7 +27,7 @@ impl SchemaLookup {
                     .expect("Name of Object Definition invalid")
                     .text()
                     .to_string();
-                schema_lookup.schema.insert(entity_type, Schema::new());
+                schemas.0.insert(entity_type, Schema::new());
             }
         });
         for def in doc.definitions() {
@@ -78,12 +62,12 @@ impl SchemaLookup {
                     }
                     schema.insert(field_name.to_string(), field_kind);
                 }
-                schema_lookup.schema.remove(&entity_type);
-                schema_lookup.add_schema(&entity_type, schema)
+                schemas.0.remove(&entity_type);
+                schemas.add_schema(&entity_type, schema)
             }
         }
 
-        schema_lookup
+        schemas
     }
 
     pub fn add_schema(&mut self, entity_name: &str, mut schema: Schema) {
@@ -107,7 +91,7 @@ impl SchemaLookup {
                 },
             );
         }
-        self.schema.insert(entity_name.to_owned(), schema);
+        self.0.insert(entity_name.to_owned(), schema);
     }
 
     pub fn get_relation_field(
@@ -115,7 +99,7 @@ impl SchemaLookup {
         entity_name: &str,
         field_name: &str,
     ) -> Option<(EntityType, FieldName)> {
-        let entity = self.schema.get(entity_name);
+        let entity = self.0.get(entity_name);
         entity?;
         let field = entity.unwrap().get(field_name);
 
@@ -129,16 +113,16 @@ impl SchemaLookup {
     }
 
     pub fn get_entity_names(&self) -> Vec<String> {
-        self.schema.keys().cloned().collect()
+        self.0.keys().cloned().collect()
     }
 
     pub fn get_schema(&self, entity_type: &str) -> Schema {
-        self.schema.get(entity_type).unwrap().clone()
+        self.0.get(entity_type).unwrap().clone()
     }
 
     pub fn get_field(&self, entity_type: &str, field_name: &str) -> FieldKind {
         let entity_schema = self
-            .schema
+            .0
             .get(entity_type)
             .cloned()
             .unwrap_or_else(|| panic!("No entity named = {entity_type}"));
@@ -147,7 +131,7 @@ impl SchemaLookup {
             .get(&field_name.replace('\"', ""))
             .cloned()
             .unwrap_or_else(|| {
-                error!(SchemaLookup, "get field name failed";
+                error!(Schemas, "get field name failed";
                     field_name => field_name,
                     entity_type => entity_type,
                     schema => format!("{:?}",entity_schema)
@@ -189,7 +173,7 @@ impl SchemaLookup {
             }
             Type::ListType(list) => {
                 let inner_type = list.ty().expect("list type must not be None");
-                let value = SchemaLookup::parse_entity_field(inner_type);
+                let value = Schemas::parse_entity_field(inner_type);
 
                 FieldKind {
                     kind: StoreValueKind::Array,
@@ -199,11 +183,11 @@ impl SchemaLookup {
             }
             Type::NonNullType(value) => {
                 if let Some(list) = value.list_type() {
-                    return SchemaLookup::parse_entity_field(Type::ListType(list));
+                    return Schemas::parse_entity_field(Type::ListType(list));
                 }
 
                 if let Some(name_type) = value.named_type() {
-                    return SchemaLookup::parse_entity_field(Type::NamedType(name_type));
+                    return Schemas::parse_entity_field(Type::NamedType(name_type));
                 }
                 unimplemented!()
             }
@@ -223,8 +207,8 @@ mod test {
         let gql =
             read_to_string("../subgraph-testing/packages/v0_0_5/build/schema.graphql").unwrap();
 
-        let schema_lookup = SchemaLookup::new_from_graphql_schema(&gql);
+        let schemas = Schemas::new_from_graphql_schema(&gql);
         let entity_type = "Pool";
-        let _token = schema_lookup.schema.get(entity_type).unwrap();
+        let _token = schemas.0.get(entity_type).unwrap();
     }
 }

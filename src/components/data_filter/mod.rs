@@ -2,11 +2,11 @@ mod ethereum_filter;
 mod utils;
 
 use crate::common::ABIs;
+use crate::common::BlockDataMessage;
 use crate::common::Chain;
 use crate::common::Datasource;
+use crate::common::FilteredDataMessage;
 use crate::errors::FilterError;
-use crate::messages::BlockDataMessage;
-use crate::messages::FilteredDataMessage;
 use ethereum_filter::EthereumFilter;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;

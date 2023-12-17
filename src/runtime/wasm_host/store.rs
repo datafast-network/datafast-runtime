@@ -1,7 +1,7 @@
 use super::Env;
-use crate::messages::RawEntity;
-use crate::messages::StoreOperationMessage;
-use crate::messages::StoreRequestResult;
+use crate::common::RawEntity;
+use crate::common::StoreOperationMessage;
+use crate::common::StoreRequestResult;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscPtr;
@@ -161,8 +161,8 @@ fn remove_private_field(entities: Vec<RawEntity>) -> Vec<RawEntity> {
 // mod test {
 //     use super::super::test::*;
 //     use crate::host_fn_test;
-//     use crate::messages::StoreOperationMessage;
-//     use crate::messages::StoreRequestResult;
+//     use crate::common::StoreOperationMessage;
+//     use crate::common::StoreRequestResult;
 //     use crate::runtime::asc::base::asc_get;
 //     use crate::runtime::asc::base::AscPtr;
 //     use crate::runtime::asc::native_types::store::Value;
