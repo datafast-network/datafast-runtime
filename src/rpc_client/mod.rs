@@ -18,7 +18,7 @@ pub trait RPCTrait {
     async fn handle_request(&mut self, call: CallRequestContext) -> Result<CallResponse, RPCError>;
     async fn get_latest_block(&mut self) -> Result<BlockPtr, RPCError>;
     fn cache_get(&self, call: &CallRequest) -> Option<CallResponse>;
-    fn cache_set(&mut self, call: &CallRequest, result: &CallResponse) -> ();
+    fn cache_set(&mut self, call: &CallRequest, result: &CallResponse);
 }
 
 pub enum RPCChain {
@@ -52,7 +52,7 @@ impl RPCTrait for RPCChain {
         }
     }
 
-    fn cache_set(&mut self, call: &CallRequest, result: &CallResponse) -> () {
+    fn cache_set(&mut self, call: &CallRequest, result: &CallResponse) {
         match self {
             RPCChain::Ethereum(client) => client.cache_set(call, result),
             RPCChain::None => (),

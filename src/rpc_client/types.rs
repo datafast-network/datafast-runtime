@@ -20,9 +20,17 @@ pub enum CallResponse {
 impl CallRequest {
     pub fn is_cachable(&self) -> bool {
         match self {
-            CallRequest::EthereumContractCall(call) => {
-                todo!()
-            }
+            CallRequest::EthereumContractCall(UnresolvedContractCall {
+                contract_name,
+                function_name,
+                ..
+            }) => match (contract_name.as_str(), function_name.as_str()) {
+                (
+                    "ERC20" | "ERC20NameBytes" | "ERC20SymbolBytes",
+                    "symbol" | "decimals" | "name",
+                ) => true,
+                _ => false,
+            },
         }
     }
 }
