@@ -9,8 +9,8 @@ use crate::common::HandlerTypes;
 use crate::database::DatabaseAgent;
 use crate::debug;
 use crate::errors::SubgraphError;
-use crate::info;
 use crate::rpc_client::RpcAgent;
+use crate::success;
 use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
@@ -172,7 +172,7 @@ impl Subgraph {
         };
 
         if block_ptr.number % 1000 == 0 {
-            info!(
+            success!(
                 Subgraph,
                 "finished processing block";
                 block_number => block_ptr.number,

@@ -140,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            info!(
+            success!(
                 main,
                 "block batch processed done";
                 exec_time => format!("{:?}", time.elapsed()),
