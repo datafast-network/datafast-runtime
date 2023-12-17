@@ -30,10 +30,7 @@ impl EthereumFilter {
             .into_iter()
             .map(|ds| {
                 let abi_name = ds.source.abi.clone();
-                let contract = abis
-                    .get(&abi_name)
-                    .map(|abi| serde_json::from_value(abi.clone()).expect("invalid abi"))
-                    .unwrap();
+                let contract = abis.get_contract(&abi_name).unwrap();
                 DatasourceWithContract { ds, contract }
             })
             .collect::<Vec<_>>();
