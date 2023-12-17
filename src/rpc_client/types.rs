@@ -1,6 +1,5 @@
 use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::BlockPtr;
-use std::collections::HashMap;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct CallRequestContext {
@@ -18,4 +17,12 @@ pub enum CallResponse {
     EthereumContractCall(Vec<ethabi::Token>),
 }
 
-pub type RPCCache = HashMap<CallRequestContext, CallResponse>;
+impl CallRequest {
+    pub fn is_cachable(&self) -> bool {
+        match self {
+            CallRequest::EthereumContractCall(call) => {
+                todo!()
+            }
+        }
+    }
+}

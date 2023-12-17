@@ -10,6 +10,7 @@ use crate::error;
 use crate::errors::RPCError;
 use crate::info;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::str::FromStr;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::Retry;
@@ -32,11 +33,19 @@ impl From<Block<H256>> for BlockPtr {
     }
 }
 
-#[derive(Clone)]
+struct CacheRPC(HashMap<CallRequest, CallResponse>);
+
+impl Default for CacheRPC {
+    fn default() -> Self {
+        todo!()
+    }
+}
+
 pub struct EthereumRPC {
     client: Web3<WebSocket>,
     supports_eip_1898: bool,
     abis: ABIs,
+    cache: CacheRPC,
 }
 
 impl EthereumRPC {
@@ -53,6 +62,7 @@ impl EthereumRPC {
             client,
             supports_eip_1898,
             abis,
+            cache: CacheRPC::default(),
         })
     }
 
@@ -247,6 +257,14 @@ impl RPCTrait for EthereumRPC {
             })?
             .map(|b| Ok(BlockPtr::from(b)))
             .unwrap()
+    }
+
+    fn cache_get(&self, call: &CallRequest) -> Option<CallResponse> {
+        self.cache.0.get(call).cloned()
+    }
+
+    fn cache_set(&mut self, call: &CallRequest, result: &CallResponse) {
+        self.cache.0.insert(call.clone(), result.to_owned());
     }
 }
 
