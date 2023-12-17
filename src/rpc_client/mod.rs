@@ -6,6 +6,7 @@ use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
 use crate::errors::RPCError;
+use crate::info;
 use crate::warn;
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -63,6 +64,7 @@ impl RPCTrait for RPCChain {
 pub struct RpcClient {
     rpc_client: RPCChain,
     block_ptr: BlockPtr,
+    cache_hit_count: u64,
 }
 
 impl RpcClient {
@@ -76,12 +78,14 @@ impl RpcClient {
         Ok(Self {
             rpc_client,
             block_ptr: BlockPtr::default(),
+            cache_hit_count: 0,
         })
     }
 
     pub async fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         if let Some(result) = self.rpc_client.cache_get(&call) {
-            warn!(RpcClient, "cache-hit"; call => call);
+            self.cache_hit_count += 1;
+            warn!(RpcClient, "cache-hit"; count => format!("{} hits", self.cache_hit_count), call => call);
             return Ok(result);
         }
 
@@ -95,6 +99,7 @@ impl RpcClient {
         let result = self.rpc_client.handle_request(call_context).await?;
 
         if is_cachable {
+            info!(RpcClient, "caching rpc call"; call => call);
             self.rpc_client.cache_set(&call, &result);
         }
 
@@ -105,6 +110,7 @@ impl RpcClient {
         Self {
             rpc_client: RPCChain::None,
             block_ptr: BlockPtr::default(),
+            cache_hit_count: 0,
         }
     }
 
@@ -193,6 +199,7 @@ pub mod tests {
         let client = RpcClient {
             rpc_client: chain,
             block_ptr,
+            cache_hit_count: 0,
         };
 
         RpcAgent(Arc::new(Mutex::new(client)))

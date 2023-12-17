@@ -23,8 +23,8 @@ use web3::Web3;
 
 const ETH_CALL_GAS: u32 = 50_000_000;
 
-impl From<Block<H256>> for BlockPtr {
-    fn from(b: Block<H256>) -> Self {
+impl<T> From<Block<T>> for BlockPtr {
+    fn from(b: Block<T>) -> Self {
         Self {
             number: b.number.unwrap().as_u64(),
             hash: format!("{:?}", b.hash.unwrap()),
@@ -33,13 +33,8 @@ impl From<Block<H256>> for BlockPtr {
     }
 }
 
+#[derive(Default)]
 struct CacheRPC(HashMap<CallRequest, CallResponse>);
-
-impl Default for CacheRPC {
-    fn default() -> Self {
-        todo!()
-    }
-}
 
 pub struct EthereumRPC {
     client: Web3<WebSocket>,
