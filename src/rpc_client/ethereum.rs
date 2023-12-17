@@ -7,18 +7,30 @@ use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::ABIs;
 use crate::common::BlockPtr;
 use crate::error;
-use crate::errors::RPCClientError;
+use crate::errors::RPCError;
 use crate::info;
 use async_trait::async_trait;
 use std::str::FromStr;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::Retry;
 use web3::transports::WebSocket;
+use web3::types::Block;
 use web3::types::BlockId;
+use web3::types::BlockNumber;
 use web3::types::H256;
 use web3::Web3;
 
 const ETH_CALL_GAS: u32 = 50_000_000;
+
+impl From<Block<H256>> for BlockPtr {
+    fn from(b: Block<H256>) -> Self {
+        Self {
+            number: b.number.unwrap().as_u64(),
+            hash: format!("{:?}", b.hash.unwrap()),
+            parent_hash: format!("{:?}", b.parent_hash),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct EthereumRPC {
@@ -28,7 +40,7 @@ pub struct EthereumRPC {
 }
 
 impl EthereumRPC {
-    pub async fn new(url: &str, abis: ABIs) -> Result<Self, RPCClientError> {
+    pub async fn new(url: &str, abis: ABIs) -> Result<Self, RPCError> {
         let client = Web3::new(WebSocket::new(url).await.unwrap());
         let supports_eip_1898 = client
             .web3()
@@ -47,7 +59,7 @@ impl EthereumRPC {
     fn parse_contract_call_request(
         &self,
         call: UnresolvedContractCall,
-    ) -> Result<EthereumContractCall, RPCClientError> {
+    ) -> Result<EthereumContractCall, RPCError> {
         let contract_name = call.contract_name;
         let function_name = call.function_name;
         let contract_address = call.contract_address;
@@ -55,13 +67,13 @@ impl EthereumRPC {
         //get contract abi
         let abi = self.abis.get_contract(&contract_name).ok_or_else(|| {
             error!(
-                RPCClientError,
+                RPCError,
                 "get abi failed";
                 contract_name => contract_name,
                 function_name => function_name,
                 contract_address => contract_address
             );
-            RPCClientError::BadABI
+            RPCError::BadABI
         })?;
 
         let function_call = match call.function_signature {
@@ -77,7 +89,7 @@ impl EthereumRPC {
                     contract_address => contract_address,
                     e => format!("{:?}", e)
                 );
-                RPCClientError::FunctionNotFound
+                RPCError::FunctionNotFound
             })?,
 
             // Behavior for apiVersion >= 0.0.04: look up function by signature of
@@ -95,7 +107,7 @@ impl EthereumRPC {
                         function_signature => fn_signature,
                         error => format!("{:?}", e)
                     );
-                    RPCClientError::FunctionNotFound
+                    RPCError::FunctionNotFound
                 })?
                 .iter()
                 .find(|f| f.signature() == fn_signature)
@@ -108,7 +120,7 @@ impl EthereumRPC {
                         contract_address => contract_address,
                         function_signature => fn_signature
                     );
-                    RPCClientError::SignatureNotFound
+                    RPCError::SignatureNotFound
                 })?,
         };
 
@@ -125,7 +137,7 @@ impl EthereumRPC {
             .zip(result.function.inputs.iter().map(|p| &p.kind))
         {
             if !token.type_check(kind) {
-                return Err(RPCClientError::InvalidArguments);
+                return Err(RPCError::InvalidArguments);
             }
         }
 
@@ -136,7 +148,7 @@ impl EthereumRPC {
         &self,
         data: UnresolvedContractCall,
         block_ptr: BlockPtr,
-    ) -> Result<CallResponse, RPCClientError> {
+    ) -> Result<CallResponse, RPCError> {
         assert!(block_ptr.number > 0, "bad block");
         let request_data = self.parse_contract_call_request(data)?;
         // Encode the call parameters according to the ABI
@@ -154,7 +166,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                RPCClientError::Revert(format!("{:?}", e))
+                RPCError::Revert(format!("{:?}", e))
             })?;
 
         let block_id = if !self.supports_eip_1898 {
@@ -190,7 +202,7 @@ impl EthereumRPC {
                 block_number => block_ptr.number,
                 block_hash => block_ptr.hash
             );
-            RPCClientError::ContractCallFail
+            RPCError::ContractCallFail
         })?;
 
         let result = request_data
@@ -207,7 +219,7 @@ impl EthereumRPC {
                     block_number => block_ptr.number,
                     block_hash => block_ptr.hash
                 );
-                RPCClientError::Revert(format!("{:?}", e))
+                RPCError::Revert(format!("{:?}", e))
             })?;
 
         Ok(result)
@@ -216,15 +228,25 @@ impl EthereumRPC {
 
 #[async_trait]
 impl RPCTrait for EthereumRPC {
-    async fn handle_request(
-        &mut self,
-        call: CallRequestContext,
-    ) -> Result<CallResponse, RPCClientError> {
+    async fn handle_request(&mut self, call: CallRequestContext) -> Result<CallResponse, RPCError> {
         match call.call_request {
             CallRequest::EthereumContractCall(data) => {
                 self.handle_contract_call(data, call.block_ptr).await
             }
         }
+    }
+
+    async fn get_latest_block(&mut self) -> Result<BlockPtr, RPCError> {
+        self.client
+            .eth()
+            .block(BlockId::Number(BlockNumber::Latest))
+            .await
+            .map_err(|e| {
+                error!(EthereumRPC, "get latest block failed"; error => e);
+                RPCError::GetLatestBlockFail
+            })?
+            .map(|b| Ok(BlockPtr::from(b)))
+            .unwrap()
     }
 }
 
@@ -267,5 +289,14 @@ mod tests {
             result,
             CallResponse::EthereumContractCall(vec![Token::String("USDT".to_string())])
         );
+    }
+
+    #[tokio::test]
+    async fn test_get_latest_block() {
+        env_logger::try_init().unwrap_or_default();
+        let mut rpc = EthereumRPC::new("wss://eth.merkle.io", ABIs::default())
+            .await
+            .unwrap();
+        log::info!("{:?}", rpc.get_latest_block().await.unwrap());
     }
 }

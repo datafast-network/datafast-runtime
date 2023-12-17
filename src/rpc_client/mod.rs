@@ -5,7 +5,7 @@ use crate::common::ABIs;
 use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
-use crate::errors::RPCClientError;
+use crate::errors::RPCError;
 use crate::warn;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -13,6 +13,12 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
 pub use types::*;
+
+#[async_trait]
+pub trait RPCTrait {
+    async fn handle_request(&mut self, call: CallRequestContext) -> Result<CallResponse, RPCError>;
+    async fn get_latest_block(&mut self) -> Result<BlockPtr, RPCError>;
+}
 
 #[derive(Clone)]
 pub enum RPCChain {
@@ -25,22 +31,19 @@ impl RPCTrait for RPCChain {
     async fn handle_request(
         &mut self,
         request: CallRequestContext,
-    ) -> Result<CallResponse, RPCClientError> {
+    ) -> Result<CallResponse, RPCError> {
         match self {
             RPCChain::Ethereum(client) => client.handle_request(request).await,
-            RPCChain::None => Err(RPCClientError::RPCInvalidChain(
-                "RPCClient is not configured".to_string(),
-            )),
+            RPCChain::None => Err(RPCError::InvalidChain),
         }
     }
-}
 
-#[async_trait]
-pub trait RPCTrait {
-    async fn handle_request(
-        &mut self,
-        call: CallRequestContext,
-    ) -> Result<CallResponse, RPCClientError>;
+    async fn get_latest_block(&mut self) -> Result<BlockPtr, RPCError> {
+        match self {
+            RPCChain::Ethereum(client) => client.get_latest_block().await,
+            RPCChain::None => Ok(BlockPtr::default()),
+        }
+    }
 }
 
 pub struct RpcClient {
@@ -50,7 +53,7 @@ pub struct RpcClient {
 }
 
 impl RpcClient {
-    async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCClientError> {
+    async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCError> {
         let rpc_client = match config.chain {
             Chain::Ethereum => {
                 let client = ethereum::EthereumRPC::new(&config.rpc_endpoint, abis).await?;
@@ -64,10 +67,7 @@ impl RpcClient {
         })
     }
 
-    pub async fn handle_request(
-        &mut self,
-        call: CallRequest,
-    ) -> Result<CallResponse, RPCClientError> {
+    pub async fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         let call_context = CallRequestContext {
             block_ptr: self.block_ptr.clone(),
             call_request: call,
@@ -103,12 +103,12 @@ impl RpcClient {
 pub struct RpcAgent(Arc<Mutex<RpcClient>>);
 
 impl RpcAgent {
-    pub async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCClientError> {
+    pub async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCError> {
         let rpc_client = RpcClient::new(config, abis).await?;
         Ok(Self(Arc::new(Mutex::new(rpc_client))))
     }
 
-    pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCClientError> {
+    pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCError> {
         let timer = Instant::now();
         use std::thread;
         let client = self.0.clone();

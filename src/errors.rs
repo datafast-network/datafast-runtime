@@ -182,7 +182,7 @@ pub enum SourceError {
 }
 
 #[derive(Debug, Error)]
-pub enum RPCClientError {
+pub enum RPCError {
     #[error("ABI is not valid")]
     BadABI,
     #[error("Contract call failed")]
@@ -197,8 +197,10 @@ pub enum RPCClientError {
     DataEncodingFail,
     #[error("Data decoding failed")]
     DataDecodingFail,
-    #[error("RPC Client Error: {0}")]
-    RPCInvalidChain(String),
+    #[error("Chain not recognized")]
+    InvalidChain,
     #[error("call reverted: {0}")]
     Revert(String),
+    #[error("Get latest-block failed")]
+    GetLatestBlockFail,
 }
