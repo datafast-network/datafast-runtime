@@ -6,7 +6,6 @@ use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
 use crate::errors::RPCError;
-use crate::info;
 use crate::warn;
 use async_trait::async_trait;
 use std::sync::Arc;
