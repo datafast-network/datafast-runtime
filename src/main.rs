@@ -120,7 +120,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                subgraph.create_sources()?;
+                if block_ptr.number % 50 == 0 {
+                    // NOTE: creating sources takes ~ 20ms, which is quite a lot
+                    // we need to determine when we should drop the current sources & create new ones
+                    // for now, just work around...
+                    subgraph.create_sources()?;
+                }
+
                 subgraph.process(block)?;
                 rpc.clear_block_level_cache().await;
 
