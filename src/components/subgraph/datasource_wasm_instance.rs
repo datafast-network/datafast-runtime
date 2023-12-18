@@ -113,6 +113,6 @@ impl DatasourceWasmInstance {
 
     pub fn should_reset(&self) -> bool {
         let arena_size = self.host.current_ptr();
-        return (arena_size as f32) > (0.5 * (i32::MAX as f32));
+        (arena_size as f32) > (0.5 * (i32::MAX as f32))
     }
 }
