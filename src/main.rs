@@ -123,10 +123,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let time = Instant::now();
                 subgraph.create_sources()?;
-                warn!(
-                    main,
-                    format!("creating source takes: {}", time.elapsed().as_millis())
-                );
+                if time.elapsed().as_millis() > 10 {
+                    warn!(
+                        main,
+                        format!(
+                            "creating source takes too long: {}",
+                            time.elapsed().as_millis()
+                        )
+                    );
+                }
+
                 subgraph.process(block)?;
                 rpc.clear_block_level_cache().await;
 

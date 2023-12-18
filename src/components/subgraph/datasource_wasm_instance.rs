@@ -111,7 +111,7 @@ impl DatasourceWasmInstance {
         Ok(())
     }
 
-    pub fn reset(&mut self) {
-        todo!()
+    pub fn reset(&self) {
+        self.host.reset();
     }
 }

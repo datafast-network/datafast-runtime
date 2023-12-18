@@ -56,7 +56,7 @@ impl Subgraph {
             }
         } else {
             for ds in self.sources.values() {
-                //
+                ds.reset();
             }
         }
 
