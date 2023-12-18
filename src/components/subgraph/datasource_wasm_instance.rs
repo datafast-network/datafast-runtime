@@ -70,12 +70,12 @@ impl TryFrom<(&AscHost, &Datasource)> for EthereumHandlers {
     }
 }
 
-impl TryFrom<(&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)>
+impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)>
     for DatasourceWasmInstance
 {
     type Error = SubgraphError;
     fn try_from(
-        value: (&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
+        value: (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
     ) -> Result<Self, Self::Error> {
         let host = AscHost::try_from(value.clone())
             .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;
@@ -109,5 +109,10 @@ impl DatasourceWasmInstance {
         )?;
 
         Ok(())
+    }
+
+    pub fn should_reset(&self) -> bool {
+        let arena_size = self.host.current_ptr();
+        (arena_size as f32) > (0.5 * (i32::MAX as f32))
     }
 }

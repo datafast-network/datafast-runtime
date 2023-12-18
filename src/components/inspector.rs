@@ -48,7 +48,7 @@ impl Inspector {
             return block.number + 1;
         }
 
-        return self.ds_min_start_block;
+        self.ds_min_start_block
     }
 
     pub fn check_block(&mut self, new_block_ptr: BlockPtr) -> BlockInspectionResult {

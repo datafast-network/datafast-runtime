@@ -10,11 +10,15 @@ mod store;
 mod types_conversion;
 mod wasm_log;
 
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use crate::common::DatasourceBundle;
 use crate::components::ManifestAgent;
 use crate::database::DatabaseAgent;
 use crate::errors::WasmHostError;
 use crate::rpc_client::RpcAgent;
+use asc::ArenaStartPtr;
 pub use asc::AscHost;
 use semver::Version;
 use wasmer::imports;
@@ -32,7 +36,7 @@ pub struct Env {
     pub memory_allocate: Option<TypedFunction<i32, i32>>,
     pub api_version: Version,
     pub id_of_type: Option<TypedFunction<u32, u32>>,
-    pub arena_start_ptr: i32,
+    pub arena_start_ptr: ArenaStartPtr,
     pub host_name: String,
     pub network: String,
     pub address: Option<String>,
@@ -62,7 +66,7 @@ fn create_wasm_host(
             memory_allocate: None,
             id_of_type: None,
             api_version: api_version.clone(),
-            arena_start_ptr: 0,
+            arena_start_ptr: Arc::new(Mutex::new(0)),
             host_name,
             db,
             rpc,
@@ -222,7 +226,7 @@ fn create_wasm_host(
 
     let memory = instance.exports.get_memory("memory").unwrap().clone();
     let id_of_type = data_mut.id_of_type.clone();
-    let arena_start_ptr = data_mut.arena_start_ptr;
+    let arena_start_ptr = data_mut.arena_start_ptr.clone();
     let memory_allocate = data_mut.memory_allocate.clone();
 
     Ok(AscHost {
@@ -236,11 +240,11 @@ fn create_wasm_host(
     })
 }
 
-impl TryFrom<(&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for AscHost {
+impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for AscHost {
     type Error = WasmHostError;
 
     fn try_from(
-        (ds, db, rpc, manifest): (&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
+        (ds, db, rpc, manifest): (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
     ) -> Result<Self, Self::Error> {
         create_wasm_host(
             ds.api_version(),

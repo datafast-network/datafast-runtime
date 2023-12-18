@@ -5,6 +5,8 @@ use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::wasm_host::Env;
 use semver::Version;
 use std::mem::MaybeUninit;
+use std::sync::Arc;
+use std::sync::Mutex;
 use wasmer::AsStoreMut;
 use wasmer::AsStoreRef;
 use wasmer::FromToNativeWasmType;
@@ -15,18 +17,21 @@ use wasmer::Store;
 use wasmer::TypedFunction;
 use wasmer::Value;
 
+pub type ArenaStartPtr = Arc<Mutex<i32>>;
+
 impl AscHeap for FunctionEnvMut<'_, Env> {
     fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
         let (env, mut store) = self.data_and_store_mut();
         let size = i32::try_from(bytes.len()).unwrap();
         let arena_size = size;
+        let mut arena_start_ptr = env.arena_start_ptr.lock().unwrap();
 
         // Unwrap: This may panic if more memory needs to be requested from the OS and that
         // fails. This error is not deterministic since it depends on the operating conditions
         // of the node.
         if let Some(memory_allocate) = env.memory_allocate.as_ref() {
             let new_arena_ptr = memory_allocate.call(&mut store, arena_size).unwrap();
-            env.arena_start_ptr = new_arena_ptr;
+            *arena_start_ptr = new_arena_ptr;
         }
 
         match &env.api_version {
@@ -38,17 +43,17 @@ impl AscHeap for FunctionEnvMut<'_, Env> {
                 // `mmInfo` has size of 4, and everything allocated on AssemblyScript memory
                 // should have alignment of 16, this means we need to do a 12 offset on these
                 // big chunks of untyped allocation.
-                env.arena_start_ptr += 12;
+                *arena_start_ptr += 12;
             }
         };
 
         let memory = env.memory.as_ref().unwrap();
         let view = memory.view(&store);
         // NOTE: write to page's footer
-        let ptr = env.arena_start_ptr as usize;
+        let ptr = *arena_start_ptr as usize;
         view.write(ptr as u64, bytes)?;
         // Unwrap: We have just allocated enough space for `bytes`.
-        env.arena_start_ptr += size;
+        *arena_start_ptr += size;
 
         Ok(ptr as u32)
     }
@@ -117,30 +122,38 @@ pub struct AscHost {
     pub api_version: Version,
     pub id_of_type: Option<TypedFunction<u32, u32>>,
     pub memory_allocate: Option<TypedFunction<i32, i32>>,
-    pub arena_start_ptr: i32,
+    pub arena_start_ptr: ArenaStartPtr,
+}
+
+impl AscHost {
+    pub fn current_ptr(&self) -> i32 {
+        let arena_start_ptr = self.arena_start_ptr.lock().unwrap();
+        *arena_start_ptr
+    }
 }
 
 impl AscHeap for AscHost {
     fn raw_new(&mut self, bytes: &[u8]) -> Result<u32, AscError> {
         let size = i32::try_from(bytes.len()).unwrap();
         let arena_size = size;
+        let mut arena_start_ptr = self.arena_start_ptr.lock().unwrap();
 
         if let Some(memory_allocate) = self.memory_allocate.clone() {
             let new_arena_ptr = memory_allocate.call(&mut self.store, arena_size).unwrap();
-            self.arena_start_ptr = new_arena_ptr;
+            *arena_start_ptr = new_arena_ptr;
         }
 
         match &self.api_version {
             version if *version <= Version::new(0, 0, 4) => {}
             _ => {
-                self.arena_start_ptr += 12;
+                *arena_start_ptr += 12;
             }
         };
 
         let view = self.memory.view(&self.store);
-        let ptr = self.arena_start_ptr as usize;
+        let ptr = *arena_start_ptr as usize;
         view.write(ptr as u64, bytes)?;
-        self.arena_start_ptr += size;
+        *arena_start_ptr += size;
 
         Ok(ptr as u32)
     }
