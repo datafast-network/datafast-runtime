@@ -58,12 +58,14 @@ impl Subgraph {
                     ))?,
                 );
             }
-            info!(
-                Subgraph, "created wasm-datasources 💥";
-                count => self.create_source_count,
-                block => block,
-                exec_time => format!("{:?}", time.elapsed())
-            );
+            if self.create_source_count % 10 == 0 {
+                info!(
+                    Subgraph, "created wasm-datasources 💥";
+                    count => self.create_source_count,
+                    block => block,
+                    exec_time => format!("{:?}", time.elapsed())
+                );
+            }
         } else {
             for current_source in self.sources.values_mut() {
                 if current_source.should_reset() {
