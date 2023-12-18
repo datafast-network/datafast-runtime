@@ -42,18 +42,24 @@ impl Subgraph {
     }
 
     pub fn create_sources(&mut self) -> Result<(), SubgraphError> {
-        self.sources.clear();
-        for ds in self.manifest.datasource_and_templates().iter() {
-            self.sources.insert(
-                (ds.name(), ds.address()),
-                DatasourceWasmInstance::try_from((
-                    ds,
-                    self.db.clone(),
-                    self.rpc.clone(),
-                    self.manifest.clone(),
-                ))?,
-            );
+        if self.sources.is_empty() {
+            for ds in self.manifest.datasource_and_templates().iter() {
+                self.sources.insert(
+                    (ds.name(), ds.address()),
+                    DatasourceWasmInstance::try_from((
+                        ds,
+                        self.db.clone(),
+                        self.rpc.clone(),
+                        self.manifest.clone(),
+                    ))?,
+                );
+            }
+        } else {
+            for ds in self.sources.values() {
+                //
+            }
         }
+
         Ok(())
     }
 
