@@ -141,6 +141,10 @@ impl DatasourceBundle {
 }
 
 impl DatasourceBundles {
+    pub fn inner(self) -> Vec<DatasourceBundle> {
+        self.ds
+    }
+
     pub fn len(&self) -> usize {
         self.ds.len()
     }

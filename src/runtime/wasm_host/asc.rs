@@ -126,9 +126,9 @@ pub struct AscHost {
 }
 
 impl AscHost {
-    pub fn reset(&self) {
-        let mut arena_start_ptr = self.arena_start_ptr.lock().unwrap();
-        *arena_start_ptr = 0;
+    pub fn current_ptr(&self) -> i32 {
+        let arena_start_ptr = self.arena_start_ptr.lock().unwrap();
+        *arena_start_ptr
     }
 }
 

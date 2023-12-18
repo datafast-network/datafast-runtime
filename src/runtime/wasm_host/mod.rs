@@ -240,11 +240,11 @@ fn create_wasm_host(
     })
 }
 
-impl TryFrom<(&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for AscHost {
+impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for AscHost {
     type Error = WasmHostError;
 
     fn try_from(
-        (ds, db, rpc, manifest): (&DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
+        (ds, db, rpc, manifest): (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
     ) -> Result<Self, Self::Error> {
         create_wasm_host(
             ds.api_version(),

@@ -49,6 +49,23 @@ impl ManifestAgent {
         manifest.wasms.get(source_name).unwrap()
     }
 
+    pub fn get_datasource(&self, name: &str) -> DatasourceBundle {
+        let manifest = self.0.read().unwrap();
+        let bundle_from_datasource = manifest.datasources.ds.iter().find(|ds| ds.name() == name);
+
+        if let Some(source) = bundle_from_datasource {
+            return source.clone();
+        }
+
+        let bundle_from_template = manifest.templates.ds.iter().find(|ds| ds.name() == name);
+
+        if let Some(source) = bundle_from_template {
+            return source.clone();
+        }
+
+        panic!("bad datasource name {name}");
+    }
+
     pub fn datasources(&self) -> DatasourceBundles {
         let manifest = self.0.read().unwrap();
         manifest.datasources.clone()

@@ -23,6 +23,7 @@ pub struct Subgraph {
     rpc: RpcAgent,
     db: DatabaseAgent,
     manifest: ManifestAgent,
+    create_source_count: u64,
 }
 
 impl Subgraph {
@@ -38,12 +39,15 @@ impl Subgraph {
             rpc: rpc.clone(),
             db: db.clone(),
             manifest: manifest.clone(),
+            create_source_count: 0,
         }
     }
 
-    pub fn create_sources(&mut self) -> Result<(), SubgraphError> {
+    pub fn create_sources(&mut self, block: u64) -> Result<(), SubgraphError> {
+        let time = Instant::now();
         if self.sources.is_empty() {
-            for ds in self.manifest.datasource_and_templates().iter() {
+            self.create_source_count += 1;
+            for ds in self.manifest.datasource_and_templates().inner() {
                 self.sources.insert(
                     (ds.name(), ds.address()),
                     DatasourceWasmInstance::try_from((
@@ -54,9 +58,18 @@ impl Subgraph {
                     ))?,
                 );
             }
+            info!(
+                Subgraph, "created wasm-datasources 💥";
+                count => self.create_source_count,
+                block => block,
+                exec_time => format!("{:?}", time.elapsed())
+            );
         } else {
-            for ds in self.sources.values() {
-                ds.reset();
+            for current_source in self.sources.values_mut() {
+                if current_source.should_reset() {
+                    self.sources = HashMap::new();
+                    return self.create_sources(block);
+                }
             }
         }
 
@@ -85,7 +98,7 @@ impl Subgraph {
             self.sources.insert(
                 (ds.name(), ds.address()),
                 DatasourceWasmInstance::try_from((
-                    &ds,
+                    ds,
                     self.db.clone(),
                     self.rpc.clone(),
                     self.manifest.clone(),

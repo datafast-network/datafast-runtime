@@ -17,7 +17,6 @@ use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
 use std::fs;
-use std::time::Instant;
 
 fn welcome() {
     // TODO: include file in build script
@@ -121,18 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                let time = Instant::now();
-                subgraph.create_sources()?;
-                if time.elapsed().as_millis() > 10 {
-                    warn!(
-                        main,
-                        format!(
-                            "creating source takes too long: {}",
-                            time.elapsed().as_millis()
-                        )
-                    );
-                }
-
+                subgraph.create_sources(block_ptr.number)?;
                 subgraph.process(block)?;
                 rpc.clear_block_level_cache().await;
 
