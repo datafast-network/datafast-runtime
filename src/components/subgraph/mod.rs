@@ -7,7 +7,6 @@ use crate::common::EthereumFilteredEvent;
 use crate::common::FilteredDataMessage;
 use crate::common::HandlerTypes;
 use crate::database::DatabaseAgent;
-use crate::debug;
 use crate::errors::SubgraphError;
 use crate::info;
 use crate::rpc_client::RpcAgent;
@@ -115,8 +114,7 @@ impl Subgraph {
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
-    ) -> Result<(), SubgraphError> {
-        let block_number = block.number.as_u64();
+    ) -> Result<usize, SubgraphError> {
         let mut block_handlers = HashMap::new();
 
         for ((source_name, _), source_instance) in self.sources.iter() {
@@ -142,41 +140,41 @@ impl Subgraph {
             }
         }
 
-        let timer = Instant::now();
         let event_count = events.len();
         for event in events {
-            let maybe_key1 = (
-                event.datasource.clone(),
-                Some(format!("{:?}", event.event.address).to_lowercase()),
-            );
-            let maybe_key2: (String, Option<String>) = (event.datasource.clone(), None);
+            let ds_name = event.datasource.clone();
+            let event_address = format!("{:?}", event.event.address).to_lowercase();
 
-            let mut maybe_source = self.sources.get_mut(&maybe_key1);
-
-            if maybe_source.is_none() {
-                maybe_source = self.sources.get_mut(&maybe_key2);
-            }
-
-            if maybe_source.is_none() {
+            if let Some(source) = self
+                .sources
+                .get_mut(&(ds_name.clone(), Some(event_address)))
+            {
+                source.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
+                self.check_for_new_datasource()?;
                 continue;
             }
 
-            let source_instance = maybe_source.unwrap();
-            source_instance.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
-            self.check_for_new_datasource()?;
+            if let Some(source) = self.sources.get_mut(&(ds_name.clone(), None)) {
+                if !self.manifest.should_process_address(
+                    &event.datasource,
+                    &format!("{:?}", event.event.address).to_lowercase(),
+                ) {
+                    // NOTE: This datasource is based from a template,
+                    // and this address is not relevant to process
+                    continue;
+                }
+
+                // NOTE: This datasource is either based from a template or a no-address datasource,
+                // this address might be relevant if the datasource is template, or
+                // directly relevant to the no-address datasource
+                source.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
+                self.check_for_new_datasource()?;
+            }
+
+            continue;
         }
 
-        if event_count > 0 {
-            debug!(
-                Subgraph,
-                "processed all events in block";
-                events => event_count,
-                exec_time => format!("{:?}", timer.elapsed()),
-                block => block_number
-            );
-        }
-
-        Ok(())
+        Ok(event_count)
     }
 
     pub fn process(&mut self, msg: FilteredDataMessage) -> Result<(), SubgraphError> {
@@ -188,7 +186,16 @@ impl Subgraph {
 
         match msg {
             FilteredDataMessage::Ethereum { events, block } => {
-                self.handle_ethereum_data(events, block)?
+                let time = Instant::now();
+                let count_event = self.handle_ethereum_data(events, block)?;
+                if count_event > 0 {
+                    info!(
+                        Subgraph,
+                        format!("processed {count_event} events");
+                        exec_time => format!("{:?}", time.elapsed()),
+                        block => block_ptr.number
+                    );
+                }
             }
         };
 

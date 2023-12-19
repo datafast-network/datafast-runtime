@@ -2,6 +2,7 @@ use super::ManifestBundle;
 use super::Schemas;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
+use std::collections::HashMap;
 use std::fs;
 use std::fs::read_to_string;
 use std::io::BufReader;
@@ -39,6 +40,7 @@ impl LocalFileLoader {
             datasources,
             templates,
             block_ptr: BlockPtr::default(),
+            templates_address_filter: HashMap::default(),
         };
 
         Ok(manifest)

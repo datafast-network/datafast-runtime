@@ -16,6 +16,8 @@ use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio_retry::strategy::FixedInterval;
+use tokio_retry::Retry;
 
 pub trait DeltaBlockTrait:
     TryFrom<RecordBatch, Error = SourceError> + Into<Vec<BlockDataMessage>>
@@ -92,7 +94,11 @@ impl DeltaClient {
                 tokio::time::sleep(Duration::from_secs(sleep_tine)).await;
             }
 
-            let batches = self.query_blocks(start_block).await?;
+            let batches = Retry::spawn(FixedInterval::from_millis(10), || {
+                self.query_blocks(start_block)
+            })
+            .await?;
+
             let time = std::time::Instant::now();
 
             let blocks = batches

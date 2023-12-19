@@ -1,3 +1,4 @@
+use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::native_types::array::Array;
@@ -8,12 +9,17 @@ use crate::runtime::wasm_host::Env;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
 
-/// NOTE: as discussed, due to current filter logic, we can skip this function entirely
 pub fn datasource_create(
-    _fenv: FunctionEnvMut<Env>,
-    _name_ptr: AscPtr<AscString>,
-    _params_ptr: AscPtr<Array<AscPtr<AscString>>>,
+    mut fenv: FunctionEnvMut<Env>,
+    name_ptr: AscPtr<AscString>,
+    params_ptr: AscPtr<Array<AscPtr<AscString>>>,
 ) -> Result<(), RuntimeError> {
+    let source_name: String = asc_get(&fenv, name_ptr, 0)?;
+    let source_params: Vec<String> = asc_get(&fenv, params_ptr, 0)?;
+    let env = fenv.data_mut();
+    env.manifest
+        .create_datasource(&source_name, source_params)
+        .unwrap();
     Ok(())
 }
 
