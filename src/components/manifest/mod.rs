@@ -6,6 +6,8 @@ use crate::error;
 use crate::errors::ManifestLoaderError;
 use crate::info;
 use local::LocalFileLoader;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -18,6 +20,7 @@ pub struct ManifestBundle {
     schema: Schemas,
     datasources: DatasourceBundles,
     block_ptr: BlockPtr,
+    templates_address_filter: HashMap<String, HashSet<String>>,
 }
 
 #[derive(Clone, Default)]
@@ -110,20 +113,17 @@ impl ManifestAgent {
             return Err(ManifestLoaderError::CreateDatasourceFail);
         }
 
-        let mut new_ds = manifest.templates.get(name, None).ok_or_else(|| {
-            error!(
-                Manifest,
-                format!("no template match datasource name={name}")
-            );
-            ManifestLoaderError::CreateDatasourceFail
-        })?;
+        if !manifest.templates_address_filter.contains_key(name) {
+            manifest
+                .templates_address_filter
+                .insert(name.to_string(), HashSet::new());
+        }
 
-        new_ds.ds.source.address = address.clone();
-        new_ds.ds.source.startBlock = Some(manifest.block_ptr.number);
-        manifest.datasources.add(new_ds).map_err(|e| {
-            error!(Manifest, format!("{:?}", e));
-            ManifestLoaderError::CreateDatasourceFail
-        })?;
+        manifest
+            .templates_address_filter
+            .get_mut(name)
+            .unwrap()
+            .insert(address.clone().unwrap());
 
         info!(
             Manifest,
@@ -134,5 +134,16 @@ impl ManifestAgent {
         );
 
         Ok(())
+    }
+
+    pub fn should_process_address(&self, name: &str, address: &str) -> bool {
+        let manifest = self.0.read().unwrap();
+        let template = manifest.templates_address_filter.get(name);
+
+        if let Some(source_address) = template {
+            return source_address.contains(address);
+        }
+
+        return true;
     }
 }
