@@ -41,6 +41,7 @@ pub struct EthereumRPC {
     supports_eip_1898: bool,
     abis: ABIs,
     cache: CacheRPC,
+    url: String,
 }
 
 impl EthereumRPC {
@@ -58,7 +59,12 @@ impl EthereumRPC {
             supports_eip_1898,
             abis,
             cache: CacheRPC::default(),
+            url: url.to_string(),
         })
+    }
+
+    async fn reconnect(&mut self) {
+        self.client = Web3::new(WebSocket::new(&self.url).await.unwrap());
     }
 
     fn parse_contract_call_request(
@@ -193,7 +199,7 @@ impl EthereumRPC {
             transaction_type: None,
         };
 
-        let result = Retry::spawn(FixedInterval::from_millis(5).take(5), || {
+        let result = Retry::spawn(FixedInterval::from_millis(1).take(5), || {
             self.client.eth().call(request.clone(), Some(block_id))
         })
         .await
@@ -236,7 +242,17 @@ impl RPCTrait for EthereumRPC {
     async fn handle_request(&mut self, call: CallRequestContext) -> Result<CallResponse, RPCError> {
         match call.call_request {
             CallRequest::EthereumContractCall(data) => {
-                self.handle_contract_call(data, call.block_ptr).await
+                match self
+                    .handle_contract_call(data.clone(), call.block_ptr.clone())
+                    .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(RPCError::ContractCallFail) => {
+                        self.reconnect().await;
+                        return self.handle_contract_call(data, call.block_ptr).await;
+                    }
+                    Err(e) => Err(e),
+                }
             }
         }
     }
