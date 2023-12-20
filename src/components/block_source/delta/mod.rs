@@ -86,7 +86,7 @@ impl DeltaClient {
         let df = self.get_dataframe(&query).await?;
         info!(BlockSource, "dataframe set up OK"; query => query);
         let batches = df.collect().await?;
-        start_time.stop_and_discard();
+        start_time.stop_and_record();
         self.metrics.block_source_query_count.inc();
         Ok(batches)
     }
