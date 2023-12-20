@@ -127,7 +127,7 @@ impl DeltaClient {
 
             self.metrics
                 .block_source_total_blocks
-                .inc_with(blocks.len() as i64);
+                .inc_by(blocks.len() as u64);
 
             info!(
                 DeltaClient,
