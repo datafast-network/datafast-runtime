@@ -1,4 +1,5 @@
 mod ethereum;
+mod metrics;
 mod types;
 
 use crate::common::ABIs;
@@ -6,14 +7,14 @@ use crate::common::BlockPtr;
 use crate::common::Chain;
 use crate::config::Config;
 use crate::errors::RPCError;
-use crate::info;
-use crate::warn;
 use async_trait::async_trait;
+use prometheus::Registry;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
 use tokio::sync::Mutex;
 pub use types::*;
+
+use self::metrics::RpcMetrics;
 
 #[async_trait]
 pub trait RPCTrait {
@@ -66,12 +67,11 @@ pub struct RpcClient {
     rpc_client: RPCChain,
     block_ptr: BlockPtr,
     cache_by_block: HashMap<CallRequestContext, CallResponse>,
-    cache_hit_count: u64,
-    cache_miss_count: u64,
+    metrics: RpcMetrics,
 }
 
 impl RpcClient {
-    async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCError> {
+    async fn new(config: &Config, abis: ABIs, registry: &Registry) -> Result<Self, RPCError> {
         let rpc_client = match config.chain {
             Chain::Ethereum => {
                 let client = ethereum::EthereumRPC::new(&config.rpc_endpoint, abis).await?;
@@ -82,25 +82,17 @@ impl RpcClient {
             rpc_client,
             block_ptr: BlockPtr::default(),
             cache_by_block: HashMap::new(),
-            cache_hit_count: 0,
-            cache_miss_count: 0,
+            metrics: RpcMetrics::new(registry),
         })
     }
 
     pub async fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         if let Some(result) = self.rpc_client.cache_get(&call) {
-            self.cache_hit_count += 1;
-            info!(
-                RpcClient,
-                "cache hit at chain-level ⚡";
-                hit_count => format!("{} hits", self.cache_hit_count),
-                miss_count => format!("{} hits", self.cache_miss_count),
-                call => call
-            );
+            self.metrics.chain_level_cache_hit.inc();
             return Ok(result);
         }
 
-        let is_cachable = call.is_cachable();
+        let is_chain_level_cachable = call.is_cachable();
 
         let call_context = CallRequestContext {
             block_ptr: self.block_ptr.clone(),
@@ -108,38 +100,31 @@ impl RpcClient {
         };
 
         if let Some(result) = self.cache_by_block.get(&call_context) {
-            self.cache_hit_count += 1;
-            if self.cache_hit_count % 100 == 0 {
-                info!(
-                    RpcClient,
-                    "cache hit at block-level ⚡";
-                    hit_count => format!("{} hits", self.cache_hit_count),
-                    miss_count => format!("{} hits", self.cache_miss_count),
-                    call => call
-                );
-            }
-
+            self.metrics.block_level_cache_hit.inc();
             return Ok(result.clone());
         }
 
+        let timer = self.metrics.rpc_request_duration.start_timer();
         let result = self.rpc_client.handle_request(call_context.clone()).await?;
         self.cache_by_block.insert(call_context, result.clone());
+        timer.stop_and_record();
 
-        if is_cachable {
-            self.cache_miss_count += 1;
+        if is_chain_level_cachable {
+            self.metrics.chain_level_cache_miss.inc();
             self.rpc_client.cache_set(&call, &result);
+        } else {
+            self.metrics.block_level_cache_miss.inc();
         }
 
         Ok(result)
     }
 
-    pub fn new_mock() -> Self {
+    pub fn new_mock(registry: &Registry) -> Self {
         Self {
             rpc_client: RPCChain::None,
             block_ptr: BlockPtr::default(),
             cache_by_block: HashMap::new(),
-            cache_hit_count: 0,
-            cache_miss_count: 0,
+            metrics: RpcMetrics::new(registry),
         }
     }
 
@@ -156,18 +141,16 @@ impl RpcClient {
 pub struct RpcAgent(Arc<Mutex<RpcClient>>);
 
 impl RpcAgent {
-    pub async fn new(config: &Config, abis: ABIs) -> Result<Self, RPCError> {
-        let rpc_client = RpcClient::new(config, abis).await?;
+    pub async fn new(config: &Config, abis: ABIs, registry: &Registry) -> Result<Self, RPCError> {
+        let rpc_client = RpcClient::new(config, abis, registry).await?;
         Ok(Self(Arc::new(Mutex::new(rpc_client))))
     }
 
     pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCError> {
-        let timer = Instant::now();
         use std::thread;
         let client = self.0.clone();
-        let log_call = call.clone();
 
-        let result = thread::spawn(|| {
+        thread::spawn(|| {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_time()
                 .enable_io()
@@ -179,20 +162,7 @@ impl RpcAgent {
             })
         })
         .join()
-        .unwrap();
-
-        let rpc_duration = timer.elapsed().as_millis();
-
-        if rpc_duration >= 100 {
-            warn!(
-                RpcClient,
-                "json-rpc call took a bit long";
-                time => format!("{:?}ms", timer.elapsed().as_millis()),
-                call => log_call
-            );
-        }
-
-        result
+        .unwrap()
     }
 
     pub async fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
@@ -200,8 +170,8 @@ impl RpcAgent {
         rpc.set_block_ptr(block_ptr);
     }
 
-    pub fn new_mock() -> Self {
-        let client = Arc::new(Mutex::new(RpcClient::new_mock()));
+    pub fn new_mock(registry: &Registry) -> Self {
+        let client = Arc::new(Mutex::new(RpcClient::new_mock(registry)));
         Self(client)
     }
 
@@ -240,8 +210,7 @@ pub mod tests {
             rpc_client: chain,
             block_ptr,
             cache_by_block: HashMap::new(),
-            cache_hit_count: 0,
-            cache_miss_count: 0,
+            metrics: RpcMetrics::new(&Registry::new()),
         };
 
         RpcAgent(Arc::new(Mutex::new(client)))

@@ -67,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     info!(main, "DataFilter ready!");
 
-    let mut rpc = RpcAgent::new(&config, manifest.abis()).await?;
+    let mut rpc = RpcAgent::new(&config, manifest.abis(), registry).await?;
     info!(main, "Rpc-Client ready!");
 
     let mut subgraph = Subgraph::new(&db, &rpc, &manifest, registry);
