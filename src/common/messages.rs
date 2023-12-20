@@ -22,8 +22,8 @@ impl BlockDataMessage {
         match self {
             Self::Ethereum { block, .. } => BlockPtr {
                 number: block.number.as_u64(),
-                hash: block.hash.to_string(),
-                parent_hash: block.parent_hash.to_string(),
+                hash: format!("{:?}", block.hash),
+                parent_hash: format!("{:?}", block.parent_hash),
             },
         }
     }
@@ -49,8 +49,8 @@ impl FilteredDataMessage {
         match self {
             FilteredDataMessage::Ethereum { block, .. } => BlockPtr {
                 number: block.number.as_u64(),
-                hash: block.hash.to_string(),
-                parent_hash: block.parent_hash.to_string(),
+                hash: format!("{:?}", block.hash),
+                parent_hash: format!("{:?}", block.parent_hash),
             },
         }
     }
