@@ -81,13 +81,15 @@ impl Subgraph {
                 );
             }
 
-            info!(
-                Subgraph, "(re)created wasm-datasources 💥";
-                recreation_count => self.create_source_count,
-                at_block => block,
-                total_sources => self.sources.len(),
-                exec_time => format!("{:?}", time.elapsed())
-            );
+            if self.create_source_count % 10 == 10 {
+                info!(
+                    Subgraph, "(re)created wasm-datasources 💥";
+                    recreation_count => self.create_source_count,
+                    at_block => block,
+                    total_sources => self.sources.len(),
+                    exec_time => format!("{:?}", time.elapsed())
+                );
+            }
         }
 
         Ok(())
