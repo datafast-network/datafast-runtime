@@ -207,16 +207,7 @@ impl Subgraph {
 
         match msg {
             FilteredDataMessage::Ethereum { events, block } => {
-                let time = Instant::now();
-                let trigger_count = self.handle_ethereum_data(events, block)?;
-                if time.elapsed().as_millis() > 200 {
-                    info!(
-                        Subgraph,
-                        format!("processed {trigger_count} triggers");
-                        exec_time => format!("{:?}", time.elapsed()),
-                        block => block_ptr.number
-                    );
-                }
+                self.handle_ethereum_data(events, block)?
             }
         };
 
