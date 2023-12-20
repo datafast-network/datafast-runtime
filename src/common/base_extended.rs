@@ -42,7 +42,8 @@ impl SubgraphYaml {
 
 impl BlockPtr {
     pub fn is_parent(&self, child_block_ptr: &BlockPtr) -> bool {
-        self.number == child_block_ptr.number - 1 && self.hash == child_block_ptr.parent_hash
+        self.number == child_block_ptr.number - 1
+            && self.hash.to_lowercase() == child_block_ptr.parent_hash.to_lowercase()
     }
 }
 
