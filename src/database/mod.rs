@@ -97,8 +97,9 @@ impl Database {
         if entity.is_none() {
             self.metrics.cache_miss.inc();
             self.metrics.extern_db_load.inc();
+            let timer = self.metrics.extern_db_get_duration.start_timer();
             let entity = self.db.load_entity(&entity_type, &entity_id).await?;
-
+            timer.stop_and_record();
             if entity.is_none() {
                 return Ok(StoreRequestResult::Load(None));
             }
@@ -180,7 +181,10 @@ impl Database {
                 }
             }
             if !missing_ids.is_empty() {
+                let timer = self.metrics.extern_db_get_duration.start_timer();
                 let entities = self.db.load_entities(&relation_table, missing_ids).await?;
+                timer.stop_and_record();
+
                 for entity in entities {
                     related_entities.push(entity.clone());
                     self.mem.create_entity(&relation_table, entity)?;
@@ -195,9 +199,11 @@ impl Database {
     async fn migrate_from_mem_to_db(&mut self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         let values = self.mem.extract_data()?;
         self.metrics.extern_db_write.inc();
+        let timer = self.metrics.extern_db_set_duration.start_timer();
         self.db
             .batch_insert_entities(block_ptr.clone(), values)
             .await?;
+        timer.stop_and_record();
         self.metrics.extern_db_write.inc();
         self.db.save_block_ptr(block_ptr.clone()).await?;
         Ok(())

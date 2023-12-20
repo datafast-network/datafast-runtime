@@ -1,5 +1,5 @@
-use prometheus::IntCounter;
-use prometheus::Registry;
+use prometheus::{Histogram, IntCounter};
+use prometheus::{HistogramOpts, Registry};
 
 #[derive(Clone)]
 pub struct DatabaseMetrics {
@@ -7,6 +7,8 @@ pub struct DatabaseMetrics {
     pub cache_miss: IntCounter,
     pub extern_db_write: IntCounter,
     pub extern_db_load: IntCounter,
+    pub extern_db_get_duration: Histogram,
+    pub extern_db_set_duration: Histogram,
 }
 
 impl DatabaseMetrics {
@@ -31,11 +33,29 @@ impl DatabaseMetrics {
             .register(Box::new(extern_db_load.clone()))
             .unwrap_or_default();
 
+        let duration_opts =
+            HistogramOpts::new("extern_db_get_duration", "duration of extern db get entity");
+        let extern_db_get_duration = Histogram::with_opts(duration_opts).unwrap();
+
+        registry
+            .register(Box::new(extern_db_get_duration.clone()))
+            .unwrap_or_default();
+
+        let duration_opts =
+            HistogramOpts::new("extern_db_set_duration", "duration of extern db set");
+        let extern_db_set_duration = Histogram::with_opts(duration_opts).unwrap();
+
+        registry
+            .register(Box::new(extern_db_set_duration.clone()))
+            .unwrap_or_default();
+
         Self {
             cache_hit,
             cache_miss,
             extern_db_write,
             extern_db_load,
+            extern_db_get_duration,
+            extern_db_set_duration,
         }
     }
 }
