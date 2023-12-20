@@ -95,7 +95,7 @@ impl Database {
         let entity = self.mem.load_entity_latest(&entity_type, &entity_id)?;
 
         if entity.is_none() {
-            self.metrics.cache_miss.inc();
+            self.metrics.database_cache_miss.inc();
             self.metrics.extern_db_load.inc();
             let timer = self.metrics.extern_db_get_duration.start_timer();
             let entity = self.db.load_entity(&entity_type, &entity_id).await?;
@@ -109,7 +109,7 @@ impl Database {
             return Ok(StoreRequestResult::Load(Some(data)));
         }
 
-        self.metrics.cache_hit.inc();
+        self.metrics.database_cache_hit.inc();
         let data = entity.unwrap();
         Ok(StoreRequestResult::Load(Some(data)))
     }
