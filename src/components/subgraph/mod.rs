@@ -14,7 +14,6 @@ use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
-use std::time::Instant;
 
 pub struct Subgraph {
     sources: HashMap<(String, Option<String>), DatasourceWasmInstance>,

@@ -1,5 +1,7 @@
-use prometheus::{Histogram, IntCounter};
-use prometheus::{HistogramOpts, Registry};
+use prometheus::Histogram;
+use prometheus::HistogramOpts;
+use prometheus::IntCounter;
+use prometheus::Registry;
 
 #[derive(Clone)]
 pub struct DatabaseMetrics {

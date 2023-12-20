@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manifest = ManifestAgent::new(&config.subgraph_dir).await?;
     info!(main, "Manifest loaded!");
 
-    let valve = Valve::new(&config.valve);
+    let valve = Valve::new(&config.valve, registry);
     let source_valve = valve.clone();
 
     let db = DatabaseAgent::new(&config.database, manifest.schemas(), registry).await?;
