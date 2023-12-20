@@ -1,4 +1,5 @@
 mod delta;
+mod metrics;
 
 use super::Valve;
 use crate::common::BlockDataMessage;
@@ -9,6 +10,7 @@ use crate::errors::SourceError;
 use delta::DeltaClient;
 use delta::DeltaEthereumBlocks;
 use kanal::AsyncSender;
+use prometheus::Registry;
 
 enum Source {
     Delta(DeltaClient),
@@ -20,10 +22,14 @@ pub struct BlockSource {
 }
 
 impl BlockSource {
-    pub async fn new(config: &Config, start_block: u64) -> Result<Self, SourceError> {
+    pub async fn new(
+        config: &Config,
+        start_block: u64,
+        registry: &Registry,
+    ) -> Result<Self, SourceError> {
         let source = match &config.source {
             SourceTypes::Delta(delta_cfg) => {
-                Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block).await?)
+                Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block, registry).await?)
             }
         };
         Ok(Self {

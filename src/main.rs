@@ -57,7 +57,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     info!(main, "BlockInspector ready!"; next_start_block => inspector.get_expected_block_number());
 
-    let block_source = BlockSource::new(&config, inspector.get_expected_block_number()).await?;
+    let block_source =
+        BlockSource::new(&config, inspector.get_expected_block_number(), registry).await?;
     info!(main, "BlockSource ready!");
 
     let filter = DataFilter::new(

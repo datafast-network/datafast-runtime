@@ -1,6 +1,7 @@
 mod ethereum;
 pub mod proto;
 
+use super::metrics::BlockSourceMetrics;
 use crate::common::BlockDataMessage;
 use crate::components::Valve;
 use crate::config::DeltaConfig;
@@ -12,6 +13,7 @@ use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
+use prometheus::Registry;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
 use std::sync::Arc;
@@ -28,10 +30,15 @@ pub struct DeltaClient {
     ctx: SessionContext,
     start_block: u64,
     query_step: u64,
+    metrics: BlockSourceMetrics,
 }
 
 impl DeltaClient {
-    pub async fn new(cfg: DeltaConfig, start_block: u64) -> Result<Self, SourceError> {
+    pub async fn new(
+        cfg: DeltaConfig,
+        start_block: u64,
+        registry: &Registry,
+    ) -> Result<Self, SourceError> {
         info!(
             DeltaClient,
             "Init connection to data store";
@@ -60,6 +67,7 @@ impl DeltaClient {
             ctx,
             start_block,
             query_step: cfg.query_step,
+            metrics: BlockSourceMetrics::new(registry),
         })
     }
 
@@ -74,9 +82,12 @@ impl DeltaClient {
             start_block,
             start_block + self.query_step
         );
+        let start_time = self.metrics.block_source_query_duration.start_timer();
         let df = self.get_dataframe(&query).await?;
         info!(BlockSource, "dataframe set up OK"; query => query);
         let batches = df.collect().await?;
+        start_time.stop_and_discard();
+        self.metrics.block_source_query_count.inc();
         Ok(batches)
     }
 
@@ -100,6 +111,7 @@ impl DeltaClient {
             .await?;
 
             let time = std::time::Instant::now();
+            let start_time = self.metrics.block_source_serialized_duration.start_timer();
 
             let blocks = batches
                 .into_par_iter()
@@ -110,6 +122,12 @@ impl DeltaClient {
                     messages
                 })
                 .collect::<Vec<_>>();
+
+            start_time.stop_and_record();
+
+            self.metrics
+                .block_source_total_blocks
+                .inc_with(blocks.len() as i64);
 
             info!(
                 DeltaClient,
@@ -134,6 +152,7 @@ mod test {
     use super::*;
     use crate::config::ValveConfig;
     use log::info;
+    use prometheus::default_registry;
     use serde_json::json;
 
     #[test]
@@ -153,8 +172,8 @@ mod test {
             query_step: 4000,
             version: None,
         };
-
-        let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
+        let registry = default_registry();
+        let client = DeltaClient::new(cfg, 10_000_000, registry).await.unwrap();
         let (sender, recv) = kanal::bounded_async(1);
 
         tokio::select! {
@@ -184,7 +203,9 @@ mod test {
             version: None,
         };
 
-        let client = DeltaClient::new(cfg, 10_000_000).await.unwrap();
+        let client = DeltaClient::new(cfg, 10_000_000, default_registry())
+            .await
+            .unwrap();
 
         let (sender, recv) = kanal::bounded_async::<Vec<BlockDataMessage>>(1);
 
