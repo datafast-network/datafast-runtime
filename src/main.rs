@@ -120,9 +120,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BlockInspectionResult::OkToProceed => (),
                 };
 
-                subgraph.create_sources(block_ptr.number)?;
-                subgraph.process(block)?;
-                rpc.clear_block_level_cache().await;
+                if subgraph.should_process(&block) {
+                    subgraph.create_sources_if_needed(block_ptr.number)?;
+                    subgraph.process(block)?;
+                    rpc.clear_block_level_cache().await;
+                }
+
                 valve.set_finished(block_ptr.number);
             }
 

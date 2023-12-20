@@ -42,13 +42,26 @@ impl Subgraph {
         }
     }
 
-    pub fn create_sources(&mut self, block: u64) -> Result<(), SubgraphError> {
+    pub fn should_process(&self, data: &FilteredDataMessage) -> bool {
+        match data {
+            FilteredDataMessage::Ethereum { events, .. } => {
+                return events.len() > 0
+                    || self
+                        .sources
+                        .values()
+                        .find(|ds| !ds.ethereum_handlers.block.is_empty())
+                        .is_some();
+            }
+        }
+    }
+
+    pub fn create_sources_if_needed(&mut self, block: u64) -> Result<(), SubgraphError> {
         let time = Instant::now();
 
         if !self.sources.is_empty() {
             for current_source in self.sources.values_mut() {
                 if current_source.should_reset() {
-                    self.sources = HashMap::new();
+                    self.sources.clear();
                     break;
                 }
             }
@@ -67,15 +80,15 @@ impl Subgraph {
                     ))?,
                 );
             }
-        }
 
-        info!(
-            Subgraph, "(re)created wasm-datasources 💥";
-            recreation_count => self.create_source_count,
-            at_block => block,
-            total_sources => self.sources.len(),
-            exec_time => format!("{:?}", time.elapsed())
-        );
+            info!(
+                Subgraph, "(re)created wasm-datasources 💥";
+                recreation_count => self.create_source_count,
+                at_block => block,
+                total_sources => self.sources.len(),
+                exec_time => format!("{:?}", time.elapsed())
+            );
+        }
 
         Ok(())
     }
@@ -194,7 +207,7 @@ impl Subgraph {
             FilteredDataMessage::Ethereum { events, block } => {
                 let time = Instant::now();
                 let trigger_count = self.handle_ethereum_data(events, block)?;
-                if trigger_count > 0 {
+                if time.elapsed().as_millis() > 100 {
                     info!(
                         Subgraph,
                         format!("processed {trigger_count} triggers");
