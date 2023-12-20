@@ -205,11 +205,13 @@ impl Subgraph {
             .current_block_number
             .set(block_ptr.number as i64);
 
+        let timer = self.metrics.block_process_duration.start_timer();
         match msg {
             FilteredDataMessage::Ethereum { events, block } => {
                 self.handle_ethereum_data(events, block)?
             }
         };
+        timer.stop_and_record();
 
         if block_ptr.number % 1000 == 0 {
             info!(
