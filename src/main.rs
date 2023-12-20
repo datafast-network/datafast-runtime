@@ -121,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
 
                 if subgraph.should_process(&block) {
-                    subgraph.create_sources_if_needed(block_ptr.number)?;
+                    subgraph.create_sources_if_needed()?;
                     subgraph.process(block)?;
                     rpc.clear_block_level_cache().await;
                 }

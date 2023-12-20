@@ -22,7 +22,6 @@ pub struct Subgraph {
     rpc: RpcAgent,
     db: DatabaseAgent,
     manifest: ManifestAgent,
-    create_source_count: u64,
 }
 
 impl Subgraph {
@@ -38,7 +37,6 @@ impl Subgraph {
             rpc: rpc.clone(),
             db: db.clone(),
             manifest: manifest.clone(),
-            create_source_count: 0,
         }
     }
 
@@ -55,9 +53,8 @@ impl Subgraph {
         }
     }
 
-    pub fn create_sources_if_needed(&mut self, block: u64) -> Result<(), SubgraphError> {
-        let time = Instant::now();
-
+    pub fn create_sources_if_needed(&mut self) -> Result<(), SubgraphError> {
+        let timer = self.metrics.datasource_creation_duration.start_timer();
         if !self.sources.is_empty() {
             for current_source in self.sources.values_mut() {
                 if current_source.should_reset() {
@@ -68,7 +65,6 @@ impl Subgraph {
         }
 
         if self.sources.is_empty() {
-            self.create_source_count += 1;
             for ds in self.manifest.datasource_and_templates().inner() {
                 self.sources.insert(
                     (ds.name(), ds.address()),
@@ -80,60 +76,18 @@ impl Subgraph {
                     ))?,
                 );
             }
-
-            if self.create_source_count % 10 == 10 {
-                info!(
-                    Subgraph, "(re)created wasm-datasources 💥";
-                    recreation_count => self.create_source_count,
-                    at_block => block,
-                    total_sources => self.sources.len(),
-                    exec_time => format!("{:?}", time.elapsed())
-                );
-            }
+            self.metrics.datasource_creation_counter.inc();
         }
 
+        timer.stop_and_record();
         Ok(())
-    }
-
-    fn check_for_new_datasource(&mut self) -> Result<usize, SubgraphError> {
-        let active_ds_count = self.sources.len();
-        let all_ds_count = self.manifest.count_datasources();
-
-        if active_ds_count > all_ds_count {
-            // NOTE: templates are being used as un-addressed datasources
-            return Ok(0);
-        }
-
-        let pending_ds = all_ds_count - active_ds_count;
-
-        if pending_ds == 0 {
-            return Ok(0);
-        }
-
-        let bundles = self.manifest.datasources_take_from(active_ds_count);
-        assert_eq!(bundles.len(), pending_ds, "get latest ds failed");
-
-        for ds in bundles {
-            self.sources.insert(
-                (ds.name(), ds.address()),
-                DatasourceWasmInstance::try_from((
-                    ds,
-                    self.db.clone(),
-                    self.rpc.clone(),
-                    self.manifest.clone(),
-                ))?,
-            );
-        }
-        assert_eq!(self.sources.len(), all_ds_count, "adding datasource failed");
-        Ok(pending_ds)
     }
 
     fn handle_ethereum_data(
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
-    ) -> Result<u32, SubgraphError> {
-        let mut trigger_count = 0;
+    ) -> Result<(), SubgraphError> {
         let mut block_handlers = HashMap::new();
 
         for ((source_name, _), source_instance) in self.sources.iter() {
@@ -155,22 +109,28 @@ impl Subgraph {
                 .find(|((name, _), _)| name == &source_name)
                 .ok_or(SubgraphError::InvalidSourceID(source_name.to_owned()))?;
             for handler in ethereum_handlers {
-                trigger_count += 1;
+                self.metrics.eth_trigger_counter.inc();
                 source_instance.invoke(HandlerTypes::EthereumBlock, &handler, block.clone())?;
             }
         }
 
         for event in events {
             let ds_name = event.datasource.clone();
+            let handler_name = event.handler.clone();
             let event_address = format!("{:?}", event.event.address).to_lowercase();
 
             if let Some(source) = self
                 .sources
                 .get_mut(&(ds_name.clone(), Some(event_address)))
             {
-                trigger_count += 1;
+                self.metrics.eth_trigger_counter.inc();
+                let timer = self
+                    .metrics
+                    .eth_event_process_duration
+                    .with_label_values(&[&ds_name, &handler_name])
+                    .start_timer();
                 source.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
-                self.check_for_new_datasource()?;
+                timer.stop_and_record();
                 continue;
             }
 
@@ -187,15 +147,20 @@ impl Subgraph {
                 // NOTE: This datasource is either based from a template or a no-address datasource,
                 // this address might be relevant if the datasource is template, or
                 // directly relevant to the no-address datasource
-                trigger_count += 1;
+                self.metrics.eth_trigger_counter.inc();
+                let timer = self
+                    .metrics
+                    .eth_event_process_duration
+                    .with_label_values(&[&ds_name, &handler_name])
+                    .start_timer();
                 source.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
-                self.check_for_new_datasource()?;
+                timer.stop_and_record();
             }
 
             continue;
         }
 
-        Ok(trigger_count)
+        Ok(())
     }
 
     pub fn process(&mut self, msg: FilteredDataMessage) -> Result<(), SubgraphError> {
