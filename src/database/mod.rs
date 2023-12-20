@@ -61,6 +61,11 @@ impl Database {
         &mut self,
         message: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
+        let _timer = self
+            .metrics
+            .handle_store_request_duration
+            .with_label_values(&[&message.operation_type(), &message.entity_type()])
+            .start_timer();
         match message {
             StoreOperationMessage::Create(data) => self.handle_create(data).await,
             StoreOperationMessage::Load(data) => self.handle_load(data).await,

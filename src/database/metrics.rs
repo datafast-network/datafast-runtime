@@ -1,5 +1,6 @@
 use prometheus::Histogram;
 use prometheus::HistogramOpts;
+use prometheus::HistogramVec;
 use prometheus::IntCounter;
 use prometheus::Registry;
 
@@ -11,6 +12,7 @@ pub struct DatabaseMetrics {
     pub extern_db_load: IntCounter,
     pub extern_db_get_duration: Histogram,
     pub extern_db_set_duration: Histogram,
+    pub handle_store_request_duration: HistogramVec,
 }
 
 impl DatabaseMetrics {
@@ -53,6 +55,13 @@ impl DatabaseMetrics {
             .register(Box::new(extern_db_set_duration.clone()))
             .unwrap_or_default();
 
+        let opts = HistogramOpts::new(
+            "handle_store_request_duration",
+            "duration of handling store request from wasm datasource",
+        );
+        let handle_store_request_duration =
+            HistogramVec::new(opts, &["request_type", "entity"]).unwrap();
+
         Self {
             database_cache_hit,
             database_cache_miss,
@@ -60,6 +69,7 @@ impl DatabaseMetrics {
             extern_db_load,
             extern_db_get_duration,
             extern_db_set_duration,
+            handle_store_request_duration,
         }
     }
 }
