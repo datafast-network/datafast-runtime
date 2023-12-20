@@ -12,8 +12,6 @@ use crate::info;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::str::FromStr;
-use tokio_retry::strategy::FixedInterval;
-use tokio_retry::Retry;
 use web3::transports::WebSocket;
 use web3::types::Block;
 use web3::types::BlockId;
@@ -61,10 +59,6 @@ impl EthereumRPC {
             cache: CacheRPC::default(),
             url: url.to_string(),
         })
-    }
-
-    async fn reconnect(&mut self) {
-        self.client = Web3::new(WebSocket::new(&self.url).await.unwrap());
     }
 
     fn parse_contract_call_request(
@@ -199,22 +193,23 @@ impl EthereumRPC {
             transaction_type: None,
         };
 
-        let result = Retry::spawn(FixedInterval::from_millis(1).take(5), || {
-            self.client.eth().call(request.clone(), Some(block_id))
-        })
-        .await
-        .map_err(|e| {
-            error!(
-                ethereum_call,
-                "calling contract function failed";
-                error => format!("{:?}", e),
-                contract_address => format!("{:?}", request_data.address),
-                function_name => format!("{:?}", request_data.function.name),
-                block_number => block_ptr.number,
-                block_hash => block_ptr.hash
-            );
-            RPCError::ContractCallFail
-        })?;
+        let result = self
+            .client
+            .eth()
+            .call(request.clone(), Some(block_id))
+            .await
+            .map_err(|e| {
+                error!(
+                    ethereum_call,
+                    "calling contract function failed";
+                    error => format!("{:?}", e),
+                    contract_address => format!("{:?}", request_data.address),
+                    function_name => format!("{:?}", request_data.function.name),
+                    block_number => block_ptr.number,
+                    block_hash => block_ptr.hash
+                );
+                RPCError::ContractCallFail
+            })?;
 
         let result = request_data
             .function
@@ -242,17 +237,8 @@ impl RPCTrait for EthereumRPC {
     async fn handle_request(&mut self, call: CallRequestContext) -> Result<CallResponse, RPCError> {
         match call.call_request {
             CallRequest::EthereumContractCall(data) => {
-                match self
-                    .handle_contract_call(data.clone(), call.block_ptr.clone())
+                self.handle_contract_call(data.clone(), call.block_ptr.clone())
                     .await
-                {
-                    Ok(result) => Ok(result),
-                    Err(RPCError::ContractCallFail) => {
-                        self.reconnect().await;
-                        return self.handle_contract_call(data, call.block_ptr).await;
-                    }
-                    Err(e) => Err(e),
-                }
             }
         }
     }
