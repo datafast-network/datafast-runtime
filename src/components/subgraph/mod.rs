@@ -42,12 +42,11 @@ impl Subgraph {
     pub fn should_process(&self, data: &FilteredDataMessage) -> bool {
         match data {
             FilteredDataMessage::Ethereum { events, .. } => {
-                return events.len() > 0
+                return !events.is_empty()
                     || self
                         .sources
                         .values()
-                        .find(|ds| !ds.ethereum_handlers.block.is_empty())
-                        .is_some();
+                        .any(|ds| !ds.ethereum_handlers.block.is_empty());
             }
         }
     }

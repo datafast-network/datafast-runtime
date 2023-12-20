@@ -144,6 +144,6 @@ impl ManifestAgent {
             return source_address.contains(address);
         }
 
-        return true;
+        true
     }
 }
