@@ -69,15 +69,13 @@ impl Subgraph {
             }
         }
 
-        if time.elapsed().as_millis() > 50 {
-            info!(
-                Subgraph, "created wasm-datasources 💥";
-                recreation_count => self.create_source_count,
-                block => block,
-                total_sources => self.sources.len(),
-                exec_time => format!("{:?}", time.elapsed())
-            );
-        }
+        info!(
+            Subgraph, "(re)created wasm-datasources 💥";
+            recreation_count => self.create_source_count,
+            at_block => block,
+            total_sources => self.sources.len(),
+            exec_time => format!("{:?}", time.elapsed())
+        );
 
         Ok(())
     }
@@ -119,7 +117,8 @@ impl Subgraph {
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
-    ) -> Result<usize, SubgraphError> {
+    ) -> Result<u32, SubgraphError> {
+        let mut trigger_count = 0;
         let mut block_handlers = HashMap::new();
 
         for ((source_name, _), source_instance) in self.sources.iter() {
@@ -141,11 +140,11 @@ impl Subgraph {
                 .find(|((name, _), _)| name == &source_name)
                 .ok_or(SubgraphError::InvalidSourceID(source_name.to_owned()))?;
             for handler in ethereum_handlers {
+                trigger_count += 1;
                 source_instance.invoke(HandlerTypes::EthereumBlock, &handler, block.clone())?;
             }
         }
 
-        let event_count = events.len();
         for event in events {
             let ds_name = event.datasource.clone();
             let event_address = format!("{:?}", event.event.address).to_lowercase();
@@ -154,6 +153,7 @@ impl Subgraph {
                 .sources
                 .get_mut(&(ds_name.clone(), Some(event_address)))
             {
+                trigger_count += 1;
                 source.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
                 self.check_for_new_datasource()?;
                 continue;
@@ -172,6 +172,7 @@ impl Subgraph {
                 // NOTE: This datasource is either based from a template or a no-address datasource,
                 // this address might be relevant if the datasource is template, or
                 // directly relevant to the no-address datasource
+                trigger_count += 1;
                 source.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
                 self.check_for_new_datasource()?;
             }
@@ -179,7 +180,7 @@ impl Subgraph {
             continue;
         }
 
-        Ok(event_count)
+        Ok(trigger_count)
     }
 
     pub fn process(&mut self, msg: FilteredDataMessage) -> Result<(), SubgraphError> {
@@ -192,11 +193,11 @@ impl Subgraph {
         match msg {
             FilteredDataMessage::Ethereum { events, block } => {
                 let time = Instant::now();
-                let count_event = self.handle_ethereum_data(events, block)?;
-                if count_event > 0 {
+                let trigger_count = self.handle_ethereum_data(events, block)?;
+                if trigger_count > 0 {
                     info!(
                         Subgraph,
-                        format!("processed {count_event} events");
+                        format!("processed {trigger_count} triggers");
                         exec_time => format!("{:?}", time.elapsed()),
                         block => block_ptr.number
                     );
