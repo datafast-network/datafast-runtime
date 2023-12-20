@@ -66,6 +66,30 @@ pub enum StoreOperationMessage {
     LoadInBlock((EntityType, EntityID)),
 }
 
+impl StoreOperationMessage {
+    pub fn operation_type(&self) -> String {
+        match self {
+            Self::Create(_) => "CREATE".to_owned(),
+            Self::Load(_) => "LOAD".to_owned(),
+            Self::Update(_) => "UPDATE".to_owned(),
+            Self::Delete(_) => "DELETE".to_owned(),
+            Self::LoadRelated(_) => "LOAD_RELATED".to_owned(),
+            Self::LoadInBlock(_) => "LOAD_IN_BLOCK".to_owned(),
+        }
+    }
+
+    pub fn entity_type(&self) -> String {
+        match self {
+            Self::Create((entity, _)) => entity.to_owned(),
+            Self::Load((entity, _)) => entity.to_owned(),
+            Self::Update((entity, ..)) => entity.to_owned(),
+            Self::Delete((entity, _)) => entity.to_owned(),
+            Self::LoadRelated((entity, ..)) => entity.to_owned(),
+            Self::LoadInBlock((entity, _)) => entity.to_owned(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum StoreRequestResult {
     Create(String),
