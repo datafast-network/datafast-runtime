@@ -44,6 +44,16 @@ impl Subgraph {
 
     pub fn create_sources(&mut self, block: u64) -> Result<(), SubgraphError> {
         let time = Instant::now();
+
+        if !self.sources.is_empty() {
+            for current_source in self.sources.values_mut() {
+                if current_source.should_reset() {
+                    self.sources = HashMap::new();
+                    break;
+                }
+            }
+        }
+
         if self.sources.is_empty() {
             self.create_source_count += 1;
             for ds in self.manifest.datasource_and_templates().inner() {
@@ -57,21 +67,16 @@ impl Subgraph {
                     ))?,
                 );
             }
-            if self.create_source_count % 10 == 0 {
-                info!(
-                    Subgraph, "created wasm-datasources 💥";
-                    count => self.create_source_count,
-                    block => block,
-                    exec_time => format!("{:?}", time.elapsed())
-                );
-            }
-        } else {
-            for current_source in self.sources.values_mut() {
-                if current_source.should_reset() {
-                    self.sources = HashMap::new();
-                    return self.create_sources(block);
-                }
-            }
+        }
+
+        if time.elapsed().as_millis() > 50 {
+            info!(
+                Subgraph, "created wasm-datasources 💥";
+                recreation_count => self.create_source_count,
+                block => block,
+                total_sources => self.sources.len(),
+                exec_time => format!("{:?}", time.elapsed())
+            );
         }
 
         Ok(())
