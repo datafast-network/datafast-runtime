@@ -1,4 +1,5 @@
-use prometheus::{Histogram, IntCounter};
+use prometheus::Histogram;
+use prometheus::IntCounter;
 
 #[derive(Clone)]
 pub struct BlockSourceMetrics {
