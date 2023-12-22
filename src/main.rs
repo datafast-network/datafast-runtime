@@ -86,11 +86,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_block => blocks.len()
             );
 
-            valve.set_downloaded(&blocks);
             let time = std::time::Instant::now();
             let sorted_blocks = filter.filter_multi(blocks)?;
             let count_blocks = sorted_blocks.len();
             let last_block = sorted_blocks.last().map(|b| b.get_block_ptr()).unwrap();
+            valve.set_downloaded(last_block.number);
 
             info!(
                 main,

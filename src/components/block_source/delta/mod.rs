@@ -110,7 +110,6 @@ impl DeltaClient {
             })
             .await?;
 
-            let time = std::time::Instant::now();
             let start_time = self.metrics.block_source_serialized_duration.start_timer();
 
             let blocks = batches
@@ -118,7 +117,6 @@ impl DeltaClient {
                 .flat_map(|batch| {
                     let blocks = R::try_from(batch).unwrap();
                     let messages = Into::<Vec<BlockDataMessage>>::into(blocks);
-                    valve.set_downloaded(&messages);
                     messages
                 })
                 .collect::<Vec<_>>();
@@ -132,7 +130,6 @@ impl DeltaClient {
             info!(
                 DeltaClient,
                 "block batch serialization finished";
-                exec_time => format!("{:?}", time.elapsed()),
                 number_of_blocks => blocks.len()
             );
 
