@@ -204,3 +204,13 @@ pub enum RPCError {
     #[error("Get latest-block failed")]
     GetLatestBlockFail,
 }
+
+#[derive(Debug, Error)]
+pub enum MainError {
+    #[error("database error: `{0}`")]
+    Database(#[from] DatabaseError),
+    #[error("subgraph error: `{0}`")]
+    Subgraph(#[from] SubgraphError),
+    #[error("filter error: `{0}`")]
+    Filter(#[from] FilterError),
+}
