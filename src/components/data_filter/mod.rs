@@ -10,7 +10,6 @@ use crate::errors::FilterError;
 use ethereum_filter::EthereumFilter;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
-use rayon::slice::ParallelSliceMut;
 
 pub trait DataFilterTrait: Sized {
     fn handle_serialize_message(
@@ -29,12 +28,11 @@ impl DataFilter {
         &self,
         messages: Vec<BlockDataMessage>,
     ) -> Result<Vec<FilteredDataMessage>, FilterError> {
-        let mut result = messages
+        let result = messages
             .into_par_iter()
             .map(|m| self.handle_serialize_message(m).unwrap())
             .collect::<Vec<_>>();
 
-        result.par_sort_unstable_by_key(|m| m.get_block_ptr().number);
         Ok(result)
     }
 
