@@ -16,6 +16,7 @@ use kanal::AsyncSender;
 use prometheus::Registry;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
+use rayon::slice::ParallelSliceMut;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_retry::strategy::FixedInterval;
@@ -78,7 +79,7 @@ impl DeltaClient {
 
     async fn query_blocks(&self, start_block: u64) -> Result<Vec<RecordBatch>, SourceError> {
         let query = format!(
-            "SELECT block_data FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number",
+            "SELECT block_data FROM blocks WHERE block_number >= {} AND block_number < {}",
             start_block,
             start_block + self.query_step
         );
@@ -112,7 +113,7 @@ impl DeltaClient {
 
             let start_time = self.metrics.block_source_serialized_duration.start_timer();
 
-            let blocks = batches
+            let mut blocks = batches
                 .into_par_iter()
                 .flat_map(|batch| {
                     let blocks = R::try_from(batch).unwrap();
@@ -120,6 +121,8 @@ impl DeltaClient {
                     messages
                 })
                 .collect::<Vec<_>>();
+
+            blocks.par_sort_unstable_by_key(|b| b.get_block_ptr().number);
 
             start_time.stop_and_record();
 
