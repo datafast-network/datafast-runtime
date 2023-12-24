@@ -106,7 +106,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let block_ptr = block.get_block_ptr();
                 rpc.set_block_ptr(&block_ptr);
                 manifest.set_block_ptr(&block_ptr);
-                let db = db.clone();
 
                 match inspector.check_block(block_ptr.clone()) {
                     BlockInspectionResult::UnexpectedBlock
