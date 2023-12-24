@@ -10,9 +10,9 @@ use crate::config::Config;
 use crate::errors::RPCError;
 use async_trait::async_trait;
 use prometheus::Registry;
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::rc::Rc;
 pub use types::*;
 
 #[async_trait]
@@ -118,15 +118,6 @@ impl RpcClient {
         Ok(result)
     }
 
-    pub fn new_mock(registry: &Registry) -> Self {
-        Self {
-            rpc_client: RPCChain::None,
-            block_ptr: BlockPtr::default(),
-            cache_by_block: HashMap::new(),
-            metrics: RpcMetrics::new(registry),
-        }
-    }
-
     pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
         self.block_ptr = block_ptr.clone();
     }
@@ -137,36 +128,31 @@ impl RpcClient {
 }
 
 #[derive(Clone)]
-pub struct RpcAgent(Arc<Mutex<RpcClient>>);
+pub struct RpcAgent(Rc<RefCell<RpcClient>>);
+
+unsafe impl Send for RpcAgent {}
 
 impl RpcAgent {
     pub async fn new(config: &Config, abis: ABIs, registry: &Registry) -> Result<Self, RPCError> {
         let rpc_client = RpcClient::new(config, abis, registry).await?;
-        Ok(Self(Arc::new(Mutex::new(rpc_client))))
+        Ok(Self(Rc::new(RefCell::new(rpc_client))))
     }
 
-    pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCError> {
-        let client = self.0.clone();
+    pub fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
+        let mut rpc = self.0.borrow_mut();
         tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                let mut rpc_agent = client.lock().await;
-                rpc_agent.handle_request(call).await
-            })
+            tokio::runtime::Handle::current()
+                .block_on(async move { rpc.handle_request(call).await })
         })
     }
 
     pub async fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
-        let mut rpc = self.0.lock().await;
+        let mut rpc = self.0.borrow_mut();
         rpc.set_block_ptr(block_ptr);
     }
 
-    pub fn new_mock(registry: &Registry) -> Self {
-        let client = Arc::new(Mutex::new(RpcClient::new_mock(registry)));
-        Self(client)
-    }
-
-    pub async fn clear_block_level_cache(&self) {
-        let mut rpc = self.0.lock().await;
+    pub async fn clear_block_level_cache(&mut self) {
+        let mut rpc = self.0.borrow_mut();
         rpc.clear_block_level_cache();
     }
 }
@@ -175,8 +161,6 @@ impl RpcAgent {
 pub mod tests {
     use super::*;
     use std::fs::File;
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
 
     pub async fn create_rpc_client_test(version: &str) -> RpcAgent {
         let rpc = "https://eth.merkle.io";
@@ -203,6 +187,6 @@ pub mod tests {
             metrics: RpcMetrics::new(&Registry::new()),
         };
 
-        RpcAgent(Arc::new(Mutex::new(client)))
+        RpcAgent(Rc::new(RefCell::new(client)))
     }
 }

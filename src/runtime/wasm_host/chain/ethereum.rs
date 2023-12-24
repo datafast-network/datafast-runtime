@@ -70,12 +70,12 @@ pub fn ethereum_call(
     wasm_ptr: i32,
 ) -> Result<AscEnumArray<EthereumValueKind>, AscError> {
     let asc_ptr = wasm_ptr as u32;
-    let env = fenv.data();
     let call: UnresolvedContractCall = if fenv.data().api_version >= Version::new(0, 0, 4) {
         asc_get::<_, AscUnresolvedContractCallV4, _>(&fenv, asc_ptr.into(), 0)?
     } else {
         asc_get::<_, AscUnresolvedContractCall, _>(&fenv, asc_ptr.into(), 0)?
     };
+    let env = fenv.data_mut();
     let request = CallRequest::EthereumContractCall(call);
     let result = env.rpc.handle_request(request);
 
