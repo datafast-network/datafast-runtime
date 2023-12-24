@@ -79,7 +79,7 @@ impl DeltaClient {
 
     async fn query_blocks(&self, start_block: u64) -> Result<Vec<RecordBatch>, SourceError> {
         let query = format!(
-            "SELECT block_data FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number",
+            "SELECT block_data FROM blocks WHERE block_number >= {} AND block_number < {}",
             start_block,
             start_block + self.query_step
         );
