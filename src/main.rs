@@ -131,6 +131,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 valve.set_finished(block_ptr.number);
             }
 
+            let elapsed = time.elapsed();
+
             db.commit_data(last_block.clone()).await?;
             db.remove_outdated_snapshots(last_block.number).await?;
             db.flush_cache().await?;
@@ -145,9 +147,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             info!(
                 main,
                 "BLOCK BATCH PROCESSED DONE  🎉🎉🎉🎉";
-                exec_time => format!("{:?}", time.elapsed()),
+                exec_time => format!("{:?}", elapsed),
                 number_of_blocks => count_blocks,
-                avg_speed => format!("~{:?} blocks/sec", { count_blocks as u64 / time.elapsed().as_secs() })
+                avg_speed => format!("~{:?} blocks/sec", { count_blocks as u64 / elapsed.as_secs() })
             );
         }
 
