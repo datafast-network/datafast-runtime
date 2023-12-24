@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             for block in blocks {
                 let block_ptr = block.get_block_ptr();
-                rpc.set_block_ptr(&block_ptr).await;
+                rpc.set_block_ptr(&block_ptr);
                 manifest.set_block_ptr(&block_ptr);
 
                 match inspector.check_block(block_ptr.clone()) {
@@ -125,11 +125,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if subgraph.should_process(&block) {
                     subgraph.create_sources_if_needed()?;
                     subgraph.process(block)?;
-                    rpc.clear_block_level_cache().await;
+                    rpc.clear_block_level_cache();
                 }
 
                 valve.set_finished(block_ptr.number);
             }
+
+            let elapsed = time.elapsed();
 
             db.commit_data(last_block.clone()).await?;
             db.remove_outdated_snapshots(last_block.number).await?;
@@ -145,9 +147,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             info!(
                 main,
                 "BLOCK BATCH PROCESSED DONE  🎉🎉🎉🎉";
-                exec_time => format!("{:?}", time.elapsed()),
+                exec_time => format!("{:?}", elapsed),
                 number_of_blocks => count_blocks,
-                avg_speed => format!("~{:?} blocks/sec", { count_blocks as u64 / time.elapsed().as_secs() })
+                avg_speed => format!("~{:?} blocks/sec", { count_blocks as u64 / elapsed.as_secs() })
             );
         }
 
@@ -156,8 +158,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     tokio::select!(
-        r = tokio::spawn(query_blocks) => handle_task_result(r.unwrap(), "block-source"),
-        r = tokio::spawn(main_flow) => handle_task_result(r.unwrap(), "Main flow stopped"),
+        r = query_blocks => handle_task_result(r, "block-source"),
+        r = main_flow => handle_task_result(r, "Main flow stopped"),
         _ = tokio::spawn(run_metric_server(config.metric_port.unwrap_or(8081))) => ()
     );
 

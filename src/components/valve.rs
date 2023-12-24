@@ -2,8 +2,8 @@ use crate::config::ValveConfig;
 use crate::info;
 use prometheus::IntGauge;
 use prometheus::Registry;
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 struct ValveMetrics {
     block_downloaded_counter: IntGauge,
@@ -39,7 +39,7 @@ pub struct InnerValve {
 }
 
 #[derive(Clone)]
-pub struct Valve(Arc<RwLock<InnerValve>>);
+pub struct Valve(Rc<RefCell<InnerValve>>);
 
 impl Valve {
     pub fn new(cfg: &ValveConfig, registry: &Registry) -> Self {
@@ -49,15 +49,15 @@ impl Valve {
             cfg: cfg.to_owned(),
             metrics: ValveMetrics::new(registry),
         };
-        Valve(Arc::new(RwLock::new(this)))
+        Valve(Rc::new(RefCell::new(this)))
     }
 
     pub fn get_wait(&self) -> u64 {
-        self.0.read().unwrap().cfg.wait_time
+        self.0.borrow().cfg.wait_time
     }
 
     pub fn should_continue(&self) -> bool {
-        let this = self.0.read().unwrap();
+        let this = self.0.borrow();
 
         if this.cfg.allowed_lag == 0 {
             return true;
@@ -86,7 +86,7 @@ impl Valve {
     }
 
     pub fn set_finished(&self, finished_block: u64) {
-        let mut this = self.0.write().unwrap();
+        let mut this = self.0.borrow_mut();
         this.finished = finished_block;
         this.metrics
             .block_finished_counter
@@ -94,7 +94,7 @@ impl Valve {
     }
 
     pub fn set_downloaded(&self, block_number: u64) {
-        let mut this = self.0.write().unwrap();
+        let mut this = self.0.borrow_mut();
         this.downloaded = block_number;
         this.metrics
             .block_downloaded_counter
