@@ -39,7 +39,6 @@ pub struct EthereumRPC {
     supports_eip_1898: bool,
     abis: ABIs,
     cache: CacheRPC,
-    url: String,
 }
 
 impl EthereumRPC {
@@ -57,7 +56,6 @@ impl EthereumRPC {
             supports_eip_1898,
             abis,
             cache: CacheRPC::default(),
-            url: url.to_string(),
         })
     }
 
