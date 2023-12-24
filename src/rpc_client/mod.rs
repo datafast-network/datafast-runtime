@@ -2,6 +2,7 @@ mod ethereum;
 mod metrics;
 mod types;
 
+use self::metrics::RpcMetrics;
 use crate::common::ABIs;
 use crate::common::BlockPtr;
 use crate::common::Chain;
@@ -13,8 +14,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 pub use types::*;
-
-use self::metrics::RpcMetrics;
 
 #[async_trait]
 pub trait RPCTrait {
@@ -147,22 +146,13 @@ impl RpcAgent {
     }
 
     pub fn handle_request(&self, call: CallRequest) -> Result<CallResponse, RPCError> {
-        use std::thread;
         let client = self.0.clone();
-
-        thread::spawn(|| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_time()
-                .enable_io()
-                .build()
-                .unwrap();
-            rt.block_on(async move {
+        tokio::task::block_in_place(move || {
+            tokio::runtime::Handle::current().block_on(async move {
                 let mut rpc_agent = client.lock().await;
                 rpc_agent.handle_request(call).await
             })
         })
-        .join()
-        .unwrap()
     }
 
     pub async fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {

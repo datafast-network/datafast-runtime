@@ -255,22 +255,14 @@ impl DatabaseAgent {
         &self,
         message: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
-        use std::thread;
         let db = self.db.clone();
-
-        thread::spawn(|| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_time()
-                .build()
-                .unwrap();
-            rt.block_on(async move {
+        tokio::task::block_in_place(move || {
+            tokio::runtime::Handle::current().block_on(async move {
                 let mut db = db.write().await;
                 let result = db.handle_store_request(message).await?;
                 Ok::<StoreRequestResult, DatabaseError>(result)
             })
         })
-        .join()
-        .unwrap()
     }
 
     pub async fn get_recent_block_pointers(
