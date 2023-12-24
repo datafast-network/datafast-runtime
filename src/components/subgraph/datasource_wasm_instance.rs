@@ -90,6 +90,8 @@ impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)>
 }
 
 impl DatasourceWasmInstance {
+    const MAXIMUM_HEAP_SIZE: f32 = 0.5 * (i32::MAX as f32);
+
     pub fn invoke<T: AscType + AscIndexId>(
         &mut self,
         handler_type: HandlerTypes,
@@ -112,7 +114,6 @@ impl DatasourceWasmInstance {
     }
 
     pub fn should_reset(&self) -> bool {
-        let arena_size = self.host.current_ptr();
-        (arena_size as f32) > (0.5 * (i32::MAX as f32))
+        (self.host.current_ptr() as f32) > Self::MAXIMUM_HEAP_SIZE
     }
 }
