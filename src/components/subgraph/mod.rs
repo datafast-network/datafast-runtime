@@ -57,6 +57,7 @@ impl Subgraph {
             for current_source in self.sources.values_mut() {
                 if current_source.should_reset() {
                     self.sources.clear();
+                    info!(Subgraph, "recreating datasource-wasm host instances");
                     break;
                 }
             }

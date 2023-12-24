@@ -78,7 +78,7 @@ impl DeltaClient {
 
     async fn query_blocks(&self, start_block: u64) -> Result<Vec<RecordBatch>, SourceError> {
         let query = format!(
-            "SELECT block_data FROM blocks WHERE block_number >= {} AND block_number < {}",
+            "SELECT block_data FROM blocks WHERE block_number >= {} AND block_number < {} ORDER BY block_number",
             start_block,
             start_block + self.query_step
         );
@@ -110,7 +110,6 @@ impl DeltaClient {
             })
             .await?;
 
-            let time = std::time::Instant::now();
             let start_time = self.metrics.block_source_serialized_duration.start_timer();
 
             let blocks = batches
@@ -118,7 +117,6 @@ impl DeltaClient {
                 .flat_map(|batch| {
                     let blocks = R::try_from(batch).unwrap();
                     let messages = Into::<Vec<BlockDataMessage>>::into(blocks);
-                    valve.set_downloaded(&messages);
                     messages
                 })
                 .collect::<Vec<_>>();
@@ -132,7 +130,6 @@ impl DeltaClient {
             info!(
                 DeltaClient,
                 "block batch serialization finished";
-                exec_time => format!("{:?}", time.elapsed()),
                 number_of_blocks => blocks.len()
             );
 

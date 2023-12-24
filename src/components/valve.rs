@@ -1,4 +1,3 @@
-use crate::common::BlockDataMessage;
 use crate::config::ValveConfig;
 use crate::info;
 use prometheus::IntGauge;
@@ -94,16 +93,11 @@ impl Valve {
             .set(finished_block as i64);
     }
 
-    pub fn set_downloaded(&self, blocks: &[BlockDataMessage]) {
+    pub fn set_downloaded(&self, block_number: u64) {
         let mut this = self.0.write().unwrap();
-        if let Some(last_block) = blocks.last() {
-            let last_block_number = last_block.get_block_ptr().number;
-            if last_block_number > this.downloaded {
-                this.downloaded = last_block_number;
-                this.metrics
-                    .block_downloaded_counter
-                    .set(last_block_number as i64);
-            }
-        }
+        this.downloaded = block_number;
+        this.metrics
+            .block_downloaded_counter
+            .set(block_number as i64);
     }
 }

@@ -12,6 +12,7 @@ mod runtime;
 use components::*;
 use config::Config;
 use database::DatabaseAgent;
+use errors::MainError;
 use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
@@ -86,11 +87,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_block => blocks.len()
             );
 
-            valve.set_downloaded(&blocks);
             let time = std::time::Instant::now();
-            let sorted_blocks = filter.filter_multi(blocks)?;
-            let count_blocks = sorted_blocks.len();
-            let last_block = sorted_blocks.last().map(|b| b.get_block_ptr()).unwrap();
+            let blocks = filter.filter_multi(blocks)?;
+            let count_blocks = blocks.len();
+            let last_block = blocks.last().map(|b| b.get_block_ptr()).unwrap();
+            valve.set_downloaded(last_block.number);
 
             info!(
                 main,
@@ -101,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let time = std::time::Instant::now();
 
-            for block in sorted_blocks {
+            for block in blocks {
                 let block_ptr = block.get_block_ptr();
                 rpc.set_block_ptr(&block_ptr).await;
                 manifest.set_block_ptr(&block_ptr);
@@ -151,13 +152,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         warn!(main, "No more messages returned from block-stream");
-        Ok::<(), Box<dyn std::error::Error>>(())
+        Ok::<(), MainError>(())
     };
 
     tokio::select!(
-        r = query_blocks => handle_task_result(r, "block-source"),
-        r = main_flow => handle_task_result(r, "Main flow stopped"),
-        _ = run_metric_server(config.metric_port.unwrap_or(8081)) => ()
+        r = tokio::spawn(query_blocks) => handle_task_result(r.unwrap(), "block-source"),
+        r = tokio::spawn(main_flow) => handle_task_result(r.unwrap(), "Main flow stopped"),
+        _ = tokio::spawn(run_metric_server(config.metric_port.unwrap_or(8081))) => ()
     );
 
     Ok(())
