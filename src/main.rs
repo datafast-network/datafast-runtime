@@ -106,6 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let block_ptr = block.get_block_ptr();
                 rpc.set_block_ptr(&block_ptr);
                 manifest.set_block_ptr(&block_ptr);
+                let db = db.clone();
 
                 match inspector.check_block(block_ptr.clone()) {
                     BlockInspectionResult::UnexpectedBlock
@@ -156,8 +157,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     tokio::select!(
-        r = tokio::spawn(query_blocks) => handle_task_result(r.unwrap(), "block-source"),
-        r = tokio::spawn(main_flow) => handle_task_result(r.unwrap(), "Main flow stopped"),
+        r = query_blocks => handle_task_result(r, "block-source"),
+        r = main_flow => handle_task_result(r, "Main flow stopped"),
         _ = tokio::spawn(run_metric_server(config.metric_port.unwrap_or(8081))) => ()
     );
 
