@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             for block in blocks {
                 let block_ptr = block.get_block_ptr();
-                rpc.set_block_ptr(&block_ptr).await;
+                rpc.set_block_ptr(&block_ptr);
                 manifest.set_block_ptr(&block_ptr);
 
                 match inspector.check_block(block_ptr.clone()) {
@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if subgraph.should_process(&block) {
                     subgraph.create_sources_if_needed()?;
                     subgraph.process(block)?;
-                    rpc.clear_block_level_cache().await;
+                    rpc.clear_block_level_cache();
                 }
 
                 valve.set_finished(block_ptr.number);

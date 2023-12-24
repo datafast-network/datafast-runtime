@@ -141,17 +141,16 @@ impl RpcAgent {
     pub fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         let mut rpc = self.0.borrow_mut();
         tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current()
-                .block_on(async move { rpc.handle_request(call).await })
+            tokio::runtime::Handle::current().block_on(rpc.handle_request(call))
         })
     }
 
-    pub async fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
+    pub fn set_block_ptr(&mut self, block_ptr: &BlockPtr) {
         let mut rpc = self.0.borrow_mut();
         rpc.set_block_ptr(block_ptr);
     }
 
-    pub async fn clear_block_level_cache(&mut self) {
+    pub fn clear_block_level_cache(&mut self) {
         let mut rpc = self.0.borrow_mut();
         rpc.clear_block_level_cache();
     }
