@@ -90,7 +90,7 @@ impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)>
 }
 
 impl DatasourceWasmInstance {
-    const MAXIMUM_HEAP_SIZE: f32 = 0.8 * (i32::MAX as f32);
+    const MAXIMUM_HEAP_SIZE: f32 = 0.5 * (i32::MAX as f32);
 
     pub fn invoke<T: AscType + AscIndexId>(
         &mut self,
