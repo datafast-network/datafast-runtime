@@ -55,7 +55,7 @@ impl Valve {
 
     pub async fn temporarily_close(&self) {
         let this = self.0.borrow();
-        while this.downloaded - this.finished <= this.cfg.allowed_lag {
+        while this.downloaded - this.finished > this.cfg.allowed_lag {
             tokio::time::sleep(Duration::from_secs(this.cfg.wait_time)).await;
             if this.cfg.allowed_lag > 0 {
                 let actual_lag = this.downloaded - this.finished;
