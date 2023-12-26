@@ -4,6 +4,7 @@ use prometheus::IntGauge;
 use prometheus::Registry;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 
 struct ValveMetrics {
     block_downloaded_counter: IntGauge,
@@ -52,28 +53,24 @@ impl Valve {
         Valve(Rc::new(RefCell::new(this)))
     }
 
-    pub fn get_wait(&self) -> u64 {
-        self.0.borrow().cfg.wait_time
-    }
-
-    pub fn should_continue(&self) -> bool {
+    pub async fn temporarily_close(&self) {
         let this = self.0.borrow();
-        let actual_lag = this.downloaded - this.finished;
-        let should_continue_download = actual_lag <= this.cfg.allowed_lag;
-
-        if this.cfg.allowed_lag > 0 {
-            info!(
-                Valve,
-                format!("processing status");
-                downloaded => this.downloaded,
-                finished => this.finished,
-                actual_lag => actual_lag,
-                allowed_lag => this.cfg.allowed_lag,
-                continue_download => should_continue_download
-            );
+        while this.downloaded - this.finished <= this.cfg.allowed_lag {
+            tokio::time::sleep(Duration::from_secs(this.cfg.wait_time)).await;
+            if this.cfg.allowed_lag > 0 {
+                let actual_lag = this.downloaded - this.finished;
+                let continue_download = actual_lag <= this.cfg.allowed_lag;
+                info!(
+                    Valve,
+                    format!("processing status");
+                    downloaded => this.downloaded,
+                    finished => this.finished,
+                    actual_lag => actual_lag,
+                    allowed_lag => this.cfg.allowed_lag,
+                    continue_download => continue_download
+                );
+            }
         }
-
-        should_continue_download
     }
 
     pub fn set_finished(&self, finished_block: u64) {
