@@ -58,17 +58,8 @@ impl Valve {
 
     pub fn should_continue(&self) -> bool {
         let this = self.0.borrow();
-
-        if this.cfg.allowed_lag == 0 {
-            return true;
-        }
-
-        if this.downloaded < this.finished {
-            // WARN: it is complicated!
-            return true;
-        }
-
-        let result = this.downloaded - this.finished <= this.cfg.allowed_lag;
+        let actual_lag = this.downloaded - this.finished;
+        let should_continue_download = actual_lag <= this.cfg.allowed_lag;
 
         if this.cfg.allowed_lag > 0 {
             info!(
@@ -76,16 +67,20 @@ impl Valve {
                 format!("processing status");
                 downloaded => this.downloaded,
                 finished => this.finished,
-                lag => this.downloaded - this.finished,
+                actual_lag => actual_lag,
                 allowed_lag => this.cfg.allowed_lag,
-                continue_download => result
+                continue_download => should_continue_download
             );
         }
 
-        result
+        should_continue_download
     }
 
     pub fn set_finished(&self, finished_block: u64) {
+        if finished_block % 1000 == 0 {
+            info!(Valve, format!("finished block #{finished_block}"));
+        }
+
         let mut this = self.0.borrow_mut();
         this.finished = finished_block;
         this.metrics
@@ -94,6 +89,7 @@ impl Valve {
     }
 
     pub fn set_downloaded(&self, block_number: u64) {
+        info!(Valve, format!("downloaded up to block #{block_number}"));
         let mut this = self.0.borrow_mut();
         this.downloaded = block_number;
         this.metrics

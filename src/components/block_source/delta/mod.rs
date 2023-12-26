@@ -98,12 +98,15 @@ impl DeltaClient {
         valve: Valve,
     ) -> Result<(), SourceError> {
         let mut start_block = self.start_block;
+        let mut started = false;
         info!(BlockSource, "start polling for block-data ⚓");
 
         loop {
-            while !valve.should_continue() {
-                let sleep_tine = valve.get_wait();
-                tokio::time::sleep(Duration::from_secs(sleep_tine)).await;
+            if started {
+                while !valve.should_continue() {
+                    let sleep_tine = valve.get_wait();
+                    tokio::time::sleep(Duration::from_secs(sleep_tine)).await;
+                }
             }
 
             let batches = Retry::spawn(FixedInterval::from_millis(10), || {
@@ -141,8 +144,10 @@ impl DeltaClient {
                 return Ok(());
             }
 
+            valve.set_downloaded(blocks.last().map(|b| b.get_block_ptr().number).unwrap());
             sender.send(blocks).await?;
             start_block += self.query_step;
+            started = true;
         }
     }
 }
