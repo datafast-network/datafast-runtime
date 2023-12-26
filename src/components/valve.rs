@@ -54,21 +54,17 @@ impl Valve {
     }
 
     pub async fn temporarily_close(&self) {
-        let this = self.0.borrow();
-        while this.downloaded - this.finished > this.cfg.allowed_lag {
-            tokio::time::sleep(Duration::from_secs(this.cfg.wait_time)).await;
-            if this.cfg.allowed_lag > 0 {
-                let actual_lag = this.downloaded - this.finished;
-                let continue_download = actual_lag <= this.cfg.allowed_lag;
-                info!(
-                    Valve,
-                    format!("processing status");
-                    downloaded => this.downloaded,
-                    finished => this.finished,
-                    actual_lag => actual_lag,
-                    allowed_lag => this.cfg.allowed_lag,
-                    continue_download => continue_download
-                );
+        loop {
+            let this = self.0.borrow();
+            let downloaded = this.downloaded.clone();
+            let finished = this.finished.clone();
+            let allowed_lag = this.cfg.allowed_lag.clone();
+            let wait_time = this.cfg.wait_time.clone();
+            drop(this);
+            if downloaded - finished > allowed_lag {
+                tokio::time::sleep(Duration::from_secs(wait_time)).await;
+            } else {
+                return;
             }
         }
     }
