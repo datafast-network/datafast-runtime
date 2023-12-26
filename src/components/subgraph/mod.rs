@@ -53,19 +53,14 @@ impl Subgraph {
     }
 
     pub fn create_sources(&mut self) -> Result<(), SubgraphError> {
-        let timer = self.metrics.datasource_creation_duration.start_timer();
+        let _timer = self.metrics.datasource_creation_duration.start_timer();
         if !self.sources.is_empty() {
-            let time_check = Instant::now();
             for current_source in self.sources.values_mut() {
                 if current_source.should_reset() {
                     self.sources.clear();
                     info!(Subgraph, "recreating datasource-wasm host instances");
                     break;
                 }
-            }
-            let time_cost = time_check.elapsed().as_millis();
-            if time_cost > 0 {
-                log::warn!("ptr source check ={:?}", time_check.elapsed());
             }
         }
 
@@ -84,7 +79,6 @@ impl Subgraph {
             self.metrics.datasource_creation_counter.inc();
         }
 
-        timer.stop_and_record();
         Ok(())
     }
 
