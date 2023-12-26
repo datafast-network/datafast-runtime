@@ -18,7 +18,6 @@ use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
 use rayon::slice::ParallelSliceMut;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::Retry;
 
@@ -101,11 +100,6 @@ impl DeltaClient {
         info!(BlockSource, "start polling for block-data ⚓");
 
         loop {
-            while !valve.should_continue() {
-                let sleep_tine = valve.get_wait();
-                tokio::time::sleep(Duration::from_secs(sleep_tine)).await;
-            }
-
             let batches = Retry::spawn(FixedInterval::from_millis(10), || {
                 self.query_blocks(start_block)
             })
@@ -141,8 +135,10 @@ impl DeltaClient {
                 return Ok(());
             }
 
+            valve.set_downloaded(blocks.last().map(|b| b.get_block_ptr().number).unwrap());
             sender.send(blocks).await?;
             start_block += self.query_step;
+            valve.temporarily_close().await;
         }
     }
 }

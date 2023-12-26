@@ -4,6 +4,7 @@ use prometheus::IntGauge;
 use prometheus::Registry;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 
 struct ValveMetrics {
     block_downloaded_counter: IntGauge,
@@ -52,40 +53,27 @@ impl Valve {
         Valve(Rc::new(RefCell::new(this)))
     }
 
-    pub fn get_wait(&self) -> u64 {
-        self.0.borrow().cfg.wait_time
-    }
-
-    pub fn should_continue(&self) -> bool {
-        let this = self.0.borrow();
-
-        if this.cfg.allowed_lag == 0 {
-            return true;
+    pub async fn temporarily_close(&self) {
+        loop {
+            let this = self.0.borrow();
+            let downloaded = this.downloaded.clone();
+            let finished = this.finished.clone();
+            let allowed_lag = this.cfg.allowed_lag.clone();
+            let wait_time = this.cfg.wait_time.clone();
+            drop(this);
+            if downloaded - finished > allowed_lag {
+                tokio::time::sleep(Duration::from_secs(wait_time)).await;
+            } else {
+                return;
+            }
         }
-
-        if this.downloaded < this.finished {
-            // WARN: it is complicated!
-            return true;
-        }
-
-        let result = this.downloaded - this.finished <= this.cfg.allowed_lag;
-
-        if this.cfg.allowed_lag > 0 {
-            info!(
-                Valve,
-                format!("processing status");
-                downloaded => this.downloaded,
-                finished => this.finished,
-                lag => this.downloaded - this.finished,
-                allowed_lag => this.cfg.allowed_lag,
-                continue_download => result
-            );
-        }
-
-        result
     }
 
     pub fn set_finished(&self, finished_block: u64) {
+        if finished_block % 1000 == 0 {
+            info!(Valve, format!("finished block #{finished_block}"));
+        }
+
         let mut this = self.0.borrow_mut();
         this.finished = finished_block;
         this.metrics
@@ -94,6 +82,7 @@ impl Valve {
     }
 
     pub fn set_downloaded(&self, block_number: u64) {
+        info!(Valve, format!("downloaded up to block #{block_number}"));
         let mut this = self.0.borrow_mut();
         this.downloaded = block_number;
         this.metrics

@@ -79,6 +79,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let query_blocks = block_source.run(sender, source_valve);
 
+    subgraph.create_sources()?;
+
     let main_flow = async move {
         while let Ok(blocks) = recv.recv().await {
             info!(
@@ -91,7 +93,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let blocks = filter.filter_multi(blocks)?;
             let count_blocks = blocks.len();
             let last_block = blocks.last().map(|b| b.get_block_ptr()).unwrap();
-            valve.set_downloaded(last_block.number);
 
             info!(
                 main,
@@ -123,7 +124,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
 
                 if subgraph.should_process(&block) {
-                    subgraph.create_sources_if_needed()?;
                     subgraph.process(block)?;
                     rpc.clear_block_level_cache();
                 }

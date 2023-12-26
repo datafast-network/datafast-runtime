@@ -14,6 +14,7 @@ use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
+use std::time::Instant;
 
 pub struct Subgraph {
     sources: HashMap<(String, Option<String>), DatasourceWasmInstance>,
@@ -51,15 +52,20 @@ impl Subgraph {
         }
     }
 
-    pub fn create_sources_if_needed(&mut self) -> Result<(), SubgraphError> {
+    pub fn create_sources(&mut self) -> Result<(), SubgraphError> {
         let timer = self.metrics.datasource_creation_duration.start_timer();
         if !self.sources.is_empty() {
+            let time_check = Instant::now();
             for current_source in self.sources.values_mut() {
                 if current_source.should_reset() {
                     self.sources.clear();
                     info!(Subgraph, "recreating datasource-wasm host instances");
                     break;
                 }
+            }
+            let time_cost = time_check.elapsed().as_millis();
+            if time_cost > 0 {
+                log::warn!("ptr source check ={:?}", time_check.elapsed());
             }
         }
 
@@ -129,6 +135,7 @@ impl Subgraph {
                     .with_label_values(&[&ds_name, &handler_name])
                     .start_timer();
                 source.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
+                self.create_sources()?;
                 timer.stop_and_record();
                 continue;
             }
@@ -153,6 +160,7 @@ impl Subgraph {
                     .with_label_values(&[&ds_name, &handler_name])
                     .start_timer();
                 source.invoke(HandlerTypes::EthereumEvent, &event.handler, event.event)?;
+                self.create_sources()?;
                 timer.stop_and_record();
             }
 
@@ -176,13 +184,6 @@ impl Subgraph {
             }
         };
         timer.stop_and_record();
-
-        if block_ptr.number % 1000 == 0 {
-            info!(
-                Subgraph,
-                format!("finished processing block #{}", block_ptr.number)
-            );
-        }
 
         Ok(())
     }
