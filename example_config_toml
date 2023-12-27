@@ -9,10 +9,10 @@ rpc_endpoint = "https://cloudflare-eth.com/"
 table_path = "s3://ethereum/blocks_01/"
 query_step = 20000
 
-[database.scylla]
-uri = "localhost:9042"
-keyspace = "erc0"
+[database.mongo]
+uri = "mongodb://root:example@localhost:27017"
+database = "db0"
 
 [valve]
-allowed_lag = 5000
-wait_time = 120
+allowed_lag = 10
+wait_time = 10
