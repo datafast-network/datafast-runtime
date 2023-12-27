@@ -111,8 +111,8 @@ impl DeltaClient {
                 .into_par_iter()
                 .flat_map(|batch| {
                     let blocks = R::try_from(batch).unwrap();
-                    let messages = Into::<Vec<BlockDataMessage>>::into(blocks);
-                    messages
+                    
+                    Into::<Vec<BlockDataMessage>>::into(blocks)
                 })
                 .collect::<Vec<_>>();
 

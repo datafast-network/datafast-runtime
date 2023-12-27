@@ -56,10 +56,10 @@ impl Valve {
     pub async fn temporarily_close(&self) {
         loop {
             let this = self.0.borrow();
-            let downloaded = this.downloaded.clone();
-            let finished = this.finished.clone();
-            let allowed_lag = this.cfg.allowed_lag.clone();
-            let wait_time = this.cfg.wait_time.clone();
+            let downloaded = this.downloaded;
+            let finished = this.finished;
+            let allowed_lag = this.cfg.allowed_lag;
+            let wait_time = this.cfg.wait_time;
             drop(this);
             if downloaded - finished > allowed_lag {
                 tokio::time::sleep(Duration::from_secs(wait_time)).await;
