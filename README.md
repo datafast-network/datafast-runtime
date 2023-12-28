@@ -1,15 +1,6 @@
 # Datafast-Runtime
 
-## Design goal
-The goal design is, the runtime must be very easy to use, very easy to pull a demo.
-End-product should be an executable, can be run as CLI or separate Config file.
-
-Example usage:
-```shell
-$ dfr --manifest ~/my-subgraph-repo --database mystore://localhost:12345/namespace
-```
-
-
+Document available at [https://github.com/vutran1710](https://runtime.datafast.network/)
 
 ## Architecture
 ```mermaid
@@ -41,15 +32,6 @@ sequenceDiagram
         Main->>Database: remove outdated snapshots
         Main->>Database: clean up data-history if needed & flush cache
     end
-```
-
-## Component usage
-
-### ManifestLoader
-
-- Accept local subgraph dir for constructor
-```rust
-let loader = ManifestLoader::new("fs://vutran/works/subgraph-testing/packages/v0_0_5").await.unwrap()
 ```
 
 ## Unit-Test
