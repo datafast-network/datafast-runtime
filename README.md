@@ -1,6 +1,6 @@
 # Datafast-Runtime
 
-Document available at [https://github.com/vutran1710](https://runtime.datafast.network/)
+Document available at https://runtime.datafast.network
 
 ## Architecture
 ```mermaid
