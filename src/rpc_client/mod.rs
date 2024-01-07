@@ -24,6 +24,7 @@ pub trait RPCTrait {
 }
 
 pub enum RPCChain {
+    #[allow(dead_code)]
     None,
     Ethereum(ethereum::EthereumRPC),
 }

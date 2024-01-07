@@ -24,7 +24,7 @@ fn welcome() {
     let contents =
         fs::read_to_string("./welcome.txt").expect("Should have been able to read the file");
 
-    warn!(DatafastRuntime, "\nA product of Datafast - [df|runtime]");
+    warn!(DatafastRuntime, "\nWelcome to Datafast-Runtime");
     log::info!("\n\n{contents}");
 }
 

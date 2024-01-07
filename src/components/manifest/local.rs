@@ -2,6 +2,7 @@ use super::ManifestBundle;
 use super::Schemas;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
+use crate::info;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::read_to_string;
@@ -12,6 +13,7 @@ pub struct LocalFileLoader;
 
 impl LocalFileLoader {
     pub fn try_subgraph_dir(subgraph_dir: &str) -> Result<ManifestBundle, ManifestLoaderError> {
+        info!(Manifest, "reading subgraph's build dir"; path => subgraph_dir);
         let md = fs::metadata(subgraph_dir)
             .map_err(|_| ManifestLoaderError::InvalidSubgraphDir(subgraph_dir.to_string()))?;
 

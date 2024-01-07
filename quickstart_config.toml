@@ -1,0 +1,17 @@
+chain = "ethereum"
+subgraph_name = "example-subgraph"
+reorg_threshold = 1000
+rpc_endpoint = "wss://eth.merkle.io"
+metric_port = 8082
+
+[source.delta]
+table_path = "s3://dfr-ethereum/"
+query_step = 5000
+
+[database.mongo]
+uri = "mongodb://root:example@localhost:27017"
+database = "db0"
+
+[valve]
+allowed_lag = 100
+wait_time = 20
