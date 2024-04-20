@@ -9,6 +9,7 @@ mod macros;
 mod store;
 mod types_conversion;
 mod wasm_log;
+mod data_filter;
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -129,6 +130,7 @@ fn create_wasm_host(
             "dataSource.network" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_network),
             "dataSource.context" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_context)
         },
+
         "index" => { //index for subgraph version <= 4
             "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
             "store.get" => Function::new_typed_with_env(&mut store, &env, store::store_get),
@@ -172,6 +174,7 @@ fn create_wasm_host(
             "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_times),
             "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_divided_by),
             "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
+            "datafilter.get_white_list_address" => Function::new_typed_with_env(&mut store, &env, data_filter::get_white_list_address),
         }
     };
 
@@ -291,7 +294,7 @@ pub mod test {
             "Test".to_string(),
             db,
         )
-        .unwrap()
+            .unwrap()
     }
 
     pub fn get_subgraph_testing_resource(version: &str, host_name: &str) -> (Version, String) {
