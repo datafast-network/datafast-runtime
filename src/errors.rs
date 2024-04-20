@@ -214,3 +214,13 @@ pub enum MainError {
     #[error("filter error: `{0}`")]
     Filter(#[from] FilterError),
 }
+
+#[derive(Debug, Error)]
+pub enum CacheError {
+    #[error("Cache error: {0}")]
+    Initialization(String),
+    #[error("Key not found: {0}")]
+    RedisError(#[from] redis::RedisError),
+    #[error("Serialization error: {0}")]
+    SerializationError(#[from] serde_json::Error),
+}

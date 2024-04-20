@@ -2,6 +2,8 @@ mod extern_db;
 mod memory_db;
 mod metrics;
 mod utils;
+mod cache;
+mod cache_db;
 
 use crate::common::BlockPtr;
 use crate::common::EntityID;

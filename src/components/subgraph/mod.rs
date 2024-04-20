@@ -40,13 +40,13 @@ impl Subgraph {
     }
 
     pub fn should_process(&self, data: &FilteredDataMessage) -> bool {
-        match data {
+        return match data {
             FilteredDataMessage::Ethereum { events, .. } => {
-                return !events.is_empty()
+                !events.is_empty()
                     || self
-                        .sources
-                        .values()
-                        .any(|ds| !ds.ethereum_handlers.block.is_empty());
+                    .sources
+                    .values()
+                    .any(|ds| !ds.ethereum_handlers.block.is_empty())
             }
         }
     }
