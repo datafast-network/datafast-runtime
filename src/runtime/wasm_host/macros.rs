@@ -26,6 +26,7 @@ macro_rules! host_fn_test {
                 &wasm_path,
                 registry,
                 RpcAgent::new_mock(default_registry()),
+                None
             );
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
@@ -64,7 +65,7 @@ macro_rules! host_fn_test {
             let (version, wasm_path) = get_subgraph_testing_resource(version, $datasource_name);
 
             let mut $host =
-                mock_wasm_host(version, &wasm_path, registry, RpcAgent::new_mock(registry));
+                mock_wasm_host(version, &wasm_path, registry, RpcAgent::new_mock(registry), None);
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
                 .instance
@@ -101,7 +102,7 @@ macro_rules! host_fn_test {
 
             let (version, wasm_path) = get_subgraph_testing_resource(version, $datasource_name);
             let mut $host =
-                mock_wasm_host(version, &wasm_path, registry, RpcAgent::new_mock(registry));
+                mock_wasm_host(version, &wasm_path, registry, RpcAgent::new_mock(registry), None);
 
             let args = $construct_args;
 

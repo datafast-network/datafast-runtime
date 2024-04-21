@@ -90,6 +90,8 @@ pub fn ethereum_call(
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+    use ethabi::Address;
     use crate::chain::ethereum::block::EthereumBlockData;
     use crate::chain::ethereum::event::EthereumEventData;
     use crate::chain::ethereum::transaction::EthereumTransactionData;
@@ -100,11 +102,8 @@ mod test {
     use crate::runtime::asc::base::AscPtr;
     use crate::runtime::asc::native_types::string::AscString;
     use crate::runtime::wasm_host::test::*;
-    use ethabi::ethereum_types::H256;
-    use ethabi::ethereum_types::U64;
-    use std::str::FromStr;
+    use ethabi::ethereum_types::{H256, U64};
     use wasmer::Value;
-    use web3::types::Address;
 
     host_fn_test!("TestTypes", test_ethereum_block, host, result {
         let block = EthereumBlockData {
@@ -160,7 +159,7 @@ mod test {
                     get_subgraph_testing_resource(version, "TestEthereumCall");
                 let rpc = create_rpc_client_test(&version.to_string().replace('.', "_")).await;
 
-                let mut host = mock_wasm_host(version, &wasm_path, registry, rpc);
+                let mut host = mock_wasm_host(version, &wasm_path, registry, rpc, None);
                 let func = host
                     .instance
                     .exports

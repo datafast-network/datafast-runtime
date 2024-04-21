@@ -283,6 +283,7 @@ pub mod test {
         wasm_path: &str,
         registry: &Registry,
         rpc: RpcAgent,
+        store_filter: Option<StoreFilter>,
     ) -> AscHost {
         ::log::warn!(
             r#"New test-host-instance being created with:
@@ -303,7 +304,7 @@ pub mod test {
             None,
             "Test".to_string(),
             db,
-            None,
+            store_filter,
         )
             .unwrap()
     }

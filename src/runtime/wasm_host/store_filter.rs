@@ -1,4 +1,4 @@
-use log::info;
+use log::{error, info};
 use wasmer::{FunctionEnvMut, RuntimeError};
 use crate::runtime::asc::base::{asc_get, asc_new, AscPtr};
 use crate::runtime::asc::native_types::{Uint8Array};
@@ -15,6 +15,7 @@ pub fn store_set(
 
     let env = fenv.data_mut();
     if env.store_filter.is_none() {
+        error!("store_filter is not initialized");
         return Err(RuntimeError::new(
             "store_filter is not initialized".to_string(),
         ));
@@ -42,6 +43,7 @@ pub fn store_get(
     let key = asc_get::<String, _, _>(&fenv, key_ptr, 0)?;
     let env = fenv.data();
     if env.store_filter.is_none() {
+        error!("store_filter is not initialized");
         return Err(RuntimeError::new(
             "store_filter is not initialized".to_string(),
         ));
@@ -71,6 +73,7 @@ pub fn store_remove(
 ) -> Result<(), RuntimeError> {
     let env = fenv.data();
     if env.store_filter.is_none() {
+        error!("store_filter is not initialized");
         return Err(RuntimeError::new(
             "store_filter is not initialized".to_string(),
         ));
@@ -104,7 +107,7 @@ mod test {
         let version = Version::parse("0.0.5").unwrap();
         let ws_path = "../subgraph-testing/packages/uniswap-v3/build/Datafilter/Datafilter.wasm";
         let registry = default_registry();
-        let mut host = mock_wasm_host(version, ws_path, registry, RpcAgent::new_mock(registry));
+        let mut host = mock_wasm_host(version, ws_path, registry, RpcAgent::new_mock(registry), None);
         let func = host
             .instance
             .exports
