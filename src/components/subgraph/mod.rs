@@ -14,6 +14,7 @@ use datasource_wasm_instance::DatasourceWasmInstance;
 use metrics::SubgraphMetrics;
 use prometheus::Registry;
 use std::collections::HashMap;
+use crate::store_filter::StoreFilter;
 
 pub struct Subgraph {
     sources: HashMap<(String, Option<String>), DatasourceWasmInstance>,
@@ -21,6 +22,7 @@ pub struct Subgraph {
     rpc: RpcAgent,
     db: DatabaseAgent,
     manifest: ManifestAgent,
+    store_filter: Option<StoreFilter>,
 }
 
 impl Subgraph {
@@ -29,6 +31,7 @@ impl Subgraph {
         rpc: &RpcAgent,
         manifest: &ManifestAgent,
         registry: &Registry,
+        store_filter: Option<StoreFilter>,
     ) -> Self {
         Self {
             sources: HashMap::new(),
@@ -36,6 +39,7 @@ impl Subgraph {
             rpc: rpc.clone(),
             db: db.clone(),
             manifest: manifest.clone(),
+            store_filter,
         }
     }
 
@@ -48,7 +52,7 @@ impl Subgraph {
                     .values()
                     .any(|ds| !ds.ethereum_handlers.block.is_empty())
             }
-        }
+        };
     }
 
     pub fn create_sources(&mut self) -> Result<(), SubgraphError> {
@@ -72,6 +76,7 @@ impl Subgraph {
                         self.db.clone(),
                         self.rpc.clone(),
                         self.manifest.clone(),
+                        self.store_filter.clone(),
                     ))?,
                 );
             }

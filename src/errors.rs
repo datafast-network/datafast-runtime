@@ -213,6 +213,8 @@ pub enum MainError {
     Subgraph(#[from] SubgraphError),
     #[error("filter error: `{0}`")]
     Filter(#[from] FilterError),
+    #[error("cache error: `{0}`")]
+    CacheError(#[from] CacheError),
 }
 
 #[derive(Debug, Error)]

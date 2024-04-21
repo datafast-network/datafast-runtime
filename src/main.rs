@@ -8,6 +8,7 @@ mod logger_macros;
 mod metrics;
 mod rpc_client;
 mod runtime;
+mod store_filter;
 
 use components::*;
 use config::Config;
@@ -18,6 +19,7 @@ use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
 use std::fs;
+use crate::store_filter::{create_redis_cache, StoreFilter};
 
 fn welcome() {
     // TODO: include file in build script
@@ -71,8 +73,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut rpc = RpcAgent::new(&config, manifest.abis(), registry).await?;
     info!(main, "Rpc-Client ready!");
+    let mut store_filter = None;
+    if config.redis_url.is_some() {
+        let redis_cache = create_redis_cache(config.redis_url.unwrap().clone()).await?;
+        store_filter = Some(StoreFilter::from(redis_cache))
+    }
 
-    let mut subgraph = Subgraph::new(&db, &rpc, &manifest, registry);
+
+    let mut subgraph = Subgraph::new(&db, &rpc, &manifest, registry, store_filter);
     info!(main, "Subgraph ready!");
 
     let (sender, recv) = kanal::bounded_async(1);

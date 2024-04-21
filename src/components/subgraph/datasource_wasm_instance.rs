@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use wasmer::Exports;
 use wasmer::Function;
 use wasmer::Value;
+use crate::store_filter::StoreFilter;
 
 pub struct Handler {
     pub name: String,
@@ -70,12 +71,12 @@ impl TryFrom<(&AscHost, &Datasource)> for EthereumHandlers {
     }
 }
 
-impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)>
+impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent, Option<StoreFilter>)>
     for DatasourceWasmInstance
 {
     type Error = SubgraphError;
     fn try_from(
-        value: (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
+        value: (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent, Option<StoreFilter>),
     ) -> Result<Self, Self::Error> {
         let host = AscHost::try_from(value.clone())
             .map_err(|e| SubgraphError::CreateSourceFail(e.to_string()))?;

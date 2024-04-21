@@ -9,7 +9,7 @@ mod macros;
 mod store;
 mod types_conversion;
 mod wasm_log;
-mod data_filter;
+mod store_filter;
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -30,6 +30,7 @@ use wasmer::Memory;
 use wasmer::Module;
 use wasmer::Store;
 use wasmer::TypedFunction;
+use crate::store_filter::StoreFilter;
 
 #[derive(Clone)]
 pub struct Env {
@@ -44,6 +45,7 @@ pub struct Env {
     pub db: DatabaseAgent,
     pub rpc: RpcAgent,
     pub manifest: ManifestAgent,
+    pub store_filter: Option<StoreFilter>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -56,6 +58,7 @@ fn create_wasm_host(
     address: Option<String>,
     network: String,
     db: DatabaseAgent,
+    store_filter: Option<StoreFilter>,
 ) -> Result<AscHost, WasmHostError> {
     let mut store = Store::default();
     let module = Module::new(&store, wasm_bytes)?;
@@ -74,6 +77,7 @@ fn create_wasm_host(
             manifest,
             address,
             network,
+            store_filter,
         },
     );
 
@@ -114,6 +118,7 @@ fn create_wasm_host(
         },
         "json" => {
             "json.toBigInt" =>Function::new_typed_with_env(&mut store, &env, json::json_to_bigint),
+            "json.fromBytes" => Function::new_typed_with_env(&mut store, &env, json::json_from_bytes),
         },
         "ethereum" => {
             //Ethereum fn
@@ -130,7 +135,12 @@ fn create_wasm_host(
             "dataSource.network" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_network),
             "dataSource.context" => Function::new_typed_with_env(&mut store, &env, datasource::datasource_context)
         },
-
+        "store-filters" => {
+            // Store Filter
+            "StoreFilter.get" => Function::new_typed_with_env(&mut store, &env, store_filter::store_get),
+            "StoreFilter.set" => Function::new_typed_with_env(&mut store, &env, store_filter::store_set),
+            "StoreFilter.remove" => Function::new_typed_with_env(&mut store, &env, store_filter::store_remove),
+        },
         "index" => { //index for subgraph version <= 4
             "store.set" => Function::new_typed_with_env(&mut store, &env, store::store_set),
             "store.get" => Function::new_typed_with_env(&mut store, &env, store::store_get),
@@ -173,8 +183,7 @@ fn create_wasm_host(
             "bigDecimal.minus" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_minus),
             "bigDecimal.times" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_times),
             "bigDecimal.dividedBy" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_divided_by),
-            "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals),
-            "datafilter.get_white_list_address" => Function::new_typed_with_env(&mut store, &env, data_filter::get_white_list_address),
+            "bigDecimal.equals" => Function::new_typed_with_env(&mut store, &env, bigdecimal::big_decimal_equals)
         }
     };
 
@@ -243,11 +252,11 @@ fn create_wasm_host(
     })
 }
 
-impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for AscHost {
+impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent, Option<StoreFilter>)> for AscHost {
     type Error = WasmHostError;
 
     fn try_from(
-        (ds, db, rpc, manifest): (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
+        (ds, db, rpc, manifest, store_filter): (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent, Option<StoreFilter>),
     ) -> Result<Self, Self::Error> {
         create_wasm_host(
             ds.api_version(),
@@ -258,6 +267,7 @@ impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for Asc
             ds.address(),
             ds.network(),
             db,
+            store_filter,
         )
     }
 }
@@ -293,6 +303,7 @@ pub mod test {
             None,
             "Test".to_string(),
             db,
+            None,
         )
             .unwrap()
     }

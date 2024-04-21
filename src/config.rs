@@ -46,6 +46,7 @@ pub struct Config {
     pub rpc_endpoint: String,
     pub valve: ValveConfig,
     pub block_data_retention: Option<u64>,
+    pub redis_url: Option<String>,
 }
 
 impl Config {
