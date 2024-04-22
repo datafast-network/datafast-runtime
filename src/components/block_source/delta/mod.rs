@@ -1,5 +1,4 @@
-mod ethereum;
-pub mod proto;
+mod from_to;
 
 use super::metrics::BlockSourceMetrics;
 use crate::common::BlockDataMessage;
@@ -11,7 +10,6 @@ use crate::warn;
 use deltalake::datafusion::common::arrow::array::RecordBatch;
 use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
-pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use prometheus::Registry;
 use rayon::prelude::IntoParallelIterator;
@@ -20,6 +18,7 @@ use rayon::slice::ParallelSliceMut;
 use std::sync::Arc;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::Retry;
+pub use from_to::DeltaEthereumBlocks;
 
 pub trait DeltaBlockTrait:
     TryFrom<RecordBatch, Error = SourceError> + Into<Vec<BlockDataMessage>>
@@ -150,6 +149,7 @@ mod test {
     use log::info;
     use prometheus::default_registry;
     use serde_json::json;
+    use crate::components::block_source::delta::from_to::DeltaEthereumBlocks;
 
     #[test]
     fn test_adjust_start_block() {

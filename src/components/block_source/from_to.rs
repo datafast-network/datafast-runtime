@@ -1,22 +1,14 @@
-use super::proto::ethereum::Block as PbBlock;
-use super::proto::ethereum::Transaction as PbTransaction;
-use super::DeltaBlockTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::BlockDataMessage;
-use crate::errors::SourceError;
-use deltalake::arrow::array::Array;
-use deltalake::arrow::array::BinaryArray;
-use deltalake::arrow::record_batch::RecordBatch;
+use crate::components::block_source::proto::ethereum::Block as PbBlock;
+use crate::components::block_source::proto::ethereum::Transaction as PbTransaction;
 use ethabi::Bytes;
 use hex::FromHex;
-use prost::Message;
-use rayon::prelude::IntoParallelIterator;
-use rayon::prelude::ParallelIterator;
 use std::str::FromStr;
 use web3::types::Bytes as Web3Bytes;
-use web3::types::Index;
 use web3::types::Log as Web3Log;
+use web3::types::Index;
 use web3::types::H160;
 use web3::types::H256;
 use web3::types::U128;
@@ -97,8 +89,6 @@ impl From<&PbBlock> for Vec<Web3Log> {
     }
 }
 
-pub struct DeltaEthereumBlocks(Vec<PbBlock>);
-
 impl From<PbBlock> for BlockDataMessage {
     fn from(block: PbBlock) -> Self {
         BlockDataMessage::Ethereum {
@@ -112,31 +102,3 @@ impl From<PbBlock> for BlockDataMessage {
         }
     }
 }
-
-impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
-    type Error = SourceError;
-    fn try_from(value: RecordBatch) -> Result<Self, Self::Error> {
-        let block_data = value
-            .column_by_name("block_data")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<BinaryArray>()
-            .unwrap();
-
-        let blocks = block_data
-            .into_iter()
-            .map(|b| PbBlock::decode(&mut b.unwrap()).unwrap())
-            .collect::<Vec<PbBlock>>();
-
-        Ok(Self(blocks))
-    }
-}
-
-impl From<DeltaEthereumBlocks> for Vec<BlockDataMessage> {
-    fn from(value: DeltaEthereumBlocks) -> Self {
-        let inner = value.0;
-        inner.into_par_iter().map(BlockDataMessage::from).collect()
-    }
-}
-
-impl DeltaBlockTrait for DeltaEthereumBlocks {}

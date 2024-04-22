@@ -16,6 +16,7 @@ pub struct DeltaConfig {
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
     Delta(DeltaConfig),
+    Redis { redis_uri: String, channel: String },
 }
 
 #[derive(Deserialize, Clone, Debug)]

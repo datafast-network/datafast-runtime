@@ -55,12 +55,14 @@ impl Inspector {
         match self.recent_block_ptrs.front() {
             None => {
                 let min_start_block = self.get_expected_block_number();
-
+                if min_start_block == 0 {
+                    self.recent_block_ptrs.push_front(new_block_ptr);
+                    return BlockInspectionResult::OkToProceed;
+                }
                 if new_block_ptr.number == min_start_block {
                     self.recent_block_ptrs.push_front(new_block_ptr);
                     return BlockInspectionResult::OkToProceed;
                 }
-
                 error!(
                     Inspector,
                     "received an unexpected block whose number does not match subgraph's required start-block";
@@ -92,13 +94,13 @@ impl Inspector {
                     critical!(
                         Inspector,
                         r#"
-Block not recognized!
-Please check your setup - as it can be either:
-1) a reorg is too deep for runtime to handle, or
-2) you have set a reorg-threshold which is too shallow, or
-3) you are using a WRONG block source, or
-4) Data-store & subgraph's block-pointers do not match!
-"#;
+                            Block not recognized!
+                            Please check your setup - as it can be either:
+                            1) a reorg is too deep for runtime to handle, or
+                            2) you have set a reorg-threshold which is too shallow, or
+                            3) you are using a WRONG block source, or
+                            4) Data-store & subgraph's block-pointers do not match!
+                        "#;
                         received_block => new_block_ptr,
                         recent_blocks_processed => format!(
                             "{} ... {}",

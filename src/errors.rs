@@ -159,6 +159,8 @@ pub enum SerializerError {
 
 #[derive(Debug, Error)]
 pub enum SourceError {
+    #[error("Source error: {0}")]
+    Initialization(String),
     #[error("Send data failed: {0}")]
     ChannelSendFail(#[from] SendError),
     #[error("Nats error: {0}")]
@@ -179,6 +181,9 @@ pub enum SourceError {
     DeltaSerializationError,
     #[error("No blocks found from Delta")]
     DeltaEmptyData,
+    #[error("Redis pubsub error {0}")]
+    ParseRedisMessage(String)
+    
 }
 
 #[derive(Debug, Error)]

@@ -10,6 +10,8 @@ mod rpc_client;
 mod runtime;
 mod store_filter;
 
+use crate::store_filter::create_redis_cache;
+use crate::store_filter::StoreFilter;
 use components::*;
 use config::Config;
 use database::DatabaseAgent;
@@ -19,7 +21,6 @@ use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
 use std::fs;
-use crate::store_filter::{create_redis_cache, StoreFilter};
 
 fn welcome() {
     // TODO: include file in build script
@@ -79,7 +80,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         store_filter = Some(StoreFilter::from(redis_cache))
     }
 
-
     let mut subgraph = Subgraph::new(&db, &rpc, &manifest, registry, store_filter);
     info!(main, "Subgraph ready!");
 
@@ -115,22 +115,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let block_ptr = block.get_block_ptr();
                 rpc.set_block_ptr(&block_ptr);
                 manifest.set_block_ptr(&block_ptr);
-
-                match inspector.check_block(block_ptr.clone()) {
-                    BlockInspectionResult::UnexpectedBlock
-                    | BlockInspectionResult::UnrecognizedBlock => {
-                        panic!("Bad block data from source");
-                    }
-                    BlockInspectionResult::BlockAlreadyProcessed
-                    | BlockInspectionResult::MaybeReorg => {
-                        continue;
-                    }
-                    BlockInspectionResult::ForkBlock => {
-                        db.revert_from_block(block_ptr.number).await?;
-                    }
-                    BlockInspectionResult::OkToProceed => (),
-                };
-
+                info!(
+                    main,
+                    "processing block";
+                    block_number => block_ptr.number,
+                    block_hash => block_ptr.hash);
+                // match inspector.check_block(block_ptr.clone()) {
+                //     BlockInspectionResult::UnexpectedBlock
+                //     | BlockInspectionResult::UnrecognizedBlock => {
+                //         panic!("Bad block data from source");
+                //     }
+                //     BlockInspectionResult::BlockAlreadyProcessed
+                //     | BlockInspectionResult::MaybeReorg => {
+                //         continue;
+                //     }
+                //     BlockInspectionResult::ForkBlock => {
+                //         db.revert_from_block(block_ptr.number).await?;
+                //     }
+                //     BlockInspectionResult::OkToProceed => (),
+                // };
+                // 
                 if subgraph.should_process(&block) {
                     subgraph.process(block)?;
                     rpc.clear_block_level_cache();
@@ -156,8 +160,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 main,
                 "BLOCK BATCH PROCESSED DONE  🎉🎉🎉🎉";
                 exec_time => format!("{:?}", elapsed),
-                number_of_blocks => count_blocks,
-                avg_speed => format!("~{:?} blocks/sec", { count_blocks as u64 / elapsed.as_secs() })
+                number_of_blocks => count_blocks
+                // avg_speed => format!("~{:?} blocks/sec", { count_blocks as u64 / elapsed.as_secs() })
             );
         }
 

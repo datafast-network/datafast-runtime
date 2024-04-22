@@ -30,7 +30,7 @@ use std::hash::Hash;
 use std::iter::FromIterator;
 
 /// Implementations of `ToAscObj` and `FromAscObj` for Rust types.
-/// Standard Rust types go in `mod.rs` and external types in `external.rs`.
+/// Standard Rust types go in `redis_source` and external types in `external.rs`.
 
 impl<T: AscValue> ToAscObj<TypedArray<T>> for [T] {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<TypedArray<T>, AscError> {

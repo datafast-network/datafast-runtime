@@ -1,5 +1,8 @@
 mod delta;
+mod from_to;
 mod metrics;
+pub mod proto;
+mod redis_source;
 
 use super::Valve;
 use crate::common::BlockDataMessage;
@@ -11,9 +14,11 @@ use delta::DeltaClient;
 use delta::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use prometheus::Registry;
+use redis_source::RedisSource;
 
 enum Source {
     Delta(DeltaClient),
+    Redis(RedisSource),
 }
 
 pub struct BlockSource {
@@ -30,6 +35,9 @@ impl BlockSource {
         let source = match &config.source {
             SourceTypes::Delta(delta_cfg) => {
                 Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block, registry).await?)
+            }
+            SourceTypes::Redis { redis_uri, channel } => {
+                Source::Redis(RedisSource::new(redis_uri, channel).await?)
             }
         };
         Ok(Self {
@@ -51,6 +59,9 @@ impl BlockSource {
                     }
                 };
                 query_blocks.await?
+            },
+            Source::Redis(source) => {
+                source.subscribe(sender).await?
             }
         };
 
