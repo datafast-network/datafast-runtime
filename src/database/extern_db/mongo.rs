@@ -484,14 +484,14 @@ mod tests {
 
         test_schema.get_mut("users").unwrap().list_inner_kind = Some(StoreValueKind::String);
 
-        schema.add_schema(entity_type, test_schema);
+        schema.add_schema(entity_type, test_schema, None);
 
         let test_schema_2: Schema = schema!(
             id => StoreValueKind::String,
             data => StoreValueKind::Bytes
         );
 
-        schema.add_schema("entity_with_data", test_schema_2);
+        schema.add_schema("entity_with_data", test_schema_2, None);
 
         let db = MongoDB::new(&uri, &database_name, schema).await?;
         Ok((db, entity_type.to_owned()))

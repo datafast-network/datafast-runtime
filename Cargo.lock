@@ -1072,6 +1072,7 @@ dependencies = [
  "prometheus",
  "prost",
  "rayon",
+ "regex",
  "rstest",
  "scylla",
  "semver 1.0.20",
