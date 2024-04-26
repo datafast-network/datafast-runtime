@@ -43,11 +43,6 @@ impl Schemas {
                     .unwrap_or_else(|| panic!("Name of Object Definition invalid"))
                     .text()
                     .to_string();
-                let mut config_schema = None;
-                if object.directives().is_some() {
-                    let dir = object.directives().unwrap().source_string();
-                    config_schema = Self::get_schema_config(&dir);
-                }
                 let mut schema = Schema::new();
                 for field in object.fields_definition().unwrap().field_definitions() {
                     let ty = field
@@ -59,8 +54,7 @@ impl Schemas {
                         .text();
                     let mut field_kind = Self::parse_entity_field(ty);
                     if let Some(dir) = field.directives() {
-                        let first = dir.directives().next();
-                        if let Some(first) = first {
+                        if let Some(first) = dir.directives().next() {
                             if let Some(arg) = Self::get_args(&first) {
                                 if field_kind.relation.is_some()
                                     && Self::get_name_arg(arg.clone(), "field")
@@ -76,8 +70,12 @@ impl Schemas {
                     schema.insert(field_name.to_string(), field_kind);
                 }
                 schemas.0.remove(&entity_type);
-                //todo insert with config of schema (read-write)
-
+                //Get schema config
+                let mut config_schema = None;
+                if object.directives().is_some() {
+                    let dir = object.directives().unwrap().source_string();
+                    config_schema = Self::get_schema_config(&dir);
+                }
                 schemas.add_schema(&entity_type, schema, config_schema)
             }
         }
