@@ -262,6 +262,22 @@ impl ExternDBTrait for MongoDB {
         Ok(Some(entity))
     }
 
+    async fn load_entities(
+        &self,
+        entity_type: &str,
+        ids: Vec<String>,
+    ) -> Result<Vec<RawEntity>, DatabaseError> {
+        let fetch_entities = ids
+            .iter()
+            .map(|entity_id| self.load_entity(entity_type, entity_id));
+        let result = try_join_all(fetch_entities)
+            .await?
+            .into_iter()
+            .flatten()
+            .collect();
+        Ok(result)
+    }
+
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
@@ -280,6 +296,13 @@ impl ExternDBTrait for MongoDB {
         );
         collection
             .insert_one(Self::raw_entity_to_document(data), None)
+            .await?;
+        Ok(())
+    }
+
+    async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        self.block_ptr_collection
+            .insert_one(block_ptr, None)
             .await?;
         Ok(())
     }
@@ -310,29 +333,6 @@ impl ExternDBTrait for MongoDB {
             .find_one(None, Some(opts))
             .await
             .map_err(DatabaseError::from)
-    }
-
-    async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
-        self.block_ptr_collection
-            .insert_one(block_ptr, None)
-            .await?;
-        Ok(())
-    }
-
-    async fn load_entities(
-        &self,
-        entity_type: &str,
-        ids: Vec<String>,
-    ) -> Result<Vec<RawEntity>, DatabaseError> {
-        let fetch_entities = ids
-            .iter()
-            .map(|entity_id| self.load_entity(entity_type, entity_id));
-        let result = try_join_all(fetch_entities)
-            .await?
-            .into_iter()
-            .flatten()
-            .collect();
-        Ok(result)
     }
 
     async fn save_datasources(&self, datasources: Vec<Datasource>) -> Result<(), DatabaseError> {
@@ -446,6 +446,10 @@ impl ExternDBTrait for MongoDB {
         }
         try_join_all(tasks).await?;
         Ok(1)
+    }
+
+    fn get_schema(&self) -> Schemas {
+        self.schemas.clone()
     }
 }
 

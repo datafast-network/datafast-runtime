@@ -106,7 +106,7 @@ pub type EntityID = String;
 pub type FieldName = String;
 pub type RawEntity = HashMap<FieldName, Value>;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialOrd, PartialEq)]
 pub enum ModeSchema {
     ReadOnly,
     #[default]
@@ -131,6 +131,12 @@ pub struct SchemaConfig {
     pub mode: ModeSchema,
     pub namespace: Option<String>,
     pub interval: Option<u64>
+}
+
+impl SchemaConfig {
+    pub fn writeable(&self) -> bool {
+        return self.mode == ModeSchema::ReadWrite
+    }
 }
 
 impl Default for SchemaConfig {
