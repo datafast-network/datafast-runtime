@@ -52,7 +52,7 @@ impl DeltaClient {
                 deltalake::open_table_with_version(&cfg.table_path, version as i64).await?
             }
         };
-        let file_count = table.get_files().len();
+        let file_count = table.get_files_count();
         ctx.register_table("blocks", Arc::new(table))?;
         info!(
             DeltaClient,
