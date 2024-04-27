@@ -16,6 +16,11 @@ pub struct DeltaConfig {
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
     Delta(DeltaConfig),
+    #[cfg(feature = "pubsub")]
+    PubSub {
+        topic: String,
+        sub_id: String,
+    },
 }
 
 #[derive(Deserialize, Clone, Debug)]

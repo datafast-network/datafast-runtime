@@ -27,7 +27,7 @@ tokio = { version = "1.33.0", features = ["full"] }
 web3 = "0.19.0"
 tiny-keccak = "2.0.2"
 scylla = { version = "0.12.0", optional = true }
-mongodb = { version = "2.7.1", optional = true}
+mongodb = { version = "2.7.1", optional = true }
 apollo-parser = "0.7.3"
 prometheus = "0.13.3"
 warp = "0.3.6"
@@ -36,11 +36,13 @@ deltalake = { version = "0.17.1", features = ["s3", "datafusion"] }
 rayon = "1.8.0"
 prost = "0.12.3"
 wasmer = "4.2.4"
+google-cloud-pubsub = { version = "0.24.0", optional = true }
 
 [features]
 default = ["mongo"]
 scylla = ["dep:scylla"]
 mongo = ["dep:mongodb"]
+pubsub = ["dep:google-cloud-pubsub"]
 
 [dev-dependencies]
 convert_case = "0.6.0"

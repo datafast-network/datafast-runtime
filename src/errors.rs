@@ -13,6 +13,9 @@ use scylla::transport::errors as ScyllaError;
 #[cfg(feature = "mongo")]
 use mongodb::error as MongoError;
 
+#[cfg(feature = "pubsub")]
+use google_cloud_pubsub::client::Error as PubSubError;
+
 #[derive(Error, Debug)]
 pub enum BigIntOutOfRangeError {
     #[error("Cannot convert negative BigInt into type")]
@@ -179,6 +182,12 @@ pub enum SourceError {
     DeltaSerializationError,
     #[error("No blocks found from Delta")]
     DeltaEmptyData,
+    #[cfg(feature = "pubsub")]
+    #[error("PubSub error {0}")]
+    PubSubError(#[from] PubSubError),
+    #[cfg(feature = "pubsub")]
+    #[error("PubSub decode message error {0}")]
+    PubSubDecodeError(String)
 }
 
 #[derive(Debug, Error)]

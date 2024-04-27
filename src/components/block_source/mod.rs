@@ -1,5 +1,7 @@
 mod delta;
 mod metrics;
+#[cfg(feature = "pubsub")]
+mod pubsub;
 
 use super::Valve;
 use crate::common::BlockDataMessage;
@@ -12,8 +14,12 @@ use delta::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use prometheus::Registry;
 
+#[cfg(feature = "pubsub")]
+use pubsub::PubSubSource;
 enum Source {
     Delta(DeltaClient),
+    #[cfg(feature = "pubsub")]
+    PubSub(PubSubSource),
 }
 
 pub struct BlockSource {
@@ -30,6 +36,10 @@ impl BlockSource {
         let source = match &config.source {
             SourceTypes::Delta(delta_cfg) => {
                 Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block, registry).await?)
+            }
+            #[cfg(feature = "pubsub")]
+            SourceTypes::PubSub { topic, sub_id } => {
+                Source::PubSub(PubSubSource::new(topic.clone(), sub_id.clone()).await?)
             }
         };
         Ok(Self {
@@ -52,6 +62,10 @@ impl BlockSource {
                 };
                 query_blocks.await?
             }
+            #[cfg(feature = "pubsub")]
+            Source::PubSub(source) => match self.chain {
+                Chain::Ethereum => source.subscribe(sender),
+            },
         };
 
         Ok(())
