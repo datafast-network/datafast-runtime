@@ -2,6 +2,7 @@ mod delta;
 mod metrics;
 #[cfg(feature = "pubsub")]
 mod pubsub;
+use pubsub::PubSubSource;
 
 use super::Valve;
 use crate::common::BlockDataMessage;
@@ -14,8 +15,6 @@ use delta::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use prometheus::Registry;
 
-#[cfg(feature = "pubsub")]
-use pubsub::PubSubSource;
 enum Source {
     Delta(DeltaClient),
     #[cfg(feature = "pubsub")]
