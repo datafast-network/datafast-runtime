@@ -1,5 +1,4 @@
 mod ethereum;
-pub mod proto;
 
 use super::metrics::BlockSourceMetrics;
 use crate::common::BlockDataMessage;
