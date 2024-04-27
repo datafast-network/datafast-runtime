@@ -86,6 +86,15 @@ impl RpcClient {
         })
     }
 
+    fn new_mock(registry: &Registry) -> Self {
+        Self {
+            rpc_client: RPCChain::None,
+            block_ptr: BlockPtr::default(),
+            cache_by_block: HashMap::new(),
+            metrics: RpcMetrics::new(registry),
+        }
+    }
+
     pub async fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         if let Some(result) = self.rpc_client.cache_get(&call) {
             self.metrics.chain_level_cache_hit.inc();
@@ -137,6 +146,11 @@ impl RpcAgent {
     pub async fn new(config: &Config, abis: ABIs, registry: &Registry) -> Result<Self, RPCError> {
         let rpc_client = RpcClient::new(config, abis, registry).await?;
         Ok(Self(Rc::new(RefCell::new(rpc_client))))
+    }
+
+    pub fn new_mock(registry: &Registry) -> Self {
+        let rpc_client = RpcClient::new_mock(&registry);
+        Self(Rc::new(RefCell::new(rpc_client)))
     }
 
     pub fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {

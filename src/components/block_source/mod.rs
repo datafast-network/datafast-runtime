@@ -1,7 +1,10 @@
 mod delta;
 mod metrics;
-#[cfg(feature = "pubsub")]
+#[cfg(any(feature = "pubsub_compress", feature = "pubsub"))]
 mod pubsub;
+
+#[cfg(feature = "pubsub")]
+#[cfg(feature = "pubsub_compress")]
 use pubsub::PubSubSource;
 
 use super::Valve;
@@ -17,7 +20,7 @@ use prometheus::Registry;
 
 enum Source {
     Delta(DeltaClient),
-    #[cfg(feature = "pubsub")]
+    #[cfg(all(feature = "pubsub_compress", feature = "pubsub"))]
     PubSub(PubSubSource),
 }
 
@@ -37,9 +40,13 @@ impl BlockSource {
                 Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block, registry).await?)
             }
             #[cfg(feature = "pubsub")]
-            SourceTypes::PubSub { topic, sub_id } => {
-                Source::PubSub(PubSubSource::new(topic.clone(), sub_id.clone()).await?)
-            }
+            #[cfg(feature = "pubsub_compress")]
+            SourceTypes::PubSub {
+                topic,
+                sub_id,
+            } => Source::PubSub(
+                PubSubSource::new(topic.clone(), sub_id.clone()).await?,
+            ),
         };
         Ok(Self {
             source,
@@ -61,9 +68,9 @@ impl BlockSource {
                 };
                 query_blocks.await?
             }
-            #[cfg(feature = "pubsub")]
+            #[cfg(all(feature = "pubsub", feature = "pubsub_compress"))]
             Source::PubSub(source) => match self.chain {
-                Chain::Ethereum => source.subscribe(sender),
+                Chain::Ethereum => source.subscribe(sender).await?,
             },
         };
 

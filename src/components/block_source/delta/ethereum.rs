@@ -1,4 +1,4 @@
-use crate::common::proto::ethereum::Block as PbBlock;
+use crate::proto::ethereum::Block as PbBlock;
 use super::DeltaBlockTrait;
 use crate::common::BlockDataMessage;
 use crate::errors::SourceError;
@@ -8,8 +8,6 @@ use deltalake::arrow::record_batch::RecordBatch;
 use prost::Message;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
-
-
 
 
 pub struct DeltaEthereumBlocks(Vec<PbBlock>);

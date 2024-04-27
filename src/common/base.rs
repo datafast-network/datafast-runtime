@@ -71,7 +71,7 @@ pub enum HandlerTypes {
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Chain {
-    Ethereum,
+    Ethereum
 }
 
 #[derive(Debug, Default, Clone)]

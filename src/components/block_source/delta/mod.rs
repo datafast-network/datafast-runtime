@@ -172,7 +172,7 @@ mod test {
         let (sender, recv) = kanal::bounded_async(1);
 
         tokio::select! {
-            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default())) => {
+            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default(), &Registry::default())) => {
                 log::info!(" DONE SENDER");
             },
             _ = async move {
@@ -334,7 +334,7 @@ mod test {
         };
 
         tokio::select! {
-            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default())) => (),
+            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default(), &Registry::default())) => (),
             _ = assert_block => ()
         }
     }

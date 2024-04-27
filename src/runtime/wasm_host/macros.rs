@@ -25,7 +25,7 @@ macro_rules! host_fn_test {
                 version,
                 &wasm_path,
                 registry,
-                RpcAgent::new_mock(default_registry),
+                RpcAgent::new_mock(registry),
             );
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
