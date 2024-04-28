@@ -1,10 +1,10 @@
+#[cfg(feature = "deltalake")]
 mod delta;
 mod metrics;
 #[cfg(any(feature = "pubsub_compress", feature = "pubsub"))]
 mod pubsub;
 
-#[cfg(feature = "pubsub")]
-#[cfg(feature = "pubsub_compress")]
+#[cfg(all(feature = "pubsub_compress", feature = "pubsub"))]
 use pubsub::PubSubSource;
 
 use super::Valve;
@@ -13,12 +13,15 @@ use crate::common::Chain;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
+#[cfg(feature = "deltalake")]
 use delta::DeltaClient;
+#[cfg(feature = "deltalake")]
 use delta::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use prometheus::Registry;
 
 enum Source {
+    #[cfg(feature = "deltalake")]
     Delta(DeltaClient),
     #[cfg(all(feature = "pubsub_compress", feature = "pubsub"))]
     PubSub(PubSubSource),
@@ -36,11 +39,11 @@ impl BlockSource {
         registry: &Registry,
     ) -> Result<Self, SourceError> {
         let source = match &config.source {
+            #[cfg(feature = "deltalake")]
             SourceTypes::Delta(delta_cfg) => {
                 Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block, registry).await?)
             }
-            #[cfg(feature = "pubsub")]
-            #[cfg(feature = "pubsub_compress")]
+            #[cfg(all(feature = "pubsub", feature = "pubsub_compress"))]
             SourceTypes::PubSub {
                 topic,
                 sub_id,
@@ -60,6 +63,7 @@ impl BlockSource {
         valve: Valve,
     ) -> Result<(), SourceError> {
         match self.source {
+            #[cfg(feature = "deltalake")]
             Source::Delta(source) => {
                 let query_blocks = match self.chain {
                     Chain::Ethereum => {
