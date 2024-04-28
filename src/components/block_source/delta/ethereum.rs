@@ -1,4 +1,4 @@
-use crate::common::proto::ethereum::Block as PbBlock;
+use crate::proto::ethereum::Block as PbBlock;
 use super::DeltaBlockTrait;
 use crate::common::BlockDataMessage;
 use crate::errors::SourceError;
