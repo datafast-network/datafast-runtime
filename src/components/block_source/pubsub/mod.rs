@@ -4,19 +4,23 @@ use crate::proto::ethereum::Block;
 use futures_util::StreamExt;
 use google_cloud_pubsub::client::Client;
 use google_cloud_pubsub::client::ClientConfig;
-use google_cloud_pubsub::subscription::SubscriptionConfig;
 use kanal::AsyncSender;
+use log::info;
+use lz4::block::decompress;
 use prost::Message;
 
 #[derive(Clone)]
 pub struct PubSubSource {
     client: Client,
-    topic: String,
     sub_id: String,
+    compression: bool,
 }
 
 impl PubSubSource {
-    pub async fn new(topic: String, sub_id: String) -> Result<Self, SourceError> {
+    pub async fn new(
+        sub_id: String,
+        compression: bool,
+    ) -> Result<Self, SourceError> {
         let config = ClientConfig::default()
             .with_auth()
             .await
@@ -25,8 +29,8 @@ impl PubSubSource {
         let client = Client::new(config).await?;
         Ok(Self {
             client,
-            topic,
             sub_id,
+            compression,
         })
     }
 
@@ -34,35 +38,17 @@ impl PubSubSource {
         &self,
         sender: AsyncSender<Vec<BlockDataMessage>>,
     ) -> Result<(), SourceError> {
-        let topic = self.client.topic(&self.topic);
-        let sub_cfg = SubscriptionConfig {
-            enable_message_ordering: true,
-            ..Default::default()
-        };
-
         let subscription = self.client.subscription(&self.sub_id);
-        if !subscription
-            .exists(None)
-            .await
-            .map_err(|_| SourceError::PubSubAuthError("create subscription error".to_string()))?
-        {
-            subscription
-                .create(topic.fully_qualified_name(), sub_cfg, None)
-                .await
-                .map_err(|_| {
-                    SourceError::PubSubAuthError("create subscription error".to_string())
-                })?;
-        }
         let mut stream = subscription
             .subscribe(None)
             .await
             .map_err(|_| SourceError::PubSubAuthError("create subscription error".to_string()))?;
+        info!("start sub message from sub-id: {}", self.sub_id);
         while let Some(message) = stream.next().await {
             let block = {
-                if cfg!(feature = "pubsub_compress") {
-                    let compress_data =
-                        lz4::block::decompress(message.message.data.as_slice(), None)
-                            .map_err(|e| SourceError::PubSubDecodeError(e.to_string()))?;
+                if self.compression {
+                    let compress_data = decompress(message.message.data.as_slice(), None)
+                        .map_err(|e| SourceError::PubSubDecodeError(e.to_string()))?;
 
                     Block::decode(compress_data.as_slice())
                         .map(BlockDataMessage::from)

@@ -1,11 +1,14 @@
-use deltalake::datafusion::error::DataFusionError;
-use deltalake::DeltaTableError;
 use kanal::SendError;
 use std::io;
 use thiserror::Error;
 use wasmer::CompileError;
 use wasmer::MemoryAccessError;
 use wasmer::RuntimeError;
+
+#[cfg(feature = "deltalake")]
+use deltalake::datafusion::error::DataFusionError;
+#[cfg(feature = "deltalake")]
+use deltalake::DeltaTableError;
 
 #[cfg(feature = "scylla")]
 use scylla::transport::errors as ScyllaError;
@@ -175,12 +178,16 @@ pub enum SourceError {
     #[error("Trino Query Failed")]
     TrinoQueryFail,
     #[error("DeltaTable Error")]
+    #[cfg(feature = "deltalake")]
     DeltaTableError(#[from] DeltaTableError),
     #[error("DataFusion Error")]
+    #[cfg(feature = "deltalake")]
     DataFusionError(#[from] DataFusionError),
     #[error("DeltaLake RecordBatch serialization error")]
+    #[cfg(feature = "deltalake")]
     DeltaSerializationError,
     #[error("No blocks found from Delta")]
+    #[cfg(feature = "deltalake")]
     DeltaEmptyData,
     #[error("PubSub error {0}")]
     #[cfg(any(feature = "pubsub_compress", feature = "pubsub"))]

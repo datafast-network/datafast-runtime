@@ -6,6 +6,7 @@ use figment::Figment;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
+#[cfg(feature = "deltalake")]
 pub struct DeltaConfig {
     pub table_path: String,
     pub query_step: u64,
@@ -15,11 +16,12 @@ pub struct DeltaConfig {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
+    #[cfg(feature = "deltalake")]
     Delta(DeltaConfig),
-    #[cfg(all(feature = "pubsub_compress", feature = "pubsub"))]
+    #[cfg(feature = "pubsub")]
     PubSub {
-        topic: String,
         sub_id: String,
+        compression: bool
     },
 }
 
