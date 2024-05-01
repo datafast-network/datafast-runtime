@@ -1,7 +1,4 @@
-mod delta;
 mod metrics;
-#[cfg(feature = "pubsub")]
-mod pubsub;
 
 use super::Valve;
 use crate::common::BlockDataMessage;
@@ -13,10 +10,11 @@ use kanal::AsyncSender;
 use prometheus::Registry;
 
 #[cfg(feature = "deltalake")]
+mod delta;
+#[cfg(feature = "deltalake")]
 use delta::DeltaClient;
 #[cfg(feature = "deltalake")]
 use delta::DeltaEthereumBlocks;
-
 
 enum Source {
     #[cfg(feature = "deltalake")]
