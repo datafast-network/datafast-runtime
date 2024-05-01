@@ -1,9 +1,13 @@
 [package]
 name = "datafast-runtime"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
+homepage = "https://runtime.datafast.network/"
+repository = "https://github.com/datafast-network/datafast-runtime"
+description = "DataFast Runtime"
+license = "Apache-2.0"
+keywords = ["indexer", "subgraph", "blockchain", "ethereum", "subgraph-runtime"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 async-trait = "0.1.74"
@@ -46,7 +50,8 @@ scylla = ["dep:scylla"]
 mongo = ["dep:mongodb"]
 deltalake = ["dep:deltalake"]
 pubsub = ["dep:google-cloud-pubsub", "dep:lz4"]
+mongsub = ["mongo", "pubsub"]
 
 [dev-dependencies]
 convert_case = "0.6.0"
-rstest = "0.18.2"
+rstest = "0.19.0"
