@@ -138,6 +138,16 @@ impl RpcAgent {
         let rpc_client = RpcClient::new(config, abis, registry).await?;
         Ok(Self(Rc::new(RefCell::new(rpc_client))))
     }
+    
+    pub fn new_mock(registry: &Registry) -> Self {
+        let rpc_client = RpcClient {
+            rpc_client: RPCChain::None,
+            block_ptr: BlockPtr::default(),
+            cache_by_block: HashMap::new(),
+            metrics: RpcMetrics::new(registry),
+        };
+        RpcAgent(Rc::new(RefCell::new(rpc_client)))
+    }
 
     pub fn handle_request(&mut self, call: CallRequest) -> Result<CallResponse, RPCError> {
         let mut rpc = self.0.borrow_mut();
