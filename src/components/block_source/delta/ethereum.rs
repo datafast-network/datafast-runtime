@@ -1,7 +1,7 @@
-use crate::proto::ethereum::Block as PbBlock;
 use super::DeltaBlockTrait;
 use crate::common::BlockDataMessage;
 use crate::errors::SourceError;
+use crate::proto::ethereum::Block as PbBlock;
 use deltalake::arrow::array::Array;
 use deltalake::arrow::array::BinaryArray;
 use deltalake::arrow::record_batch::RecordBatch;
@@ -9,11 +9,7 @@ use prost::Message;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
 
-
-
-
 pub struct DeltaEthereumBlocks(Vec<PbBlock>);
-
 
 impl TryFrom<RecordBatch> for DeltaEthereumBlocks {
     type Error = SourceError;

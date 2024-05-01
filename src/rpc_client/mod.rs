@@ -138,7 +138,7 @@ impl RpcAgent {
         let rpc_client = RpcClient::new(config, abis, registry).await?;
         Ok(Self(Rc::new(RefCell::new(rpc_client))))
     }
-    
+
     pub fn new_mock(registry: &Registry) -> Self {
         let rpc_client = RpcClient {
             rpc_client: RPCChain::None,
