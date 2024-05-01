@@ -32,15 +32,16 @@ apollo-parser = "0.7.3"
 prometheus = "0.13.3"
 warp = "0.3.6"
 tokio-retry = "0.3.0"
-deltalake = { version = "0.17.1", features = ["s3", "datafusion"] }
+deltalake = { version = "0.17.1", features = ["s3", "datafusion"], optional = true }
 rayon = "1.8.0"
 prost = "0.12.3"
 wasmer = "4.2.4"
 
 [features]
-default = ["mongo"]
+default = ["mongo", "deltalake"]
 scylla = ["dep:scylla"]
 mongo = ["dep:mongodb"]
+deltalake = ["dep:deltalake"]
 
 [dev-dependencies]
 convert_case = "0.6.0"
