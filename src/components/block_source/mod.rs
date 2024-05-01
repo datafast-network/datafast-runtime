@@ -16,6 +16,9 @@ use delta::DeltaClient;
 #[cfg(feature = "deltalake")]
 use delta::DeltaEthereumBlocks;
 
+#[cfg(feature = "pubsub")]
+mod pubsub;
+
 enum Source {
     #[cfg(feature = "deltalake")]
     Delta(DeltaClient),
