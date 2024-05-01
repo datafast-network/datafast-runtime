@@ -1,5 +1,7 @@
 mod delta;
 mod metrics;
+#[cfg(feature = "pubsub")]
+mod pubsub;
 
 use super::Valve;
 use crate::common::BlockDataMessage;
