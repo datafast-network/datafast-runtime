@@ -1,5 +1,4 @@
 mod ethereum;
-pub mod proto;
 
 use super::metrics::BlockSourceMetrics;
 use crate::common::BlockDataMessage;
@@ -52,7 +51,7 @@ impl DeltaClient {
                 deltalake::open_table_with_version(&cfg.table_path, version as i64).await?
             }
         };
-        let file_count = table.get_files().len();
+        let file_count = table.get_files_count();
         ctx.register_table("blocks", Arc::new(table))?;
         info!(
             DeltaClient,
@@ -111,7 +110,7 @@ impl DeltaClient {
                 .into_par_iter()
                 .flat_map(|batch| {
                     let blocks = R::try_from(batch).unwrap();
-                    
+
                     Into::<Vec<BlockDataMessage>>::into(blocks)
                 })
                 .collect::<Vec<_>>();
@@ -173,7 +172,7 @@ mod test {
         let (sender, recv) = kanal::bounded_async(1);
 
         tokio::select! {
-            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default())) => {
+            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default(), registry)) => {
                 log::info!(" DONE SENDER");
             },
             _ = async move {
@@ -335,7 +334,7 @@ mod test {
         };
 
         tokio::select! {
-            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default())) => (),
+            _ = client.get_block_stream::<DeltaEthereumBlocks>(sender, Valve::new(&ValveConfig::default(), &Registry::default())) => (),
             _ = assert_block => ()
         }
     }

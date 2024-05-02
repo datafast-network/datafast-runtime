@@ -21,12 +21,8 @@ macro_rules! host_fn_test {
 
             let (version, wasm_path) = get_subgraph_testing_resource(version, $datasource_name);
 
-            let mut $host = mock_wasm_host(
-                version,
-                &wasm_path,
-                registry,
-                RpcAgent::new_mock(default_registry),
-            );
+            let mut $host =
+                mock_wasm_host(version, &wasm_path, registry, RpcAgent::new_mock(&registry));
             let wasm_test_func_name = format!("{}", stringify!($guest_func).to_case(Case::Camel));
             let func = $host
                 .instance

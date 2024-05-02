@@ -1,18 +1,22 @@
-mod delta;
 mod metrics;
-
 use super::Valve;
 use crate::common::BlockDataMessage;
 use crate::common::Chain;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
-use delta::DeltaClient;
-use delta::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use prometheus::Registry;
 
+#[cfg(feature = "deltalake")]
+mod delta;
+#[cfg(feature = "deltalake")]
+use delta::DeltaClient;
+#[cfg(feature = "deltalake")]
+use delta::DeltaEthereumBlocks;
+
 enum Source {
+    #[cfg(feature = "deltalake")]
     Delta(DeltaClient),
 }
 
@@ -28,6 +32,7 @@ impl BlockSource {
         registry: &Registry,
     ) -> Result<Self, SourceError> {
         let source = match &config.source {
+            #[cfg(feature = "deltalake")]
             SourceTypes::Delta(delta_cfg) => {
                 Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block, registry).await?)
             }
@@ -44,6 +49,7 @@ impl BlockSource {
         valve: Valve,
     ) -> Result<(), SourceError> {
         match self.source {
+            #[cfg(feature = "deltalake")]
             Source::Delta(source) => {
                 let query_blocks = match self.chain {
                     Chain::Ethereum => {
