@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct MappingABI {
@@ -104,6 +105,49 @@ pub type EntityType = String;
 pub type EntityID = String;
 pub type FieldName = String;
 pub type RawEntity = HashMap<FieldName, Value>;
+
+#[derive(Clone, Debug, Default, PartialOrd, PartialEq)]
+pub enum ModeSchema {
+    ReadOnly,
+    #[default]
+    ReadWrite,
+}
+
+impl FromStr for ModeSchema {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let read_mods = vec!["readonly", "read", "r"];
+        let mut mode = ModeSchema::default();
+        if read_mods.contains(&s) {
+            mode = ModeSchema::ReadOnly
+        }
+        Ok(mode)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SchemaConfig {
+    pub mode: ModeSchema,
+    pub namespace: Option<String>,
+    pub interval: Option<u64>,
+}
+
+impl SchemaConfig {
+    pub fn writeable(&self) -> bool {
+        return self.mode == ModeSchema::ReadWrite;
+    }
+}
+
+impl Default for SchemaConfig {
+    fn default() -> Self {
+        SchemaConfig {
+            mode: ModeSchema::default(),
+            namespace: None,
+            interval: None,
+        }
+    }
+}
 
 #[derive(Clone, Default, Debug)]
 pub struct FieldKind {

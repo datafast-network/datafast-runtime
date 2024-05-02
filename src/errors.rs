@@ -137,6 +137,8 @@ pub enum DatabaseError {
     MissingBlockPtr,
     #[error("Wasm-Host sent an invalid request")]
     WasmSendInvalidRequest,
+    #[error("Schema readonly")]
+    SchemaReadOnly,
 
     #[cfg(feature = "scylla")]
     #[error("Init failed")]
