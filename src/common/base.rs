@@ -130,12 +130,12 @@ impl FromStr for ModeSchema {
 pub struct SchemaConfig {
     pub mode: ModeSchema,
     pub namespace: Option<String>,
-    pub interval: Option<u64>
+    pub interval: Option<u64>,
 }
 
 impl SchemaConfig {
     pub fn writeable(&self) -> bool {
-        return self.mode == ModeSchema::ReadWrite
+        return self.mode == ModeSchema::ReadWrite;
     }
 }
 
@@ -144,7 +144,7 @@ impl Default for SchemaConfig {
         SchemaConfig {
             mode: ModeSchema::default(),
             namespace: None,
-            interval: None
+            interval: None,
         }
     }
 }
