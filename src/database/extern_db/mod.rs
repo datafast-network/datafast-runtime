@@ -150,6 +150,20 @@ impl ExternDBTrait for ExternDB {
         }
     }
 
+    async fn load_entities(
+        &self,
+        entity_type: &str,
+        ids: Vec<String>,
+    ) -> Result<Vec<RawEntity>, DatabaseError> {
+        match self {
+            #[cfg(feature = "scylla")]
+            ExternDB::Scylla(db) => db.load_entities(entity_type, ids).await,
+            #[cfg(feature = "mongo")]
+            ExternDB::Mongo(db) => db.load_entities(entity_type, ids).await,
+            ExternDB::None => Ok(vec![]),
+        }
+    }
+
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
@@ -165,30 +179,6 @@ impl ExternDBTrait for ExternDB {
         }
     }
 
-    async fn batch_insert_entities(
-        &self,
-        block_ptr: BlockPtr,
-        values: Vec<(String, RawEntity)>,
-    ) -> Result<(), DatabaseError> {
-        match self {
-            #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.batch_insert_entities(block_ptr, values).await,
-            #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.batch_insert_entities(block_ptr, values).await,
-            ExternDB::None => Ok(()),
-        }
-    }
-
-    async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
-        match self {
-            #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.revert_from_block(from_block).await,
-            #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.revert_from_block(from_block).await,
-            ExternDB::None => Ok(()),
-        }
-    }
-
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
@@ -196,20 +186,6 @@ impl ExternDBTrait for ExternDB {
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.save_block_ptr(block_ptr).await,
             ExternDB::None => Ok(()),
-        }
-    }
-
-    async fn load_entities(
-        &self,
-        entity_type: &str,
-        ids: Vec<String>,
-    ) -> Result<Vec<RawEntity>, DatabaseError> {
-        match self {
-            #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.load_entities(entity_type, ids).await,
-            #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.load_entities(entity_type, ids).await,
-            ExternDB::None => Ok(vec![]),
         }
     }
 
@@ -253,6 +229,30 @@ impl ExternDBTrait for ExternDB {
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.load_datasources().await,
             ExternDB::None => Ok(None),
+        }
+    }
+
+    async fn batch_insert_entities(
+        &self,
+        block_ptr: BlockPtr,
+        values: Vec<(String, RawEntity)>,
+    ) -> Result<(), DatabaseError> {
+        match self {
+            #[cfg(feature = "scylla")]
+            ExternDB::Scylla(db) => db.batch_insert_entities(block_ptr, values).await,
+            #[cfg(feature = "mongo")]
+            ExternDB::Mongo(db) => db.batch_insert_entities(block_ptr, values).await,
+            ExternDB::None => Ok(()),
+        }
+    }
+
+    async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
+        match self {
+            #[cfg(feature = "scylla")]
+            ExternDB::Scylla(db) => db.revert_from_block(from_block).await,
+            #[cfg(feature = "mongo")]
+            ExternDB::Mongo(db) => db.revert_from_block(from_block).await,
+            ExternDB::None => Ok(()),
         }
     }
 
