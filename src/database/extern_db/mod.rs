@@ -100,6 +100,8 @@ pub trait ExternDBTrait: Sized {
     ) -> Result<usize, DatabaseError>;
 
     async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError>;
+
+    fn get_schema(&self) -> Schemas;
 }
 
 #[async_trait]
@@ -275,6 +277,16 @@ impl ExternDBTrait for ExternDB {
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.clean_data_history(to_block).await,
             ExternDB::None => Ok(1),
+        }
+    }
+
+    fn get_schema(&self) -> Schemas {
+        match self {
+            #[cfg(feature = "scylla")]
+            ExternDB::Scylla(db) => db.get_schema(),
+            #[cfg(feature = "mongo")]
+            ExternDB::Mongo(db) => db.get_schema(),
+            ExternDB::None => Schemas::default(),
         }
     }
 }

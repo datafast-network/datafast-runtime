@@ -36,6 +36,7 @@ deltalake = { version = "0.17.1", features = ["s3", "datafusion"], optional = tr
 rayon = "1.8.0"
 prost = "0.12.3"
 wasmer = "4.2.4"
+regex = "1.10.2"
 
 [features]
 default = ["mongo", "deltalake"]

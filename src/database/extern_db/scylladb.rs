@@ -1,10 +1,10 @@
 use super::ExternDBTrait;
-use crate::common::BlockPtr;
 use crate::common::EntityID;
 use crate::common::EntityType;
 use crate::common::FieldKind;
 use crate::common::RawEntity;
 use crate::common::Schemas;
+use crate::common::{BlockPtr, Datasource};
 use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;
@@ -376,6 +376,10 @@ impl ExternDBTrait for Scylladb {
         Ok(())
     }
 
+    async fn create_datasource_table(&self) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
     async fn load_entity(
         &self,
         entity_type: &str,
@@ -412,6 +416,28 @@ impl ExternDBTrait for Scylladb {
         }
     }
 
+    async fn load_entities(
+        &self,
+        entity_type: &str,
+        ids: Vec<String>,
+    ) -> Result<Vec<RawEntity>, DatabaseError> {
+        let ids = format!(
+            "({})",
+            ids.into_iter()
+                .map(|e| format!("'{}'", e))
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        let query = format!(
+            r#"
+            SELECT * from {}."{}"
+            WHERE id IN {}"#,
+            self.keyspace, entity_type, ids
+        );
+        let entity_query_result = self.session.query(query, ()).await?;
+        Ok(self.handle_entity_query_result(entity_type, entity_query_result, false))
+    }
+
     async fn create_entity(
         &self,
         block_ptr: BlockPtr,
@@ -420,6 +446,98 @@ impl ExternDBTrait for Scylladb {
     ) -> Result<(), DatabaseError> {
         self.insert_entity(block_ptr, entity_type, data, false)
             .await
+    }
+
+    async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
+        let partition_key = "dfr";
+        let query = format!(
+            r#"
+            INSERT INTO {}.block_ptr (sgd, block_number, block_hash, parent_hash) VALUES ('{partition_key}', ?, ?, ?)"#,
+            self.keyspace
+        );
+        self.session
+            .query(
+                query,
+                (
+                    block_ptr.number as i64,
+                    block_ptr.hash,
+                    block_ptr.parent_hash,
+                ),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn load_recent_block_ptrs(
+        &self,
+        number_of_blocks: u16,
+    ) -> Result<Vec<BlockPtr>, DatabaseError> {
+        let query = format!(
+            "SELECT JSON block_number as number, block_hash as hash, parent_hash FROM {}.block_ptr LIMIT {};",
+            self.keyspace, number_of_blocks
+        );
+        let result = self.session.query(query, &[]).await?;
+
+        if let Ok(mut rows) = result.rows() {
+            let block_ptrs = rows
+                .iter_mut()
+                .rev()
+                .filter_map(|r| {
+                    let json = r
+                        .columns
+                        .first()
+                        .cloned()
+                        .unwrap()
+                        .unwrap()
+                        .as_text()
+                        .cloned()
+                        .unwrap();
+                    serde_json::from_str::<BlockPtr>(&json).ok()
+                })
+                .collect::<Vec<_>>();
+
+            return Ok(block_ptrs);
+        }
+
+        Ok(vec![])
+    }
+
+    async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
+        let min_block_number = self
+            .session
+            .query(
+                format!("SELECT min(block_number) FROM {}.block_ptr", self.keyspace),
+                &[],
+            )
+            .await?;
+        let row = min_block_number.first_row().unwrap();
+        let column = row.columns.get(0).cloned().unwrap();
+
+        if column.is_none() {
+            return Ok(None);
+        }
+
+        let block_number = column.unwrap().as_bigint().unwrap() as u64;
+        let query = format!(
+            r#"
+SELECT JSON block_number as number, block_hash as hash, parent_hash
+FROM {}.block_ptr
+WHERE sgd = ? AND block_number = {}"#,
+            self.keyspace, block_number
+        );
+        let result = self.session.query(query, vec!["dfr".to_string()]).await?;
+        let row = result.first_row().unwrap();
+        let data = row.columns.get(0).cloned().unwrap();
+        let text = data.unwrap().into_string().unwrap();
+        return Ok(serde_json::from_str(&text).ok());
+    }
+
+    async fn save_datasources(&self, datasources: Vec<Datasource>) -> Result<(), DatabaseError> {
+        todo!()
+    }
+
+    async fn load_datasources(&self) -> Result<Option<Vec<Datasource>>, DatabaseError> {
+        todo!()
     }
 
     async fn batch_insert_entities(
@@ -502,112 +620,6 @@ impl ExternDBTrait for Scylladb {
         Ok(())
     }
 
-    async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
-        let partition_key = "dfr";
-        let query = format!(
-            r#"
-            INSERT INTO {}.block_ptr (sgd, block_number, block_hash, parent_hash) VALUES ('{partition_key}', ?, ?, ?)"#,
-            self.keyspace
-        );
-        self.session
-            .query(
-                query,
-                (
-                    block_ptr.number as i64,
-                    block_ptr.hash,
-                    block_ptr.parent_hash,
-                ),
-            )
-            .await?;
-        Ok(())
-    }
-
-    async fn load_entities(
-        &self,
-        entity_type: &str,
-        ids: Vec<String>,
-    ) -> Result<Vec<RawEntity>, DatabaseError> {
-        let ids = format!(
-            "({})",
-            ids.into_iter()
-                .map(|e| format!("'{}'", e))
-                .collect::<Vec<_>>()
-                .join(",")
-        );
-        let query = format!(
-            r#"
-            SELECT * from {}."{}"
-            WHERE id IN {}"#,
-            self.keyspace, entity_type, ids
-        );
-        let entity_query_result = self.session.query(query, ()).await?;
-        Ok(self.handle_entity_query_result(entity_type, entity_query_result, false))
-    }
-
-    async fn load_recent_block_ptrs(
-        &self,
-        number_of_blocks: u16,
-    ) -> Result<Vec<BlockPtr>, DatabaseError> {
-        let query = format!(
-            "SELECT JSON block_number as number, block_hash as hash, parent_hash FROM {}.block_ptr LIMIT {};",
-            self.keyspace, number_of_blocks
-        );
-        let result = self.session.query(query, &[]).await?;
-
-        if let Ok(mut rows) = result.rows() {
-            let block_ptrs = rows
-                .iter_mut()
-                .rev()
-                .filter_map(|r| {
-                    let json = r
-                        .columns
-                        .first()
-                        .cloned()
-                        .unwrap()
-                        .unwrap()
-                        .as_text()
-                        .cloned()
-                        .unwrap();
-                    serde_json::from_str::<BlockPtr>(&json).ok()
-                })
-                .collect::<Vec<_>>();
-
-            return Ok(block_ptrs);
-        }
-
-        Ok(vec![])
-    }
-
-    async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
-        let min_block_number = self
-            .session
-            .query(
-                format!("SELECT min(block_number) FROM {}.block_ptr", self.keyspace),
-                &[],
-            )
-            .await?;
-        let row = min_block_number.first_row().unwrap();
-        let column = row.columns.get(0).cloned().unwrap();
-
-        if column.is_none() {
-            return Ok(None);
-        }
-
-        let block_number = column.unwrap().as_bigint().unwrap() as u64;
-        let query = format!(
-            r#"
-SELECT JSON block_number as number, block_hash as hash, parent_hash
-FROM {}.block_ptr
-WHERE sgd = ? AND block_number = {}"#,
-            self.keyspace, block_number
-        );
-        let result = self.session.query(query, vec!["dfr".to_string()]).await?;
-        let row = result.first_row().unwrap();
-        let data = row.columns.get(0).cloned().unwrap();
-        let text = data.unwrap().into_string().unwrap();
-        return Ok(serde_json::from_str(&text).ok());
-    }
-
     async fn remove_snapshots(
         &self,
         entities: Vec<(EntityType, EntityID)>,
@@ -662,5 +674,9 @@ WHERE sgd = ? AND block_number = {}"#,
         let st_batch = self.session.prepare_batch(&batch_queries).await?;
         self.session.batch(&st_batch, batch_values).await?;
         Ok(count as u64)
+    }
+
+    fn get_schema(&self) -> Schemas {
+        self.schemas.clone()
     }
 }
