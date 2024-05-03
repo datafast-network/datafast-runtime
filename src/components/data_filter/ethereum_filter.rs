@@ -136,17 +136,13 @@ impl DataFilterTrait for EthereumFilter {
                 logs,
                 transactions,
             } => {
-                let mut tx_receipts = vec![];
-                transactions.iter().for_each(|tx| {
-                    let receipt = EthereumTransactionReceipt::from((&block, tx.clone(), &logs));
-                    tx_receipts.push(receipt);
-                });
+                let txs = transactions
+                    .iter()
+                    .map(|tx| EthereumTransactionReceipt::from((&block, tx.clone(), &logs)))
+                    .collect::<Vec<_>>();
+
                 let events = self.filter_events(block.clone(), transactions, logs)?;
-                Ok(FilteredDataMessage::Ethereum {
-                    events,
-                    block,
-                    txs: tx_receipts,
-                })
+                Ok(FilteredDataMessage::Ethereum { events, block, txs })
             }
         }
     }

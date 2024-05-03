@@ -280,12 +280,18 @@ impl From<(&'_ EthereumBlockData, EthereumTransactionData, &'_ Vec<Log>)>
     fn from(
         (block, tx, logs): (&EthereumBlockData, EthereumTransactionData, &Vec<Log>),
     ) -> EthereumTransactionReceipt {
-        let mut logs_of_tx = vec![];
-        for log in logs.iter() {
-            if log.transaction_hash.is_some() && log.transaction_hash.unwrap().eq(&tx.hash) {
-                logs_of_tx.push(log.clone());
-            }
-        }
+        let mut logs_of_tx = logs
+            .iter()
+            .filter_map(|log| {
+                if let Some(hash) = &log.transaction_hash {
+                    if hash.eq(&tx.hash) {
+                        return Some(log.clone());
+                    }
+                }
+                None
+            })
+            .collect::<Vec<Log>>();
+
         logs_of_tx.sort_by_key(|log| log.log_index.unwrap());
 
         EthereumTransactionReceipt {
