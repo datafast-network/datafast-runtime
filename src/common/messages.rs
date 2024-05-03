@@ -5,7 +5,8 @@ use super::base::FieldName;
 use super::base::RawEntity;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
-use crate::chain::ethereum::transaction::{EthereumTransactionData, EthereumTransactionReceipt};
+use crate::chain::ethereum::transaction::EthereumTransactionData;
+use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
 use web3::types::Log;
 
 #[derive(Debug)]
