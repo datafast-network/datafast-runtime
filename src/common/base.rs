@@ -28,6 +28,12 @@ pub struct BlockHandler {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct TransactionHandler {
+    pub filter: Option<String>,
+    pub handler: String,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[allow(non_snake_case)]
 pub struct Mapping {
     pub kind: String,
@@ -36,7 +42,7 @@ pub struct Mapping {
     pub abis: Vec<MappingABI>,
     pub eventHandlers: Option<Vec<EventHandler>>,
     pub blockHandlers: Option<Vec<BlockHandler>>,
-    pub transactionHandlers: Option<Vec<BlockHandler>>,
+    pub transactionHandlers: Option<Vec<TransactionHandler>>,
     pub file: String,
 }
 
