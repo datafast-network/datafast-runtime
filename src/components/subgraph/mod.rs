@@ -3,6 +3,7 @@ mod metrics;
 
 use super::ManifestAgent;
 use crate::chain::ethereum::block::EthereumBlockData;
+use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
 use crate::common::EthereumFilteredEvent;
 use crate::common::FilteredDataMessage;
 use crate::common::HandlerTypes;
@@ -85,9 +86,10 @@ impl Subgraph {
         &mut self,
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
+        txs: Vec<EthereumTransactionReceipt>,
     ) -> Result<(), SubgraphError> {
+        //Handle ethereum blocks
         let mut block_handlers = HashMap::new();
-
         for ((source_name, _), source_instance) in self.sources.iter() {
             let source_block_handlers = source_instance
                 .ethereum_handlers
@@ -112,6 +114,37 @@ impl Subgraph {
             }
         }
 
+        //Handle ethereum transactions
+        let mut transaction_handlers = HashMap::new();
+        for ((source_name, _), source_instance) in self.sources.iter() {
+            let source_transaction_handlers = source_instance
+                .ethereum_handlers
+                .transaction
+                .keys()
+                .cloned()
+                .collect::<Vec<String>>();
+            transaction_handlers.insert(source_name.to_owned(), source_transaction_handlers);
+        }
+
+        for tx in txs {
+            for (source_name, ethereum_handlers) in transaction_handlers.clone() {
+                let (_, source_instance) = self
+                    .sources
+                    .iter_mut()
+                    .find(|((name, _), _)| name == &source_name)
+                    .ok_or(SubgraphError::InvalidSourceID(source_name.to_owned()))?;
+                for handler in ethereum_handlers {
+                    self.metrics.eth_trigger_counter.inc();
+                    source_instance.invoke(
+                        HandlerTypes::EthereumTransaction,
+                        &handler,
+                        tx.clone(),
+                    )?;
+                }
+            }
+        }
+
+        //Hande ethereum events
         for event in events {
             let ds_name = event.datasource.clone();
             let handler_name = event.handler.clone();
@@ -172,8 +205,8 @@ impl Subgraph {
 
         let timer = self.metrics.block_process_duration.start_timer();
         match msg {
-            FilteredDataMessage::Ethereum { events, block } => {
-                self.handle_ethereum_data(events, block)?
+            FilteredDataMessage::Ethereum { events, block, txs } => {
+                self.handle_ethereum_data(events, block, txs)?
             }
         };
         timer.stop_and_record();

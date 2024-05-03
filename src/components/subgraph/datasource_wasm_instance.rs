@@ -35,6 +35,7 @@ impl Handler {
 
 pub struct EthereumHandlers {
     pub block: HashMap<String, Handler>,
+    pub transaction: HashMap<String, Handler>,
     pub events: HashMap<String, Handler>,
 }
 
@@ -50,6 +51,7 @@ impl TryFrom<(&AscHost, &Datasource)> for EthereumHandlers {
     fn try_from((host, ds): (&AscHost, &Datasource)) -> Result<Self, SubgraphError> {
         let mut eth_event_handlers = HashMap::new();
         let mut eth_block_handlers = HashMap::new();
+        let mut eth_transaction_handlers = HashMap::new();
 
         for event_handler in ds.mapping.eventHandlers.clone().unwrap_or_default().iter() {
             // FIXME: assuming handlers are ethereum-event handler, must fix later
@@ -63,9 +65,21 @@ impl TryFrom<(&AscHost, &Datasource)> for EthereumHandlers {
             eth_block_handlers.insert(block_handler.handler.to_owned(), handler);
         }
 
+        for transaction_handler in ds
+            .mapping
+            .transactionHandlers
+            .clone()
+            .unwrap_or_default()
+            .iter()
+        {
+            let handler = Handler::new(&host.instance.exports, &transaction_handler.handler)?;
+            eth_transaction_handlers.insert(transaction_handler.handler.to_owned(), handler);
+        }
+
         Ok(EthereumHandlers {
             block: eth_block_handlers,
             events: eth_event_handlers,
+            transaction: eth_transaction_handlers,
         })
     }
 }
@@ -101,6 +115,9 @@ impl DatasourceWasmInstance {
         let handler = match handler_type {
             HandlerTypes::EthereumBlock => self.ethereum_handlers.block.get(handler_name),
             HandlerTypes::EthereumEvent => self.ethereum_handlers.events.get(handler_name),
+            HandlerTypes::EthereumTransaction => {
+                self.ethereum_handlers.transaction.get(handler_name)
+            }
         }
         .ok_or(SubgraphError::InvalidHandlerName(handler_name.to_owned()))?;
 

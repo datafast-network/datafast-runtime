@@ -3,6 +3,7 @@ use super::utils::parse_event;
 use super::DataFilterTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
+use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
 use crate::common::ABIs;
 use crate::common::BlockDataMessage;
 use crate::common::Datasource;
@@ -135,8 +136,17 @@ impl DataFilterTrait for EthereumFilter {
                 logs,
                 transactions,
             } => {
+                let mut tx_receipts = vec![];
+                transactions.iter().for_each(|tx| {
+                    let receipt = EthereumTransactionReceipt::from((&block, tx.clone(), &logs));
+                    tx_receipts.push(receipt);
+                });
                 let events = self.filter_events(block.clone(), transactions, logs)?;
-                Ok(FilteredDataMessage::Ethereum { events, block })
+                Ok(FilteredDataMessage::Ethereum {
+                    events,
+                    block,
+                    txs: tx_receipts,
+                })
             }
         }
     }

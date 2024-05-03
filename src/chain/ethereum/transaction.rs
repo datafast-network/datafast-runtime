@@ -1,4 +1,5 @@
 use super::asc::*;
+use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::log::AscLogArray;
 use crate::errors::AscError;
 use crate::impl_asc_type_struct;
@@ -187,7 +188,7 @@ pub struct EthereumTransactionReceipt {
     pub transaction_hash: H256,
     pub transaction_index: U64,
     pub block_hash: H256,
-    pub block_number: U256,
+    pub block_number: U64,
     pub cumulative_gas_used: U256,
     pub gas_used: Option<U256>,
     pub contract_address: Option<H160>,
@@ -246,7 +247,7 @@ impl ToAscObj<AscTransactionReceipt> for EthereumTransactionReceipt {
             transaction_hash: asc_new(heap, &self.transaction_hash)?,
             transaction_index: asc_new(heap, &BigInt::from(self.transaction_index))?,
             block_hash: asc_new(heap, &self.block_hash)?,
-            block_number: asc_new(heap, &BigInt::from_unsigned_u256(&self.block_number))?,
+            block_number: asc_new(heap, &BigInt::from(self.block_number))?,
             cumulative_gas_used: asc_new(
                 heap,
                 &BigInt::from_unsigned_u256(&self.cumulative_gas_used),
@@ -273,22 +274,28 @@ impl ToAscObj<AscTransactionReceipt> for EthereumTransactionReceipt {
     }
 }
 
-impl From<(Transaction, Vec<Log>)> for EthereumTransactionReceipt {
-    fn from((tx, logs): (Transaction, Vec<Log>)) -> EthereumTransactionReceipt {
-        let mut logs_of_tx = logs
-            .into_iter()
-            .filter(|log| log.transaction_hash.unwrap() == tx.hash)
-            .collect::<Vec<Log>>();
-        logs_of_tx.sort_by_key(|log| log.log_index.unwrap().as_u64());
+impl From<(&'_ EthereumBlockData, EthereumTransactionData, &'_ Vec<Log>)>
+    for EthereumTransactionReceipt
+{
+    fn from(
+        (block, tx, logs): (&EthereumBlockData, EthereumTransactionData, &Vec<Log>),
+    ) -> EthereumTransactionReceipt {
+        let mut logs_of_tx = vec![];
+        for log in logs.iter() {
+            if log.transaction_hash.is_some() && log.transaction_hash.unwrap().eq(&tx.hash) {
+                logs_of_tx.push(log.clone());
+            }
+        }
+        logs_of_tx.sort_by_key(|log| log.log_index.unwrap());
 
         EthereumTransactionReceipt {
             transaction_hash: tx.hash,
-            transaction_index: tx.transaction_index.unwrap().as_u64().into(),
-            block_hash: tx.block_hash.unwrap(),
-            block_number: tx.block_number.unwrap().as_u64().into(),
-            cumulative_gas_used: U256::zero(), //todo: get cumulative gas used
-            gas_used: None,                    //todo: get gas used
-            contract_address: None,            //todo: get contract address
+            transaction_index: tx.index.as_u64().into(),
+            block_hash: block.hash,
+            block_number: block.number,
+            cumulative_gas_used: U256::zero(),
+            gas_used: None,
+            contract_address: None,
             logs: logs_of_tx,
             status: None,
             root: None,

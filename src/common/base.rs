@@ -36,6 +36,7 @@ pub struct Mapping {
     pub abis: Vec<MappingABI>,
     pub eventHandlers: Option<Vec<EventHandler>>,
     pub blockHandlers: Option<Vec<BlockHandler>>,
+    pub transactionHandlers: Option<Vec<BlockHandler>>,
     pub file: String,
 }
 
@@ -66,6 +67,7 @@ pub struct SubgraphYaml {
 #[derive(Debug)]
 pub enum HandlerTypes {
     EthereumBlock,
+    EthereumTransaction,
     EthereumEvent,
 }
 
