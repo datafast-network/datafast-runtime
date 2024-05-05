@@ -186,6 +186,12 @@ pub enum SourceError {
     DeltaSerializationError,
     #[error("No blocks found from Delta")]
     DeltaEmptyData,
+    #[cfg(feature = "pubsub")]
+    #[error("PubSub error: {0}")]
+    PubSubError(String),
+    #[cfg(feature = "pubsub")]
+    #[error("Decode message error: {0}")]
+    DecodeMessageError(String),
 }
 
 #[derive(Debug, Error)]
