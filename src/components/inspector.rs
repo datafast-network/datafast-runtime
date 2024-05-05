@@ -155,9 +155,11 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    fn test_block_inspector(#[values(StartBlock::Number(0), StartBlock::Number(1), StartBlock::Number(3))] start_block: StartBlock) {
+    fn test_block_inspector(
+        #[values(StartBlock::Number(0), StartBlock::Number(1), StartBlock::Number(3))] start_block: StartBlock,
+    ) {
         env_logger::try_init().unwrap_or_default();
-        let mut pc = Inspector::new(vec![],start_block, 10);
+        let mut pc = Inspector::new(vec![], start_block, 10);
         assert!(pc.recent_block_ptrs.is_empty());
 
         let actual_start_block = pc.get_expected_block_number();

@@ -186,6 +186,8 @@ pub enum SourceError {
     DeltaSerializationError,
     #[error("No blocks found from Delta")]
     DeltaEmptyData,
+    #[error("Invalid start block")]
+    DeltaInvalidStartBlock,
     #[cfg(feature = "pubsub")]
     #[error("PubSub error: {0}")]
     PubSubError(String),
