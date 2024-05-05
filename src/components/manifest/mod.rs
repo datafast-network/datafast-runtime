@@ -8,7 +8,32 @@ use local::LocalFileLoader;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::rc::Rc;
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum StartBlock {
+    Number(u64),
+    Latest,
+}
+
+impl From<Option<u64>> for StartBlock {
+    fn from(block: Option<u64>) -> Self {
+        match block {
+            Some(block) => StartBlock::Number(block),
+            None => StartBlock::Latest,
+        }
+    }
+}
+
+impl Display for StartBlock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StartBlock::Number(block) => write!(f, "StartBlock({})", block),
+            StartBlock::Latest => write!(f, "StartBlock(Latest)"),
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct ManifestBundle {
@@ -85,9 +110,9 @@ impl ManifestAgent {
         manifest.datasources.len()
     }
 
-    pub fn min_start_block(&self) -> u64 {
+    pub fn min_start_block(&self) -> StartBlock {
         let manifest = self.0.borrow();
-        manifest.subgraph_yaml.min_start_block()
+        manifest.subgraph_yaml.min_start_block().into()
     }
 
     pub fn datasource_and_templates(&self) -> DatasourceBundles {

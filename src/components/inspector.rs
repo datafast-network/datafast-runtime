@@ -1,4 +1,5 @@
 use crate::common::BlockPtr;
+use crate::components::manifest::StartBlock;
 use crate::critical;
 use crate::error;
 use crate::info;
@@ -18,57 +19,64 @@ pub enum BlockInspectionResult {
 #[derive(Clone)]
 pub struct Inspector {
     recent_block_ptrs: VecDeque<BlockPtr>,
-    ds_min_start_block: u64,
+    start_block: StartBlock,
     reorg_threshold: u16,
 }
 
 impl Inspector {
     pub fn new(
         mut recent_block_ptrs: Vec<BlockPtr>,
-        ds_min_start_block: u64,
+        start_block: StartBlock,
         reorg_threshold: u16,
     ) -> Self {
         recent_block_ptrs.sort_by_key(|b| b.number);
         recent_block_ptrs.reverse();
         Self {
             recent_block_ptrs: VecDeque::from(recent_block_ptrs),
-            ds_min_start_block,
+            start_block,
             reorg_threshold,
         }
     }
 
-    pub fn get_expected_block_number(&self) -> u64 {
+    pub fn get_expected_block_number(&self) -> StartBlock {
         let last_processed_block = self.recent_block_ptrs.front().cloned();
 
-        if let Some(block) = last_processed_block {
-            assert!(
-                block.number >= self.ds_min_start_block,
-                "invalid expected block pointer"
-            );
-            return block.number + 1;
+        if let Some(latest_block) = last_processed_block {
+            match self.start_block {
+                StartBlock::Number(start_block) => {
+                    assert!(
+                        latest_block.number >= start_block,
+                        "invalid expected block pointer"
+                    )
+                }
+                _ => (),
+            }
+            return StartBlock::Number(latest_block.number + 1);
         }
-
-        self.ds_min_start_block
+        self.start_block.clone()
     }
 
     pub fn check_block(&mut self, new_block_ptr: BlockPtr) -> BlockInspectionResult {
         match self.recent_block_ptrs.front() {
-            None => {
-                let min_start_block = self.get_expected_block_number();
-
-                if new_block_ptr.number == min_start_block {
+            None => match self.get_expected_block_number() {
+                StartBlock::Latest => {
                     self.recent_block_ptrs.push_front(new_block_ptr);
-                    return BlockInspectionResult::OkToProceed;
+                    BlockInspectionResult::OkToProceed
                 }
-
-                error!(
-                    Inspector,
-                    "received an unexpected block whose number does not match subgraph's required start-block";
-                    expected_block_number => min_start_block,
-                    received_block_number => new_block_ptr.number
-                );
-                BlockInspectionResult::UnexpectedBlock
-            }
+                StartBlock::Number(block_number) => {
+                    if new_block_ptr.number == block_number {
+                        self.recent_block_ptrs.push_front(new_block_ptr);
+                        return BlockInspectionResult::OkToProceed;
+                    }
+                    error!(
+                        Inspector,
+                        "received an unexpected block whose number does not match subgraph's required start-block";
+                        expected_block_number => block_number,
+                        received_block_number => new_block_ptr.number
+                    );
+                    BlockInspectionResult::UnexpectedBlock
+                }
+            },
             Some(last_processed) => {
                 if last_processed.is_parent(&new_block_ptr) {
                     self.recent_block_ptrs.push_front(new_block_ptr);
@@ -147,16 +155,16 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    fn test_block_inspector(#[values(0, 1, 2)] start_block: u64) {
+    fn test_block_inspector(#[values(StartBlock::Number(0), StartBlock::Number(1), StartBlock::Number(3))] start_block: StartBlock) {
         env_logger::try_init().unwrap_or_default();
-        let mut pc = Inspector::new(vec![], start_block, 10);
+        let mut pc = Inspector::new(vec![],start_block, 10);
         assert!(pc.recent_block_ptrs.is_empty());
 
         let actual_start_block = pc.get_expected_block_number();
         assert_eq!(actual_start_block, start_block);
 
         for n in 0..20 {
-            if n == pc.get_expected_block_number() {
+            if StartBlock::Number(n) == pc.get_expected_block_number() {
                 let result = pc.check_block(BlockPtr {
                     number: n,
                     hash: format!("n={n}"),

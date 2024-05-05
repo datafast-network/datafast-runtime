@@ -31,12 +31,11 @@ impl SubgraphYaml {
         wasms
     }
 
-    pub fn min_start_block(&self) -> u64 {
+    pub fn min_start_block(&self) -> Option<u64> {
         self.dataSources
             .iter()
-            .map(|ds| ds.source.startBlock.unwrap_or(0))
+            .filter_map(|ds| ds.source.startBlock)
             .min()
-            .unwrap_or(0)
     }
 }
 
