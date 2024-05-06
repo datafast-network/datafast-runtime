@@ -3,6 +3,7 @@ mod metrics;
 use super::Valve;
 use crate::common::BlockDataMessage;
 use crate::common::Chain;
+use crate::common::StartBlock;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
@@ -18,7 +19,6 @@ use delta::DeltaEthereumBlocks;
 
 #[cfg(feature = "pubsub")]
 mod pubsub;
-use crate::components::manifest::StartBlock;
 #[cfg(feature = "pubsub")]
 use pubsub::PubSubSource;
 

@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
+use std::fmt::Display;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -109,6 +110,12 @@ pub struct BlockPtr {
     pub parent_hash: String,
 }
 
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum StartBlock {
+    Number(u64),
+    Latest,
+}
+
 pub type EntityType = String;
 pub type EntityID = String;
 pub type FieldName = String;
@@ -165,3 +172,21 @@ pub struct FieldKind {
 }
 
 pub type Schema = BTreeMap<FieldName, FieldKind>;
+
+impl From<Option<u64>> for StartBlock {
+    fn from(block: Option<u64>) -> Self {
+        match block {
+            Some(block) => StartBlock::Number(block),
+            None => StartBlock::Latest,
+        }
+    }
+}
+
+impl Display for StartBlock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StartBlock::Number(block) => write!(f, "StartBlock({})", block),
+            StartBlock::Latest => write!(f, "StartBlock(Latest)"),
+        }
+    }
+}
