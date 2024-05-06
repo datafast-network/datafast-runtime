@@ -68,11 +68,12 @@ fn parse_topic0_event(handler: &str) -> H256 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use df_logger::loggers::init_logger;
     use std::str::FromStr;
 
     #[test]
     fn test_convert_event_name_to_topic0() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let event_handler = EventHandler {
             event: "Transfer(indexed address,indexed address,uint256)".to_string(),
             handler: "handleTransfer".to_string(),

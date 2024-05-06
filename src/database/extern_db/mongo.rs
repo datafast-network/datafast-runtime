@@ -7,13 +7,13 @@ use crate::common::FieldKind;
 use crate::common::RawEntity;
 use crate::common::Schemas;
 use crate::errors::DatabaseError;
-use crate::info;
 use crate::runtime::asc::native_types::store::Bytes;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use crate::runtime::asc::native_types::store::Value;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
 use crate::runtime::bignumber::bigint::BigInt;
 use async_trait::async_trait;
+use df_logger::info;
 use futures_util::future::try_join_all;
 use futures_util::StreamExt;
 use mongodb::bson::doc;
@@ -459,12 +459,14 @@ mod tests {
     use crate::common::Schema;
     use crate::entity;
     use crate::schema;
+    use df_logger::log;
+    use df_logger::loggers::init_logger;
     use futures_util::StreamExt;
     use std::env;
     use std::time::Instant;
 
     async fn setup(entity_type: &str) -> Result<(MongoDB, String), DatabaseError> {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let uri =
             env::var("MONGO_URI").unwrap_or("mongodb://root:example@localhost:27017".to_string());
         let database_name = env::var("MONGO_DATABASE").unwrap_or("db0".to_string());

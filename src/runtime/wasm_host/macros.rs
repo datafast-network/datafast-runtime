@@ -1,4 +1,5 @@
 // Only macros for testing, not for using in actual code
+
 #[macro_export]
 macro_rules! host_fn_test {
     ($datasource_name:expr, $guest_func:ident, $host:ident, $ptr:ident $body:block) => {
@@ -8,14 +9,14 @@ macro_rules! host_fn_test {
         fn $guest_func(#[case] version: &str) {
             use convert_case::Case;
             use convert_case::Casing;
-            use env_logger;
+            use df_logger::*;
             use prometheus::default_registry;
             use std::env;
             use $crate::rpc_client::RpcAgent;
 
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
 
-            env_logger::try_init().unwrap_or_default();
+            loggers::init_logger();
 
             let registry = default_registry();
 
@@ -48,7 +49,7 @@ macro_rules! host_fn_test {
         fn $guest_func(#[case] version: &str) {
             use convert_case::Case;
             use convert_case::Casing;
-            use env_logger;
+            use df_logger::*;
             use std::env;
             use $crate::rpc_client::RpcAgent;
 
@@ -56,7 +57,7 @@ macro_rules! host_fn_test {
             let registry = default_registry();
 
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
-            env_logger::try_init().unwrap_or_default();
+            loggers::init_logger();
             let (version, wasm_path) = get_subgraph_testing_resource(version, $datasource_name);
 
             let mut $host =
@@ -85,12 +86,11 @@ macro_rules! host_fn_test {
         fn $guest_func(#[case] version: &str) {
             use convert_case::Case;
             use convert_case::Casing;
-            use env_logger;
             use std::env;
             use $crate::rpc_client::RpcAgent;
 
             env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
-            env_logger::try_init().unwrap_or_default();
+            loggers::init_logger();
 
             use prometheus::default_registry;
             let registry = default_registry();

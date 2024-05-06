@@ -1,4 +1,6 @@
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+
+ARG FEATURES
 WORKDIR /app
 
 FROM chef AS planner
@@ -9,7 +11,7 @@ FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
-RUN cargo build --release
+RUN cargo build --release -F ${FEATURES}
 
 FROM debian:bookworm-slim as runtime
 RUN apt-get update && apt install apt-transport-https ca-certificates gnupg openssl -y && rm -rf /var/lib/apt/lists/*

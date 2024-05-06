@@ -4,7 +4,7 @@ mod components;
 mod config;
 mod database;
 mod errors;
-mod logger_macros;
+// mod logger_macros;
 mod metrics;
 mod proto;
 mod rpc_client;
@@ -13,6 +13,12 @@ mod runtime;
 use components::*;
 use config::Config;
 use database::DatabaseAgent;
+use df_logger::critical;
+use df_logger::debug;
+use df_logger::error;
+use df_logger::info;
+use df_logger::loggers::init_logger;
+use df_logger::warn;
 use errors::MainError;
 use metrics::default_registry;
 use metrics::run_metric_server;
@@ -26,7 +32,7 @@ fn welcome() {
         fs::read_to_string("./welcome.txt").expect("Should have been able to read the file");
 
     warn!(DatafastRuntime, "\nWelcome to Datafast-Runtime");
-    log::info!("\n\n{contents}");
+    df_logger::log::info!("\n\n{contents}");
 }
 
 fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
@@ -35,7 +41,8 @@ fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::try_init().unwrap_or_default();
+    init_logger();
+
     welcome();
 
     let config = Config::load();

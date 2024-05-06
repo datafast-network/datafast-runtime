@@ -3,6 +3,7 @@ use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::wasm_host::Env;
+use df_logger::log;
 use semver::Version;
 use std::mem::MaybeUninit;
 use std::sync::Arc;

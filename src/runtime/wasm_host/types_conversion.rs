@@ -8,6 +8,7 @@ use crate::runtime::asc::native_types::AscH160;
 use crate::runtime::asc::native_types::Uint8Array;
 use crate::runtime::bignumber::bigint::BigInt;
 use crate::runtime::wasm_host::Env;
+use df_logger::log;
 use std::str::FromStr;
 use wasmer::FunctionEnvMut;
 use wasmer::RuntimeError;
