@@ -1,4 +1,4 @@
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscPtr;
 use crate::runtime::asc::base::IndexForAscTypeId;
@@ -8,15 +8,15 @@ use semver::Version;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
 use std::sync::Mutex;
-use wasmer::AsStoreMut;
-use wasmer::AsStoreRef;
-use wasmer::FromToNativeWasmType;
-use wasmer::FunctionEnvMut;
-use wasmer::Instance;
-use wasmer::Memory;
-use wasmer::Store;
-use wasmer::TypedFunction;
-use wasmer::Value;
+use df_types::wasmer::AsStoreMut;
+use df_types::wasmer::AsStoreRef;
+use df_types::wasmer::FromToNativeWasmType;
+use df_types::wasmer::FunctionEnvMut;
+use df_types::wasmer::Instance;
+use df_types::wasmer::Memory;
+use df_types::wasmer::Store;
+use df_types::wasmer::TypedFunction;
+use df_types::wasmer::Value;
 
 pub type ArenaStartPtr = Arc<Mutex<i32>>;
 

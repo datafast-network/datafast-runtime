@@ -1,6 +1,6 @@
 use crate::impl_asc_type;
 
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use semver::Version;
 use std::fmt;
 use std::marker::PhantomData;

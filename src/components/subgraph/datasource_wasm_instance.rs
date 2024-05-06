@@ -5,15 +5,15 @@ use crate::components::ManifestAgent;
 use crate::database::DatabaseAgent;
 use crate::errors::SubgraphError;
 use crate::rpc_client::RpcAgent;
-use crate::runtime::asc::base::asc_new;
-use crate::runtime::asc::base::AscIndexId;
-use crate::runtime::asc::base::AscType;
-use crate::runtime::asc::base::ToAscObj;
-use crate::runtime::wasm_host::AscHost;
+use df_types::asc::base::asc_new;
+use df_types::asc::base::AscIndexId;
+use df_types::asc::base::AscType;
+use df_types::asc::base::ToAscObj;
+use df_types::wasm::AscHost;
+use df_types::wasmer::Exports;
+use df_types::wasmer::Function;
+use df_types::wasmer::Value;
 use std::collections::HashMap;
-use wasmer::Exports;
-use wasmer::Function;
-use wasmer::Value;
 
 pub struct Handler {
     pub name: String,
@@ -138,20 +138,20 @@ impl DatasourceWasmInstance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
     use crate::rpc_client::RpcAgent;
     use crate::runtime::wasm_host::test::mock_wasm_host;
     use df_logger::loggers::init_logger;
+    use df_types::chain::ethereum::transaction::EthereumTransactionReceipt;
+    use df_types::web3::types::Address;
+    use df_types::web3::types::Log;
+    use df_types::web3::types::H160;
+    use df_types::web3::types::H256;
+    use df_types::web3::types::U256;
+    use df_types::web3::types::U64;
     use num_bigint::BigInt;
     use prometheus::Registry;
     use semver::Version;
     use std::str::FromStr;
-    use web3::types::Address;
-    use web3::types::Log;
-    use web3::types::H160;
-    use web3::types::H256;
-    use web3::types::U256;
-    use web3::types::U64;
 
     #[test]
     fn test_transaction_receipt_invoke() {

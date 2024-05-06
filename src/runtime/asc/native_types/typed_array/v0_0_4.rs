@@ -1,4 +1,4 @@
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscPtr;

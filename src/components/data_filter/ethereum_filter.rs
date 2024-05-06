@@ -1,9 +1,9 @@
 use super::utils::get_handler_for_log;
 use super::utils::parse_event;
 use super::DataFilterTrait;
-use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
+use df_types::chain::ethereum::block::EthereumBlockData;
+use df_types::chain::ethereum::transaction::EthereumTransactionData;
+use df_types::chain::ethereum::transaction::EthereumTransactionReceipt;
 use crate::common::ABIs;
 use crate::common::BlockDataMessage;
 use crate::common::Datasource;
@@ -12,7 +12,7 @@ use crate::common::FilteredDataMessage;
 use crate::errors::FilterError;
 use df_logger::debug;
 use ethabi::Contract;
-use web3::types::Log;
+use df_types::web3::types::Log;
 
 #[derive(Debug, Clone)]
 struct DatasourceWithContract {

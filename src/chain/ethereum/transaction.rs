@@ -1,7 +1,7 @@
 use super::asc::*;
-use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::log::AscLogArray;
-use crate::errors::AscError;
+use df_types::chain::ethereum::block::EthereumBlockData;
+use df_types::chain::ethereum::log::AscLogArray;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_get_optional;
@@ -17,14 +17,14 @@ use crate::runtime::asc::native_types::Uint8Array;
 use crate::runtime::bignumber::bigint::BigInt;
 use ethabi::Bytes;
 use semver::Version;
-use web3::types::Log;
-use web3::types::Transaction;
-use web3::types::TransactionReceipt;
-use web3::types::H160;
-use web3::types::H256;
-use web3::types::U128;
-use web3::types::U256;
-use web3::types::U64;
+use df_types::web3::types::Log;
+use df_types::web3::types::Transaction;
+use df_types::web3::types::TransactionReceipt;
+use df_types::web3::types::H160;
+use df_types::web3::types::H256;
+use df_types::web3::types::U128;
+use df_types::web3::types::U256;
+use df_types::web3::types::U64;
 
 #[repr(C)]
 pub struct AscEthereumTransaction {

@@ -1,13 +1,13 @@
-use crate::runtime::asc::base::asc_get;
-use crate::runtime::asc::base::asc_new;
-use crate::runtime::asc::base::AscPtr;
-use crate::runtime::asc::native_types::array::Array;
-use crate::runtime::asc::native_types::string::AscString;
-use crate::runtime::asc::native_types::typed_map::AscEntity;
-use crate::runtime::asc::native_types::Uint8Array;
-use crate::runtime::wasm_host::Env;
-use wasmer::FunctionEnvMut;
-use wasmer::RuntimeError;
+use df_types::asc::base::asc_get;
+use df_types::asc::base::asc_new;
+use df_types::asc::base::AscPtr;
+use df_types::asc::native_types::array::Array;
+use df_types::asc::native_types::string::AscString;
+use df_types::asc::native_types::typed_map::AscEntity;
+use df_types::asc::native_types::Uint8Array;
+use super::Env;
+use df_types::wasmer::FunctionEnvMut;
+use df_types::wasmer::RuntimeError;
 
 pub fn datasource_create(
     mut fenv: FunctionEnvMut<Env>,

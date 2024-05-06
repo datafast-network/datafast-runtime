@@ -1,7 +1,7 @@
 pub mod v0_0_4;
 pub mod v0_0_5;
 
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscIndexId;
 use crate::runtime::asc::base::AscPtr;

@@ -1,5 +1,5 @@
-use crate::runtime::asc::native_types::store::StoreValueKind;
-use crate::runtime::asc::native_types::store::Value;
+use df_types::asc::native_types::store::StoreValueKind;
+use df_types::asc::native_types::store::Value;
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;

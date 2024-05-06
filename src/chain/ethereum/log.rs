@@ -1,5 +1,5 @@
 use super::asc::*;
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_get_optional;
@@ -18,8 +18,8 @@ use crate::runtime::asc::native_types::AscWrapped;
 use crate::runtime::asc::native_types::Uint8Array;
 use crate::runtime::bignumber::bigint::BigInt;
 use semver::Version;
-use web3::types::Log;
-use web3::types::H256;
+use df_types::web3::types::Log;
+use df_types::web3::types::H256;
 
 impl ToAscObj<AscLogParam> for ethabi::LogParam {
     fn to_asc_obj<H: AscHeap + ?Sized>(&self, heap: &mut H) -> Result<AscLogParam, AscError> {

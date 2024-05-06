@@ -3,7 +3,7 @@ use crate::errors::BigNumberErr;
 use num_bigint;
 use serde::Deserialize;
 use serde::Serialize;
-use web3::types as web3;
+use df_types::web3::types as web3;
 
 pub use num_bigint::Sign as BigIntSign;
 

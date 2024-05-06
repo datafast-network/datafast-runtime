@@ -1,4 +1,4 @@
-mod asc;
+// mod asc;
 mod bigdecimal;
 mod bigint;
 mod chain;
@@ -10,6 +10,9 @@ mod store;
 mod types_conversion;
 mod wasm_log;
 
+use df_types::wasm::ArenaStartPtr;
+use df_types::wasm::AscHost;
+use df_types::wasm::EnvTrait;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -17,18 +20,17 @@ use crate::common::DatasourceBundle;
 use crate::components::ManifestAgent;
 use crate::database::DatabaseAgent;
 use crate::errors::WasmHostError;
+
 use crate::rpc_client::RpcAgent;
-use asc::ArenaStartPtr;
-pub use asc::AscHost;
 use semver::Version;
-use wasmer::imports;
-use wasmer::Function;
-use wasmer::FunctionEnv;
-use wasmer::Instance;
-use wasmer::Memory;
-use wasmer::Module;
-use wasmer::Store;
-use wasmer::TypedFunction;
+use df_types::wasmer::imports;
+use df_types::wasmer::Function;
+use df_types::wasmer::FunctionEnv;
+use df_types::wasmer::Instance;
+use df_types::wasmer::Memory;
+use df_types::wasmer::Module;
+use df_types::wasmer::Store;
+use df_types::wasmer::TypedFunction;
 
 #[derive(Clone)]
 pub struct Env {
@@ -43,6 +45,28 @@ pub struct Env {
     pub db: DatabaseAgent,
     pub rpc: RpcAgent,
     pub manifest: ManifestAgent,
+}
+
+impl EnvTrait for Env {
+    fn arena_start_ptr(&self) -> &Arc<Mutex<i32>> {
+        &self.arena_start_ptr
+    }
+
+    fn memory_allocate(&self) -> Option<TypedFunction<i32, i32>> {
+        self.memory_allocate.clone()
+    }
+
+    fn api_version(&self) -> Version {
+        self.api_version.clone()
+    }
+
+    fn get_memory(&self) -> Option<Memory> {
+        self.memory.clone()
+    }
+
+    fn id_of_type(&self) -> Option<TypedFunction<u32, u32>> {
+        self.id_of_type.clone()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -240,24 +264,40 @@ fn create_wasm_host(
     })
 }
 
-impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for AscHost {
-    type Error = WasmHostError;
-
-    fn try_from(
-        (ds, db, rpc, manifest): (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
-    ) -> Result<Self, Self::Error> {
-        create_wasm_host(
-            ds.api_version(),
-            ds.wasm(),
-            ds.name(),
-            rpc,
-            manifest,
-            ds.address(),
-            ds.network(),
-            db,
-        )
-    }
+pub fn create_wasm_host_from_bundle(
+    bundle: DatasourceBundle,
+    rpc: RpcAgent,
+    manifest: ManifestAgent,
+) -> Result<AscHost, WasmHostError> {
+    create_wasm_host(
+        bundle.api_version(),
+        bundle.wasm(),
+        bundle.name(),
+        rpc,
+        manifest,
+        bundle.address(),
+        bundle.network(),
+        DatabaseAgent::empty(&prometheus::default_registry()),
+    )
 }
+// impl TryFrom<(DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent)> for AscHost {
+//     type Error = WasmHostError;
+//
+//     fn try_from(
+//         (ds, db, rpc, manifest): (DatasourceBundle, DatabaseAgent, RpcAgent, ManifestAgent),
+//     ) -> Result<Self, Self::Error> {
+//         create_wasm_host(
+//             ds.api_version(),
+//             ds.wasm(),
+//             ds.name(),
+//             rpc,
+//             manifest,
+//             ds.address(),
+//             ds.network(),
+//             db,
+//         )
+//     }
+// }
 
 #[cfg(test)]
 pub mod test {

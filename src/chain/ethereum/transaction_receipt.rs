@@ -1,6 +1,6 @@
 use super::asc::*;
-use crate::chain::ethereum::log::AscLogArray;
-use crate::errors::AscError;
+use df_types::chain::ethereum::log::AscLogArray;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscHeap;
@@ -10,7 +10,7 @@ use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::asc::base::ToAscObj;
 use crate::runtime::bignumber::bigint::BigInt;
 use semver::Version;
-use web3::types::TransactionReceipt;
+use df_types::web3::types::TransactionReceipt;
 
 #[repr(C)]
 pub struct AscEthereumTransactionReceipt {

@@ -2,16 +2,16 @@ use super::Env;
 use crate::common::RawEntity;
 use crate::common::StoreOperationMessage;
 use crate::common::StoreRequestResult;
-use crate::runtime::asc::base::asc_get;
-use crate::runtime::asc::base::asc_new;
-use crate::runtime::asc::base::AscPtr;
-use crate::runtime::asc::native_types::array::Array;
-use crate::runtime::asc::native_types::store::Value;
-use crate::runtime::asc::native_types::string::AscString;
-use crate::runtime::asc::native_types::typed_map::AscEntity;
+use df_types::asc::base::asc_get;
+use df_types::asc::base::asc_new;
+use df_types::asc::base::AscPtr;
+use df_types::asc::native_types::array::Array;
+use df_types::asc::native_types::store::Value;
+use df_types::asc::native_types::string::AscString;
+use df_types::asc::native_types::typed_map::AscEntity;
+use df_types::wasmer::FunctionEnvMut;
+use df_types::wasmer::RuntimeError;
 use std::collections::HashMap;
-use wasmer::FunctionEnvMut;
-use wasmer::RuntimeError;
 
 pub fn store_set(
     fenv: FunctionEnvMut<Env>,

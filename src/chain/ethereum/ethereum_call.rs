@@ -1,6 +1,6 @@
-use crate::chain::ethereum::asc::AscAddress;
-use crate::chain::ethereum::asc::EthereumValueKind;
-use crate::errors::AscError;
+use df_types::chain::ethereum::asc::AscAddress;
+use df_types::chain::ethereum::asc::EthereumValueKind;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::AscHeap;
@@ -14,7 +14,7 @@ use crate::runtime::asc::native_types::string::AscString;
 use ethabi::Function;
 use ethabi::Token;
 use semver::Version;
-use web3::types::Address;
+use df_types::web3::types::Address;
 
 #[repr(C)]
 pub struct AscUnresolvedContractCallV4 {

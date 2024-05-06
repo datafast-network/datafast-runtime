@@ -1,5 +1,5 @@
 use super::asc::*;
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_get_optional;
@@ -12,11 +12,11 @@ use crate::runtime::asc::base::IndexForAscTypeId;
 use crate::runtime::asc::base::ToAscObj;
 use crate::runtime::bignumber::bigint::BigInt;
 use semver::Version;
-use web3::types::Block;
-use web3::types::H160;
-use web3::types::H256;
-use web3::types::U256;
-use web3::types::U64;
+use df_types::web3::types::Block;
+use df_types::web3::types::H160;
+use df_types::web3::types::H256;
+use df_types::web3::types::U256;
+use df_types::web3::types::U64;
 
 #[repr(C)]
 pub struct AscEthereumBlock {

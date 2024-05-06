@@ -1,4 +1,4 @@
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::impl_asc_type_enum;
 use crate::runtime::asc::base::AscValue;
 use crate::runtime::bignumber::bigdecimal::BigDecimal;
@@ -11,7 +11,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::ops::Deref;
 use std::str::FromStr;
-use web3::types::Address;
+use df_types::web3::types::Address;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Bytes(Box<[u8]>);

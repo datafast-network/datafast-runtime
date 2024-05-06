@@ -13,7 +13,7 @@ use r#enum::AscEnum;
 use semver::Version;
 use typed_array::TypedArray;
 
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::AscHeap;
 use crate::runtime::asc::base::AscIndexId;

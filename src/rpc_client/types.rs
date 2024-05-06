@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
+use df_types::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::BlockPtr;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]

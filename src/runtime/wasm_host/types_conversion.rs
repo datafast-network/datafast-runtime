@@ -1,18 +1,18 @@
-use crate::errors::AscError;
-use crate::runtime::asc::base::asc_get;
-use crate::runtime::asc::base::asc_new;
-use crate::runtime::asc::base::AscPtr;
-use crate::runtime::asc::bignumber::AscBigInt;
-use crate::runtime::asc::native_types::string::AscString;
-use crate::runtime::asc::native_types::AscH160;
-use crate::runtime::asc::native_types::Uint8Array;
-use crate::runtime::bignumber::bigint::BigInt;
-use crate::runtime::wasm_host::Env;
+use super::Env;
 use df_logger::log;
+use df_types::asc::base::asc_get;
+use df_types::asc::base::asc_new;
+use df_types::asc::base::AscPtr;
+use df_types::asc::bignumber::AscBigInt;
+use df_types::asc::native_types::string::AscString;
+use df_types::asc::native_types::AscH160;
+use df_types::asc::native_types::Uint8Array;
+use df_types::bignumber::bigint::BigInt;
+use df_types::errors::AscError;
+use df_types::wasmer::FunctionEnvMut;
+use df_types::wasmer::RuntimeError;
+use df_types::web3::types::H160;
 use std::str::FromStr;
-use wasmer::FunctionEnvMut;
-use wasmer::RuntimeError;
-use web3::types::H160;
 
 fn convert_bytes_to_string(bytes: Vec<u8>) -> String {
     let s = String::from_utf8_lossy(&bytes);

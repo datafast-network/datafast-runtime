@@ -1,9 +1,8 @@
+use df_types::wasmer::CompileError;
+use df_types::wasmer::RuntimeError;
 use kanal::SendError;
 use std::io;
 use thiserror::Error;
-use wasmer::CompileError;
-use wasmer::MemoryAccessError;
-use wasmer::RuntimeError;
 
 #[cfg(feature = "deltalake")]
 use deltalake::datafusion::error::DataFusionError;
@@ -47,31 +46,31 @@ impl From<BigNumberErr> for RuntimeError {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum AscError {
-    #[error("Size not fit")]
-    SizeNotFit,
-    #[error("Value overflow: {0}")]
-    Overflow(u32),
-    #[error("Error: {0}")]
-    Plain(String),
-    #[error("Bad boolean value: {0}")]
-    IncorrectBool(usize),
-    #[error("Size does not match")]
-    SizeNotMatch,
-    #[error("Maximum Recursion Depth reached!")]
-    MaxRecursion,
-    #[error(transparent)]
-    BigNumberOutOfRange(#[from] BigNumberErr),
-    #[error(transparent)]
-    WasmMemoryAccessError(#[from] MemoryAccessError),
-}
+// #[derive(Debug, Error)]
+// pub enum AscError {
+//     #[error("Size not fit")]
+//     SizeNotFit,
+//     #[error("Value overflow: {0}")]
+//     Overflow(u32),
+//     #[error("Error: {0}")]
+//     Plain(String),
+//     #[error("Bad boolean value: {0}")]
+//     IncorrectBool(usize),
+//     #[error("Size does not match")]
+//     SizeNotMatch,
+//     #[error("Maximum Recursion Depth reached!")]
+//     MaxRecursion,
+//     #[error(transparent)]
+//     BigNumberOutOfRange(#[from] BigNumberErr),
+//     #[error(transparent)]
+//     WasmMemoryAccessError(#[from] MemoryAccessError),
+// }
 
-impl From<AscError> for RuntimeError {
-    fn from(err: AscError) -> Self {
-        RuntimeError::new(err.to_string())
-    }
-}
+// impl From<df_types::errors::AscError> for RuntimeError {
+//     fn from(err: AscError) -> Self {
+//         RuntimeError::new(err.to_string())
+//     }
+// }
 
 #[derive(Error, Debug)]
 pub enum WasmHostError {
@@ -104,7 +103,7 @@ pub enum SubgraphError {
     #[error(transparent)]
     Runtime(#[from] RuntimeError),
     #[error(transparent)]
-    Asc(#[from] AscError),
+    Asc(#[from] df_types::errors::AscError),
     #[error("Invalid datasource_id: {0}")]
     InvalidSourceID(String),
     #[error("Invalid handler_name: {0}")]

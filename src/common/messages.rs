@@ -1,13 +1,9 @@
-use super::base::BlockPtr;
-use super::base::EntityID;
-use super::base::EntityType;
-use super::base::FieldName;
-use super::base::RawEntity;
-use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::event::EthereumEventData;
-use crate::chain::ethereum::transaction::EthereumTransactionData;
-use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
-use web3::types::Log;
+use df_types::chain::ethereum::block::EthereumBlockData;
+use df_types::chain::ethereum::event::EthereumEventData;
+use df_types::chain::ethereum::transaction::EthereumTransactionData;
+use df_types::chain::ethereum::transaction::EthereumTransactionReceipt;
+use df_types::web3::types::Log;
+use crate::common::{BlockPtr, EntityID, EntityType, FieldName, RawEntity};
 
 #[derive(Debug)]
 pub enum BlockDataMessage {

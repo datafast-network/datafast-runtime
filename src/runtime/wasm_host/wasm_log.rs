@@ -3,13 +3,13 @@ use crate::critical;
 use crate::debug;
 use crate::error;
 use crate::info;
-use crate::runtime::asc::base::asc_get;
-use crate::runtime::asc::base::AscPtr;
-use crate::runtime::asc::native_types::string::AscString;
 use crate::warn;
+use df_types::asc::base::asc_get;
+use df_types::asc::base::AscPtr;
+use df_types::asc::native_types::string::AscString;
+use df_types::wasmer::FunctionEnvMut;
+use df_types::wasmer::RuntimeError;
 use std::env;
-use wasmer::FunctionEnvMut;
-use wasmer::RuntimeError;
 
 pub fn log_log(
     fenv: FunctionEnvMut<Env>,

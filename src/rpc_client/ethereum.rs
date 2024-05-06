@@ -2,22 +2,22 @@ use super::types::CallRequest;
 use super::types::CallRequestContext;
 use super::types::CallResponse;
 use super::RPCTrait;
-use crate::chain::ethereum::ethereum_call::EthereumContractCall;
-use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use crate::common::ABIs;
 use crate::common::BlockPtr;
 use crate::error;
 use crate::errors::RPCError;
 use crate::info;
 use async_trait::async_trait;
+use df_types::chain::ethereum::ethereum_call::EthereumContractCall;
+use df_types::chain::ethereum::ethereum_call::UnresolvedContractCall;
 use std::collections::HashMap;
 use std::str::FromStr;
-use web3::transports::WebSocket;
-use web3::types::Block;
-use web3::types::BlockId;
-use web3::types::BlockNumber;
-use web3::types::H256;
-use web3::Web3;
+use df_types::web3::transports::WebSocket;
+use df_types::web3::types::Block;
+use df_types::web3::types::BlockId;
+use df_types::web3::types::BlockNumber;
+use df_types::web3::types::H256;
+use df_types::web3::Web3;
 
 const ETH_CALL_GAS: u32 = 50_000_000;
 
@@ -266,11 +266,11 @@ impl RPCTrait for EthereumRPC {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
     use crate::common::ABIs;
     use crate::common::BlockPtr;
     use df_logger::log;
     use df_logger::loggers::init_logger;
+    use df_types::chain::ethereum::ethereum_call::UnresolvedContractCall;
     use ethabi::Address;
     use ethabi::Token;
     use std::fs;

@@ -1,12 +1,12 @@
-use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::event::EthereumEventData;
-use crate::chain::ethereum::transaction::EthereumTransactionData;
+use df_types::chain::ethereum::block::EthereumBlockData;
+use df_types::chain::ethereum::event::EthereumEventData;
+use df_types::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::Datasource;
 use crate::common::EventHandler;
 use ethabi::Contract;
 use tiny_keccak::Hasher;
-use web3::types::Log;
-use web3::types::H256;
+use df_types::web3::types::Log;
+use df_types::web3::types::H256;
 
 pub fn parse_event(
     contract: &Contract,

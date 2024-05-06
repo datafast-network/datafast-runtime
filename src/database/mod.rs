@@ -14,7 +14,7 @@ use crate::common::StoreRequestResult;
 use crate::config::DatabaseConfig;
 use crate::errors::DatabaseError;
 use crate::info;
-use crate::runtime::asc::native_types::store::Value;
+use df_types::asc::native_types::store::Value;
 use crate::warn;
 use extern_db::ExternDB;
 use extern_db::ExternDBTrait;

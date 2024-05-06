@@ -3,7 +3,7 @@ use crate::common::EntityType;
 use crate::common::RawEntity;
 use crate::error;
 use crate::errors::DatabaseError;
-use crate::runtime::asc::native_types::store::Value;
+use df_types::asc::native_types::store::Value;
 use std::collections::HashMap;
 
 type EntitySnapshots = Vec<RawEntity>;

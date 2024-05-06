@@ -1,8 +1,8 @@
-use super::base::*;
 use ethabi::Contract;
 use semver::Version;
 use std::collections::HashMap;
 use std::fmt::Display;
+use crate::common::{ABIs, BlockPtr, Datasource, DatasourceBundle, DatasourceBundles, SubgraphYaml, WASMs};
 
 impl SubgraphYaml {
     pub fn abis(&self) -> HashMap<String, String> {

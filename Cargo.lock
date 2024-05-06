@@ -1212,6 +1212,7 @@ dependencies = [
  "convert_case 0.6.0",
  "deltalake",
  "df-logger",
+ "df-types",
  "ethabi",
  "figment",
  "futures-util",
@@ -1595,6 +1596,23 @@ source = "git+https://github.com/datafast-network/df-logger.git?branch=main#b49d
 dependencies = [
  "env_logger",
  "log",
+]
+
+[[package]]
+name = "df-types"
+version = "0.1.2"
+dependencies = [
+ "bigdecimal",
+ "ethabi",
+ "hex",
+ "num-bigint",
+ "num-traits",
+ "semver 1.0.20",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "wasmer",
+ "web3",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 use semver::Version;
-use web3::types as w3;
+use df_types::web3::types as w3;
 
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::impl_asc_type_enum;
 use crate::runtime::asc::base::asc_get;
 use crate::runtime::asc::base::asc_new;

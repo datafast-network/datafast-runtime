@@ -1,7 +1,7 @@
 use super::array::Array;
 use super::json::JsonValueKind;
 use super::store::StoreValueKind;
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::AscIndexId;
 use crate::runtime::asc::base::AscPtr;

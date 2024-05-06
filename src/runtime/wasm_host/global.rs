@@ -1,9 +1,9 @@
 use super::Env;
-use crate::runtime::asc::base::asc_get;
-use crate::runtime::asc::base::AscPtr;
-use crate::runtime::asc::native_types::string::AscString;
-use wasmer::FunctionEnvMut;
-use wasmer::RuntimeError;
+use df_types::asc::base::asc_get;
+use df_types::asc::base::AscPtr;
+use df_types::asc::native_types::string::AscString;
+use df_types::wasmer::FunctionEnvMut;
+use df_types::wasmer::RuntimeError;
 
 pub fn abort(
     fenv: FunctionEnvMut<Env>,

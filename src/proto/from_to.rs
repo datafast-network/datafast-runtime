@@ -1,6 +1,6 @@
 use super::ethereum;
-use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::transaction::EthereumTransactionData;
+use df_types::chain::ethereum::block::EthereumBlockData;
+use df_types::chain::ethereum::transaction::EthereumTransactionData;
 use crate::common::BlockDataMessage;
 use ethabi::ethereum_types::H160;
 use ethabi::ethereum_types::H256;
@@ -10,9 +10,9 @@ use ethabi::ethereum_types::U64;
 use ethabi::Bytes;
 use hex::FromHex;
 use std::str::FromStr;
-use web3::types::Bytes as Web3Bytes;
-use web3::types::Index;
-use web3::types::Log as Web3Log;
+use df_types::web3::types::Bytes as Web3Bytes;
+use df_types::web3::types::Index;
+use df_types::web3::types::Log as Web3Log;
 
 impl From<&ethereum::Block> for EthereumBlockData {
     fn from(b: &ethereum::Block) -> Self {

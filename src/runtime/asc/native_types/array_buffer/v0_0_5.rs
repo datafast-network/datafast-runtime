@@ -1,4 +1,4 @@
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::runtime::asc::base::AscType;
 use crate::runtime::asc::base::HEADER_SIZE;
 use semver::Version;

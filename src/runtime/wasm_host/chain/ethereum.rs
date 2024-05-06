@@ -1,23 +1,23 @@
-use crate::chain::ethereum::asc::EthereumValueKind;
-use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCall;
-use crate::chain::ethereum::ethereum_call::AscUnresolvedContractCallV4;
-use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
-use crate::errors::AscError;
 use crate::rpc_client::CallRequest;
 use crate::rpc_client::CallResponse;
-use crate::runtime::asc::base::asc_get;
-use crate::runtime::asc::base::asc_new;
-use crate::runtime::asc::base::AscPtr;
-use crate::runtime::asc::native_types::r#enum::AscEnum;
-use crate::runtime::asc::native_types::r#enum::AscEnumArray;
-use crate::runtime::asc::native_types::string::AscString;
-use crate::runtime::asc::native_types::Uint8Array;
 use crate::runtime::wasm_host::Env;
+use df_types::asc::base::asc_get;
+use df_types::asc::base::asc_new;
+use df_types::asc::base::AscPtr;
+use df_types::asc::native_types::r#enum::AscEnum;
+use df_types::asc::native_types::r#enum::AscEnumArray;
+use df_types::asc::native_types::string::AscString;
+use df_types::asc::native_types::Uint8Array;
+use df_types::chain::ethereum::asc::EthereumValueKind;
+use df_types::chain::ethereum::ethereum_call::AscUnresolvedContractCall;
+use df_types::chain::ethereum::ethereum_call::AscUnresolvedContractCallV4;
+use df_types::chain::ethereum::ethereum_call::UnresolvedContractCall;
+use df_types::errors::AscError;
+use df_types::semver::Version;
+use df_types::wasmer::FunctionEnvMut;
 use ethabi::decode;
 use ethabi::param_type::Reader;
-use semver::Version;
 use tiny_keccak::Hasher;
-use wasmer::FunctionEnvMut;
 
 pub fn ethereum_encode(
     mut fenv: FunctionEnvMut<Env>,
@@ -90,23 +90,23 @@ pub fn ethereum_call(
 
 #[cfg(test)]
 mod test {
-    use crate::chain::ethereum::block::EthereumBlockData;
-    use crate::chain::ethereum::event::EthereumEventData;
-    use crate::chain::ethereum::transaction::EthereumTransactionData;
+    use df_types::chain::ethereum::block::EthereumBlockData;
+    use df_types::chain::ethereum::event::EthereumEventData;
+    use df_types::chain::ethereum::transaction::EthereumTransactionData;
     use crate::host_fn_test;
     use crate::rpc_client::tests::create_rpc_client_test;
-    use crate::runtime::asc::base::asc_get;
-    use crate::runtime::asc::base::asc_new;
-    use crate::runtime::asc::base::AscPtr;
-    use crate::runtime::asc::native_types::string::AscString;
     use crate::runtime::wasm_host::test::*;
     use df_logger::loggers;
     use df_logger::loggers::init_logger;
+    use df_types::asc::base::asc_get;
+    use df_types::asc::base::asc_new;
+    use df_types::asc::base::AscPtr;
+    use df_types::asc::native_types::string::AscString;
     use ethabi::ethereum_types::H256;
     use ethabi::ethereum_types::U64;
     use std::str::FromStr;
-    use wasmer::Value;
-    use web3::types::Address;
+    use df_types::wasmer::Value;
+    use df_types::web3::types::Address;
 
     host_fn_test!("TestTypes", test_ethereum_block, host, result {
         let block = EthereumBlockData {

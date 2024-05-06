@@ -4,7 +4,7 @@ use super::block::EthereumBlockData;
 use super::log::AscLogParamArray;
 use super::transaction::AscEthereumTransaction;
 use super::transaction::EthereumTransactionData;
-use crate::errors::AscError;
+use df_types::errors::AscError;
 use crate::impl_asc_type_struct;
 use crate::runtime::asc::base::asc_new;
 use crate::runtime::asc::base::AscHeap;
@@ -17,8 +17,8 @@ use crate::runtime::asc::native_types::string::AscString;
 use crate::runtime::bignumber::bigint::BigInt;
 use ethabi::LogParam;
 use semver::Version;
-use web3::types::Address;
-use web3::types::U256;
+use df_types::web3::types::Address;
+use df_types::web3::types::U256;
 
 #[repr(C)]
 pub struct AscEthereumEvent<T: AscType, B: AscType> {

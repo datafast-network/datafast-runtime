@@ -2,8 +2,8 @@ mod datasource_wasm_instance;
 mod metrics;
 
 use super::ManifestAgent;
-use crate::chain::ethereum::block::EthereumBlockData;
-use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
+use df_types::chain::ethereum::block::EthereumBlockData;
+use df_types::chain::ethereum::transaction::EthereumTransactionReceipt;
 use crate::common::EthereumFilteredEvent;
 use crate::common::FilteredDataMessage;
 use crate::common::HandlerTypes;
