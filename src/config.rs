@@ -75,12 +75,12 @@ impl Config {
 #[cfg(test)]
 mod test {
     use super::Config;
-
+    use df_logger::loggers::init_logger;
     #[test]
     fn test_config() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
 
         let config = Config::load();
-        log::info!("Config = {:?}", config);
+        df_logger::log::info!("Config = {:?}", config);
     }
 }

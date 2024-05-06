@@ -2,7 +2,7 @@ use super::ManifestBundle;
 use super::Schemas;
 use crate::common::*;
 use crate::errors::ManifestLoaderError;
-use crate::info;
+use df_logger::info;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::read_to_string;
@@ -104,10 +104,11 @@ impl LocalFileLoader {
 mod test {
     use super::*;
     use crate::components::ManifestAgent;
+    use df_logger::loggers::init_logger;
 
     #[test]
     fn test_local_file_loader() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let m =
             LocalFileLoader::try_subgraph_dir("../subgraph-testing/packages/v0_0_5/build").unwrap();
 
@@ -129,7 +130,7 @@ mod test {
 
     #[tokio::test]
     async fn test_get_template() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let m = ManifestAgent::new("../subgraph-testing/packages/uniswap-v3/build")
             .await
             .unwrap();

@@ -271,7 +271,7 @@ pub mod test {
         registry: &Registry,
         rpc: RpcAgent,
     ) -> AscHost {
-        ::log::warn!(
+        df_logger::log::warn!(
             r#"New test-host-instance being created with:
                 > api-version={api_version}
                 > wasm-file-path={wasm_path}

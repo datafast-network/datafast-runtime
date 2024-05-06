@@ -141,6 +141,7 @@ mod tests {
     use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
     use crate::rpc_client::RpcAgent;
     use crate::runtime::wasm_host::test::mock_wasm_host;
+    use df_logger::loggers::init_logger;
     use num_bigint::BigInt;
     use prometheus::Registry;
     use semver::Version;
@@ -154,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_transaction_receipt_invoke() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let registry = Registry::default();
         let host = mock_wasm_host(
             Version::parse("0.0.5").unwrap(),

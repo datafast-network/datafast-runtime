@@ -4,7 +4,6 @@ use super::base::FieldName;
 use super::base::Schema;
 use super::base::SchemaConfig;
 use crate::common::ModeSchema;
-use crate::error;
 use crate::runtime::asc::native_types::store::StoreValueKind;
 use apollo_parser::cst::Argument;
 use apollo_parser::cst::CstNode;
@@ -12,6 +11,7 @@ use apollo_parser::cst::Definition;
 use apollo_parser::cst::Directive;
 use apollo_parser::cst::Type;
 use apollo_parser::Parser;
+use df_logger::error;
 use regex::Regex;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -266,11 +266,12 @@ impl Schemas {
 #[cfg(test)]
 mod test {
     use super::*;
+    use df_logger::loggers::init_logger;
     use std::fs::read_to_string;
 
     #[tokio::test]
     async fn test_parse_graphql_schema() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
 
         let gql =
             read_to_string("../subgraph-testing/packages/v0_0_5/build/schema.graphql").unwrap();

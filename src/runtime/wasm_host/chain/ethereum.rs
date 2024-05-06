@@ -100,6 +100,8 @@ mod test {
     use crate::runtime::asc::base::AscPtr;
     use crate::runtime::asc::native_types::string::AscString;
     use crate::runtime::wasm_host::test::*;
+    use df_logger::loggers;
+    use df_logger::loggers::init_logger;
     use ethabi::ethereum_types::H256;
     use ethabi::ethereum_types::U64;
     use std::str::FromStr;
@@ -142,14 +144,13 @@ mod test {
     #[case("0.0.4")]
     #[case("0.0.5")]
     fn test_ethereum_call(#[case] version: &str) {
-        use env_logger;
         use std::env;
 
         use prometheus::default_registry;
         let registry = default_registry();
 
         env::set_var("SUBGRAPH_WASM_RUNTIME_TEST", "YES");
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
 
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()

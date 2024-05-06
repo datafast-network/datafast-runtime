@@ -1211,14 +1211,13 @@ dependencies = [
  "bs58",
  "convert_case 0.6.0",
  "deltalake",
- "env_logger",
+ "df-logger",
  "ethabi",
  "figment",
  "futures-util",
  "google-cloud-pubsub",
  "hex",
  "kanal",
- "log",
  "lz4",
  "mongodb",
  "num-bigint",
@@ -1587,6 +1586,15 @@ dependencies = [
  "quote",
  "rustc_version 0.4.0",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "df-logger"
+version = "0.1.5"
+source = "git+https://github.com/datafast-network/df-logger.git?branch=main#b49d70c2e9763198d3c9432a674734a6277e291a"
+dependencies = [
+ "env_logger",
+ "log",
 ]
 
 [[package]]

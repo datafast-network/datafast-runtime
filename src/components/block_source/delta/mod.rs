@@ -5,11 +5,10 @@ use crate::common::BlockDataMessage;
 use crate::components::Valve;
 use crate::config::DeltaConfig;
 use crate::errors::SourceError;
-use crate::info;
-use crate::warn;
 use deltalake::datafusion::common::arrow::array::RecordBatch;
 use deltalake::datafusion::prelude::DataFrame;
 use deltalake::datafusion::prelude::SessionContext;
+use df_logger::*;
 pub use ethereum::DeltaEthereumBlocks;
 use kanal::AsyncSender;
 use prometheus::Registry;
@@ -146,7 +145,8 @@ impl DeltaClient {
 mod test {
     use super::*;
     use crate::config::ValveConfig;
-    use log::info;
+    use df_logger::log;
+    use df_logger::loggers::init_logger;
     use prometheus::default_registry;
     use serde_json::json;
 
@@ -160,7 +160,7 @@ mod test {
 
     #[tokio::test]
     async fn test_delta() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
 
         let cfg = DeltaConfig {
             table_path: "s3://ethereum/blocks_proto/".to_owned(),
@@ -190,7 +190,7 @@ mod test {
 
     #[tokio::test]
     async fn test_ethereum_serialization() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
 
         let cfg = DeltaConfig {
             table_path: "s3://ethereum/blocks_proto/".to_owned(),
@@ -214,7 +214,7 @@ mod test {
                     logs,
                 } = block;
 
-                info!("Validating block header...");
+                log::info!("Validating block header...");
                 assert_eq!(
                     format!("{:?}", block.hash),
                     "0xaa20f7bde5be60603f11a45fc4923aab7552be775403fc00c2e6b805e6297dbe"
@@ -237,7 +237,7 @@ mod test {
                 let last_tx = transactions.last().cloned().unwrap();
 
                 // ------------------- First tx
-                info!("Validating first Tx in block...");
+                log::info!("Validating first Tx in block...");
                 assert_eq!(first_tx.index.as_u64(), 0);
                 assert_eq!(first_tx.nonce.as_u64(), 25936206);
                 assert_eq!(
@@ -255,7 +255,7 @@ mod test {
                 );
 
                 // ---------- Last TX
-                info!("Validating last Tx in block...");
+                log::info!("Validating last Tx in block...");
                 assert_eq!(last_tx.index.as_u64(), 102);
                 assert_eq!(last_tx.nonce.as_u64(), 47);
                 assert_eq!(
@@ -273,7 +273,7 @@ mod test {
                 );
 
                 // ---------- Logs
-                info!("Validating logs...");
+                log::info!("Validating logs...");
                 assert_eq!(logs.len(), 135);
                 let log = serde_json::to_value(&logs[0].clone())
                     .unwrap()

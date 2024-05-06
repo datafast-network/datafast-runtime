@@ -269,6 +269,8 @@ mod tests {
     use crate::chain::ethereum::ethereum_call::UnresolvedContractCall;
     use crate::common::ABIs;
     use crate::common::BlockPtr;
+    use df_logger::log;
+    use df_logger::loggers::init_logger;
     use ethabi::Address;
     use ethabi::Token;
     use std::fs;
@@ -276,7 +278,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rpc_call_symbol() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let data = UnresolvedContractCall {
             contract_name: "ERC20".to_string(),
             contract_address: Address::from_str("0xdAC17F958D2ee523a2206206994597C13D831ec7")
@@ -306,7 +308,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_latest_block() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let mut rpc = EthereumRPC::new("wss://eth.merkle.io", ABIs::default())
             .await
             .unwrap();

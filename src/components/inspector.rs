@@ -1,9 +1,6 @@
 use crate::common::BlockPtr;
 use crate::common::StartBlock;
-use crate::critical;
-use crate::error;
-use crate::info;
-use crate::warn;
+use df_logger::*;
 use std::collections::VecDeque;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -152,13 +149,14 @@ Please check your setup - as it can be either:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use df_logger::loggers::init_logger;
     use rstest::rstest;
 
     #[rstest]
     fn test_block_inspector(
         #[values(StartBlock::Number(0), StartBlock::Number(1), StartBlock::Number(3))] start_block: StartBlock,
     ) {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let mut pc = Inspector::new(vec![], start_block.clone(), 10);
         assert!(pc.recent_block_ptrs.is_empty());
 

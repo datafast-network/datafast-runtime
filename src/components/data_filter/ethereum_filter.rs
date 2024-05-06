@@ -9,8 +9,8 @@ use crate::common::BlockDataMessage;
 use crate::common::Datasource;
 use crate::common::EthereumFilteredEvent;
 use crate::common::FilteredDataMessage;
-use crate::debug;
 use crate::errors::FilterError;
+use df_logger::debug;
 use ethabi::Contract;
 use web3::types::Log;
 
@@ -186,6 +186,7 @@ impl DataFilterTrait for EthereumFilter {
 mod test {
     use super::*;
     use crate::components::ManifestAgent;
+    use df_logger::loggers::init_logger;
 
     fn erc20_contract() -> Contract {
         let erc20_abi = r#"
@@ -196,7 +197,7 @@ mod test {
 
     #[tokio::test]
     async fn test_parsing_logs() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
 
         let logs = r#"
 [

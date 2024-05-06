@@ -141,10 +141,12 @@ impl MemoryDb {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use df_logger::log;
+    use df_logger::loggers::init_logger;
 
     #[test]
     fn test_memory_01_db_insert() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let mut db = MemoryDb::default();
         let mut data = HashMap::new();
         data.insert("id".to_string(), Value::String("1".to_string()));
@@ -167,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_memory_02_db_delete() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let mut db = MemoryDb::default();
         let mut data = HashMap::new();
         data.insert("id".to_string(), Value::String("1".to_string()));
@@ -196,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_memory_03_extract_data() {
-        env_logger::try_init().unwrap_or_default();
+        init_logger();
         let mut db = MemoryDb::default();
         let mut data = HashMap::new();
         data.insert("id".to_string(), Value::String("1".to_string()));
