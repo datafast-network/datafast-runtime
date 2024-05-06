@@ -1,10 +1,11 @@
 use super::ExternDBTrait;
+use crate::common::BlockPtr;
+use crate::common::Datasource;
 use crate::common::EntityID;
 use crate::common::EntityType;
 use crate::common::FieldKind;
 use crate::common::RawEntity;
 use crate::common::Schemas;
-use crate::common::{BlockPtr, Datasource};
 use crate::debug;
 use crate::error;
 use crate::errors::DatabaseError;

@@ -6,6 +6,7 @@ use super::base::RawEntity;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::event::EthereumEventData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
+use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
 use web3::types::Log;
 
 #[derive(Debug)]
@@ -41,6 +42,7 @@ pub enum FilteredDataMessage {
     Ethereum {
         events: Vec<EthereumFilteredEvent>,
         block: EthereumBlockData,
+        txs: Vec<EthereumTransactionReceipt>,
     },
 }
 

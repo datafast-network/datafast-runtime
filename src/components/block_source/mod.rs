@@ -3,6 +3,7 @@ mod metrics;
 use super::Valve;
 use crate::common::BlockDataMessage;
 use crate::common::Chain;
+use crate::common::StartBlock;
 use crate::config::Config;
 use crate::config::SourceTypes;
 use crate::errors::SourceError;
@@ -36,14 +37,17 @@ pub struct BlockSource {
 impl BlockSource {
     pub async fn new(
         config: &Config,
-        start_block: u64,
+        start_block: StartBlock,
         registry: &Registry,
     ) -> Result<Self, SourceError> {
         let source = match &config.source {
             #[cfg(feature = "deltalake")]
-            SourceTypes::Delta(delta_cfg) => {
-                Source::Delta(DeltaClient::new(delta_cfg.to_owned(), start_block, registry).await?)
-            }
+            SourceTypes::Delta(delta_cfg) => match start_block {
+                StartBlock::Number(block) => {
+                    Source::Delta(DeltaClient::new(delta_cfg.to_owned(), block, registry).await?)
+                }
+                _ => return Err(SourceError::DeltaInvalidStartBlock),
+            },
             #[cfg(feature = "pubsub")]
             SourceTypes::PubSub {
                 sub_id,

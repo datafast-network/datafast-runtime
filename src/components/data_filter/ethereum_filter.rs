@@ -3,6 +3,7 @@ use super::utils::parse_event;
 use super::DataFilterTrait;
 use crate::chain::ethereum::block::EthereumBlockData;
 use crate::chain::ethereum::transaction::EthereumTransactionData;
+use crate::chain::ethereum::transaction::EthereumTransactionReceipt;
 use crate::common::ABIs;
 use crate::common::BlockDataMessage;
 use crate::common::Datasource;
@@ -119,6 +120,44 @@ impl EthereumFilter {
         Ok(result)
     }
 
+    fn collect_txs(
+        &self,
+        block_header: &EthereumBlockData,
+        transactions: &Vec<EthereumTransactionData>,
+        logs: &Vec<Log>,
+    ) -> Result<Vec<EthereumTransactionReceipt>, FilterError> {
+        let has_tx_handlers = self
+            .ds
+            .iter()
+            .any(|ds| ds.ds.mapping.transactionHandlers.is_some());
+        if has_tx_handlers {
+            let txs = transactions
+                .iter()
+                .map(|tx| EthereumTransactionReceipt::from((block_header, tx.clone(), logs)))
+                .collect::<Vec<_>>();
+            Ok(txs)
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    fn collect_events(
+        &self,
+        block_header: EthereumBlockData,
+        txs: Vec<EthereumTransactionData>,
+        logs: Vec<Log>,
+    ) -> Result<Vec<EthereumFilteredEvent>, FilterError> {
+        let has_event_handlers = self
+            .ds
+            .iter()
+            .any(|ds| ds.ds.mapping.eventHandlers.is_some());
+        if has_event_handlers {
+            self.filter_events(block_header, txs, logs)
+        } else {
+            Ok(vec![])
+        }
+    }
+
     // TODO: implement filter_block
 
     // TODO: implement filter_call_function
@@ -135,8 +174,9 @@ impl DataFilterTrait for EthereumFilter {
                 logs,
                 transactions,
             } => {
-                let events = self.filter_events(block.clone(), transactions, logs)?;
-                Ok(FilteredDataMessage::Ethereum { events, block })
+                let txs = self.collect_txs(&block, &transactions, &logs)?;
+                let events = self.collect_events(block.clone(), transactions, logs)?;
+                Ok(FilteredDataMessage::Ethereum { events, block, txs })
             }
         }
     }

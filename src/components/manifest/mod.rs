@@ -1,6 +1,5 @@
 mod local;
 
-use crate::common::Schemas;
 use crate::common::*;
 use crate::error;
 use crate::errors::ManifestLoaderError;
@@ -85,9 +84,9 @@ impl ManifestAgent {
         manifest.datasources.len()
     }
 
-    pub fn min_start_block(&self) -> u64 {
+    pub fn min_start_block(&self) -> StartBlock {
         let manifest = self.0.borrow();
-        manifest.subgraph_yaml.min_start_block()
+        manifest.subgraph_yaml.min_start_block().into()
     }
 
     pub fn datasource_and_templates(&self) -> DatasourceBundles {
