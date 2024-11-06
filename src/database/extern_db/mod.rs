@@ -8,6 +8,11 @@ mod mongo;
 #[cfg(feature = "mongo")]
 use mongo::*;
 
+#[cfg(feature = "postgres")]
+mod postgres;
+#[cfg(feature = "postgres")]
+use postgres::*;
+
 use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::EntityID;
@@ -24,6 +29,8 @@ pub enum ExternDB {
     Scylla(Scylladb),
     #[cfg(feature = "mongo")]
     Mongo(MongoDB),
+    #[cfg(feature = "postgres")]
+    Postgres(PostgresDB),
     #[default]
     None,
 }
@@ -38,6 +45,10 @@ impl ExternDB {
             #[cfg(feature = "mongo")]
             DatabaseConfig::Mongo { uri, database } => {
                 ExternDB::Mongo(MongoDB::new(uri, database, schemas).await?)
+            }
+            #[cfg(feature = "postgres")]
+            DatabaseConfig::Postgres { uri } => {
+                ExternDB::Postgres(PostgresDB::new(uri, schemas).await?)
             }
         };
 

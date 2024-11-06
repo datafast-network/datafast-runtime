@@ -29,6 +29,8 @@ pub enum DatabaseConfig {
     Scylla { uri: String, keyspace: String },
     #[cfg(feature = "mongo")]
     Mongo { uri: String, database: String },
+    #[cfg(feature = "postgres")]
+    Postgres { uri: String },
 }
 
 #[derive(Deserialize, Default, Clone, Debug)]
@@ -76,6 +78,7 @@ impl Config {
 mod test {
     use super::Config;
     use df_logger::loggers::init_logger;
+
     #[test]
     fn test_config() {
         init_logger();
