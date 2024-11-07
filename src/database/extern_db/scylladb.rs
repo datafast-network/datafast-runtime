@@ -1,4 +1,4 @@
-use super::ExternDBTrait;
+use super::ExternDbTrait;
 use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::EntityID;
@@ -70,7 +70,7 @@ pub struct Scylladb {
 
 impl Scylladb {
     pub async fn new(uri: &str, keyspace: &str, schemas: Schemas) -> Result<Self, DatabaseError> {
-        info!(ExternDB, "Init db connection");
+        info!(ExternDb, "Init db connection");
         let session: Session = SessionBuilder::new().known_node(uri).build().await?;
         let entities = schemas.get_entity_names();
         let this = Self {
@@ -79,11 +79,11 @@ impl Scylladb {
             schemas,
         };
         this.create_keyspace().await?;
-        info!(ExternDB, "Namespace created OK"; namespace => keyspace);
+        info!(ExternDb, "Namespace created OK"; namespace => keyspace);
         this.create_entity_tables().await?;
-        info!(ExternDB, "Entities table created OK"; entities => format!("{:?}", entities));
+        info!(ExternDb, "Entities table created OK"; entities => format!("{:?}", entities));
         this.create_block_ptr_table().await?;
-        info!(ExternDB, "Block_Ptr table created OK");
+        info!(ExternDb, "Block_Ptr table created OK");
         Ok(this)
     }
 
@@ -323,7 +323,7 @@ impl Scylladb {
 }
 
 #[async_trait]
-impl ExternDBTrait for Scylladb {
+impl ExternDbTrait for Scylladb {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError> {
         let entities = self.schemas.get_entity_names();
         for entity_type in entities {
@@ -406,7 +406,7 @@ impl ExternDBTrait for Scylladb {
                 Ok(entity)
             }
             Err(err) => {
-                error!(ExternDB,
+                error!(ExternDb,
                     "Load entity latest error";
                     entity_type => entity_type,
                     entity_id => entity_id,
@@ -557,7 +557,7 @@ WHERE sgd = ? AND block_number = {}"#,
 
             for (entity_type, data) in chunk.iter().cloned() {
                 if data.get("__is_deleted__").is_none() {
-                    error!(ExternDB,
+                    error!(ExternDb,
                            "Missing is_deleted field";
                            entity_type => entity_type,
                            entity_data => format!("{:?}", data),

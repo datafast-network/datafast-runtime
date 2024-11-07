@@ -16,18 +16,19 @@ use crate::errors::DatabaseError;
 use crate::info;
 use crate::runtime::asc::native_types::store::Value;
 use crate::warn;
-use extern_db::ExternDB;
-use extern_db::ExternDBTrait;
+use extern_db::ExternDb;
+use extern_db::ExternDbTrait;
+use futures_util::lock::Mutex;
+use futures_util::lock::MutexGuard;
 use memory_db::MemoryDb;
 use metrics::DatabaseMetrics;
 use prometheus::Registry;
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
 pub struct Database {
     pub mem: MemoryDb,
-    pub db: ExternDB,
+    pub externdb: ExternDb,
     pub earliest_block: u64,
     metrics: DatabaseMetrics,
     schema: Schemas,
@@ -40,8 +41,8 @@ impl Database {
         registry: &Registry,
     ) -> Result<Self, DatabaseError> {
         let mem = MemoryDb::default();
-        let db = ExternDB::new(config, schema.clone()).await?;
-        let earliest_block = db
+        let externdb = ExternDb::new(config, schema.clone()).await?;
+        let earliest_block = externdb
             .get_earliest_block_ptr()
             .await?
             .map(|b| b.number)
@@ -49,7 +50,7 @@ impl Database {
         let metrics = DatabaseMetrics::new(registry);
         Ok(Database {
             mem,
-            db,
+            externdb,
             metrics,
             schema,
             earliest_block,
@@ -102,7 +103,7 @@ impl Database {
             self.metrics.database_cache_miss.inc();
             self.metrics.extern_db_load.inc();
             let timer = self.metrics.extern_db_get_duration.start_timer();
-            let entity = self.db.load_entity(&entity_type, &entity_id).await?;
+            let entity = self.externdb.load_entity(&entity_type, &entity_id).await?;
             timer.stop_and_record();
             if entity.is_none() {
                 return Ok(StoreRequestResult::Load(None));
@@ -186,7 +187,10 @@ impl Database {
             }
             if !missing_ids.is_empty() {
                 let timer = self.metrics.extern_db_get_duration.start_timer();
-                let entities = self.db.load_entities(&relation_table, missing_ids).await?;
+                let entities = self
+                    .externdb
+                    .load_entities(&relation_table, missing_ids)
+                    .await?;
                 timer.stop_and_record();
 
                 for entity in entities {
@@ -204,31 +208,29 @@ impl Database {
         let values = self.mem.extract_data()?;
         self.metrics.extern_db_write.inc();
         let timer = self.metrics.extern_db_set_duration.start_timer();
-        self.db
+        self.externdb
             .batch_insert_entities(block_ptr.clone(), values)
             .await?;
         timer.stop_and_record();
         self.metrics.extern_db_write.inc();
-        self.db.save_block_ptr(block_ptr.clone()).await?;
+        self.externdb.save_block_ptr(block_ptr.clone()).await?;
         Ok(())
     }
 
     async fn revert_from_block(&mut self, block_number: u64) -> Result<(), DatabaseError> {
         self.mem.clear();
-        self.db.revert_from_block(block_number).await
+        self.externdb.revert_from_block(block_number).await
     }
 }
 
 #[derive(Clone)]
-pub struct DatabaseAgent(Rc<RefCell<Database>>);
+pub struct DatabaseAgent(Arc<Mutex<Database>>);
 
 impl From<Database> for DatabaseAgent {
     fn from(db: Database) -> Self {
-        Self(Rc::new(RefCell::new(db)))
+        Self(Arc::new(Mutex::new(db)))
     }
 }
-
-unsafe impl Send for DatabaseAgent {}
 
 impl DatabaseAgent {
     pub async fn new(
@@ -240,31 +242,43 @@ impl DatabaseAgent {
         Ok(Self::from(db))
     }
 
+    async fn inner(&self) -> MutexGuard<'_, Database> {
+        self.0.lock().await
+    }
+
     pub fn wasm_send_store_request(
         &self,
         message: StoreOperationMessage,
     ) -> Result<StoreRequestResult, DatabaseError> {
-        let mut db = self.0.borrow_mut();
-        tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                let result = db.handle_store_request(message).await?;
-                Ok::<StoreRequestResult, DatabaseError>(result)
-            })
-        })
+        let (sender, mut rx) = tokio::sync::oneshot::channel();
+        let db = self.0.clone();
+
+        tokio::task::spawn(async move {
+            let mut db = db.lock().await;
+            let result = db.handle_store_request(message).await?;
+            sender.send(result).unwrap();
+            Ok::<(), DatabaseError>(())
+        });
+
+        let result = rx.try_recv().map_err(|e| {
+            DatabaseError::StoreRequestFailed(format!("Error receiving response: {:?}", e))
+        })?;
+
+        Ok(result)
     }
 
     pub async fn get_recent_block_pointers(
         &self,
         number_of_blocks: u16,
     ) -> Result<Vec<BlockPtr>, DatabaseError> {
-        let db = self.0.borrow();
-        db.db.load_recent_block_ptrs(number_of_blocks).await
+        let db = self.inner().await;
+        db.externdb.load_recent_block_ptrs(number_of_blocks).await
     }
 
     pub async fn commit_data(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         let time = Instant::now();
         let block_number = block_ptr.number;
-        let mut db = self.0.borrow_mut();
+        let mut db = self.inner().await;
         db.migrate_from_mem_to_db(block_ptr).await?;
         info!(
             Database,
@@ -276,7 +290,7 @@ impl DatabaseAgent {
     }
 
     pub async fn flush_cache(&self) -> Result<(), DatabaseError> {
-        let mut db = self.0.borrow_mut();
+        let mut db = self.inner().await;
         db.mem.clear();
         info!(Database, "flushed entity cache");
         Ok(())
@@ -284,25 +298,25 @@ impl DatabaseAgent {
 
     pub async fn revert_from_block(&self, block_number: u64) -> Result<(), DatabaseError> {
         warn!(Database, "Reverting data (probably due to reorg)"; revert_from_block_number => block_number);
-        let mut db = self.0.borrow_mut();
+        let mut db = self.inner().await;
         db.revert_from_block(block_number).await?;
         warn!(Database, "Database reverted OK"; revert_from_block_number => block_number);
         Ok(())
     }
 
     pub async fn remove_outdated_snapshots(&self, at_block: u64) -> Result<usize, DatabaseError> {
-        let db = self.0.borrow();
+        let db = self.inner().await;
         let entities = db.mem.get_latest_entity_ids();
-        let count = db.db.remove_snapshots(entities, at_block).await?;
+        let count = db.externdb.remove_snapshots(entities, at_block).await?;
         info!(Database, "entities' snapshot removed"; number_of_entity => count);
         Ok(count)
     }
 
     pub async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
-        let mut db = self.0.borrow_mut();
+        let mut db = self.inner().await;
 
         if db.earliest_block < to_block {
-            let removed = db.db.clean_data_history(to_block).await?;
+            let removed = db.externdb.clean_data_history(to_block).await?;
             info!(
                 Database,
                 "cleaned up data history in database";
@@ -319,11 +333,11 @@ impl DatabaseAgent {
     #[cfg(test)]
     pub fn empty(registry: &Registry) -> Self {
         let mem = MemoryDb::default();
-        let db = ExternDB::None;
+        let externdb = ExternDb::None;
         let metrics = DatabaseMetrics::new(registry);
         let database = Database {
             mem,
-            db,
+            externdb,
             metrics,
             schema: Schemas::default(),
             earliest_block: 0,

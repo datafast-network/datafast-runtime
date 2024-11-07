@@ -139,6 +139,8 @@ pub enum DatabaseError {
     WasmSendInvalidRequest,
     #[error("Schema readonly")]
     SchemaReadOnly,
+    #[error("Store request failed: {0}")]
+    StoreRequestFailed(String),
 
     #[cfg(feature = "scylla")]
     #[error("Init failed")]

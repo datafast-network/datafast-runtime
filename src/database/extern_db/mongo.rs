@@ -1,4 +1,4 @@
-use super::ExternDBTrait;
+use super::ExternDbTrait;
 use crate::common::BlockPtr;
 use crate::common::Datasource;
 use crate::common::EntityID;
@@ -193,7 +193,7 @@ impl MongoDB {
 }
 
 #[async_trait]
-impl ExternDBTrait for MongoDB {
+impl ExternDbTrait for MongoDB {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError> {
         let idx_option = IndexOptions::builder().unique(true).build();
         for (_, collection) in self.entity_collections.iter() {

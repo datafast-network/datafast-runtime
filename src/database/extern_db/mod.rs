@@ -19,7 +19,7 @@ use crate::errors::DatabaseError;
 use async_trait::async_trait;
 
 #[derive(Default)]
-pub enum ExternDB {
+pub enum ExternDb {
     #[cfg(feature = "scylla")]
     Scylla(Scylladb),
     #[cfg(feature = "mongo")]
@@ -28,16 +28,16 @@ pub enum ExternDB {
     None,
 }
 
-impl ExternDB {
+impl ExternDb {
     pub async fn new(config: &DatabaseConfig, schemas: Schemas) -> Result<Self, DatabaseError> {
         let db = match config {
             #[cfg(feature = "scylla")]
             DatabaseConfig::Scylla { uri, keyspace } => {
-                ExternDB::Scylla(Scylladb::new(uri, keyspace, schemas).await?)
+                ExternDb::Scylla(Scylladb::new(uri, keyspace, schemas).await?)
             }
             #[cfg(feature = "mongo")]
             DatabaseConfig::Mongo { uri, database } => {
-                ExternDB::Mongo(MongoDB::new(uri, database, schemas).await?)
+                ExternDb::Mongo(MongoDB::new(uri, database, schemas).await?)
             }
         };
 
@@ -46,7 +46,7 @@ impl ExternDB {
 }
 
 #[async_trait]
-pub trait ExternDBTrait: Sized {
+pub trait ExternDbTrait: Sized {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError>;
 
     async fn create_block_ptr_table(&self) -> Result<(), DatabaseError>;
@@ -105,34 +105,34 @@ pub trait ExternDBTrait: Sized {
 }
 
 #[async_trait]
-impl ExternDBTrait for ExternDB {
+impl ExternDbTrait for ExternDb {
     async fn create_entity_tables(&self) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.create_entity_tables().await,
+            ExternDb::Scylla(db) => db.create_entity_tables().await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.create_entity_tables().await,
-            ExternDB::None => Ok(()),
+            ExternDb::Mongo(db) => db.create_entity_tables().await,
+            ExternDb::None => Ok(()),
         }
     }
 
     async fn create_block_ptr_table(&self) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.create_block_ptr_table().await,
+            ExternDb::Scylla(db) => db.create_block_ptr_table().await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.create_block_ptr_table().await,
-            ExternDB::None => Ok(()),
+            ExternDb::Mongo(db) => db.create_block_ptr_table().await,
+            ExternDb::None => Ok(()),
         }
     }
 
     async fn create_datasource_table(&self) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.create_datasource_table().await,
+            ExternDb::Scylla(db) => db.create_datasource_table().await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.create_datasource_table().await,
-            ExternDB::None => Ok(()),
+            ExternDb::Mongo(db) => db.create_datasource_table().await,
+            ExternDb::None => Ok(()),
         }
     }
 
@@ -143,10 +143,10 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<Option<RawEntity>, DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.load_entity(entity_type, entity_id).await,
+            ExternDb::Scylla(db) => db.load_entity(entity_type, entity_id).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.load_entity(entity_type, entity_id).await,
-            ExternDB::None => Ok(None),
+            ExternDb::Mongo(db) => db.load_entity(entity_type, entity_id).await,
+            ExternDb::None => Ok(None),
         }
     }
 
@@ -157,10 +157,10 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<Vec<RawEntity>, DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.load_entities(entity_type, ids).await,
+            ExternDb::Scylla(db) => db.load_entities(entity_type, ids).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.load_entities(entity_type, ids).await,
-            ExternDB::None => Ok(vec![]),
+            ExternDb::Mongo(db) => db.load_entities(entity_type, ids).await,
+            ExternDb::None => Ok(vec![]),
         }
     }
 
@@ -172,20 +172,20 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.create_entity(block_ptr, entity_type, data).await,
+            ExternDb::Scylla(db) => db.create_entity(block_ptr, entity_type, data).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.create_entity(block_ptr, entity_type, data).await,
-            ExternDB::None => Ok(()),
+            ExternDb::Mongo(db) => db.create_entity(block_ptr, entity_type, data).await,
+            ExternDb::None => Ok(()),
         }
     }
 
     async fn save_block_ptr(&self, block_ptr: BlockPtr) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.save_block_ptr(block_ptr).await,
+            ExternDb::Scylla(db) => db.save_block_ptr(block_ptr).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.save_block_ptr(block_ptr).await,
-            ExternDB::None => Ok(()),
+            ExternDb::Mongo(db) => db.save_block_ptr(block_ptr).await,
+            ExternDb::None => Ok(()),
         }
     }
 
@@ -195,40 +195,40 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<Vec<BlockPtr>, DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.load_recent_block_ptrs(number_of_blocks).await,
+            ExternDb::Scylla(db) => db.load_recent_block_ptrs(number_of_blocks).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.load_recent_block_ptrs(number_of_blocks).await,
-            ExternDB::None => Ok(vec![]),
+            ExternDb::Mongo(db) => db.load_recent_block_ptrs(number_of_blocks).await,
+            ExternDb::None => Ok(vec![]),
         }
     }
 
     async fn get_earliest_block_ptr(&self) -> Result<Option<BlockPtr>, DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.get_earliest_block_ptr().await,
+            ExternDb::Scylla(db) => db.get_earliest_block_ptr().await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.get_earliest_block_ptr().await,
-            ExternDB::None => Ok(None),
+            ExternDb::Mongo(db) => db.get_earliest_block_ptr().await,
+            ExternDb::None => Ok(None),
         }
     }
 
     async fn save_datasources(&self, datasources: Vec<Datasource>) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.save_datasources(datasources).await,
+            ExternDb::Scylla(db) => db.save_datasources(datasources).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.save_datasources(datasources).await,
-            ExternDB::None => Ok(()),
+            ExternDb::Mongo(db) => db.save_datasources(datasources).await,
+            ExternDb::None => Ok(()),
         }
     }
 
     async fn load_datasources(&self) -> Result<Option<Vec<Datasource>>, DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.load_datasources().await,
+            ExternDb::Scylla(db) => db.load_datasources().await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.load_datasources().await,
-            ExternDB::None => Ok(None),
+            ExternDb::Mongo(db) => db.load_datasources().await,
+            ExternDb::None => Ok(None),
         }
     }
 
@@ -239,20 +239,20 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.batch_insert_entities(block_ptr, values).await,
+            ExternDb::Scylla(db) => db.batch_insert_entities(block_ptr, values).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.batch_insert_entities(block_ptr, values).await,
-            ExternDB::None => Ok(()),
+            ExternDb::Mongo(db) => db.batch_insert_entities(block_ptr, values).await,
+            ExternDb::None => Ok(()),
         }
     }
 
     async fn revert_from_block(&self, from_block: u64) -> Result<(), DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.revert_from_block(from_block).await,
+            ExternDb::Scylla(db) => db.revert_from_block(from_block).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.revert_from_block(from_block).await,
-            ExternDB::None => Ok(()),
+            ExternDb::Mongo(db) => db.revert_from_block(from_block).await,
+            ExternDb::None => Ok(()),
         }
     }
 
@@ -263,30 +263,30 @@ impl ExternDBTrait for ExternDB {
     ) -> Result<usize, DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.remove_snapshots(entities, to_block).await,
+            ExternDb::Scylla(db) => db.remove_snapshots(entities, to_block).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.remove_snapshots(entities, to_block).await,
-            ExternDB::None => Ok(0),
+            ExternDb::Mongo(db) => db.remove_snapshots(entities, to_block).await,
+            ExternDb::None => Ok(0),
         }
     }
 
     async fn clean_data_history(&self, to_block: u64) -> Result<u64, DatabaseError> {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.clean_data_history(to_block).await,
+            ExternDb::Scylla(db) => db.clean_data_history(to_block).await,
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.clean_data_history(to_block).await,
-            ExternDB::None => Ok(1),
+            ExternDb::Mongo(db) => db.clean_data_history(to_block).await,
+            ExternDb::None => Ok(1),
         }
     }
 
     fn get_schema(&self) -> Schemas {
         match self {
             #[cfg(feature = "scylla")]
-            ExternDB::Scylla(db) => db.get_schema(),
+            ExternDb::Scylla(db) => db.get_schema(),
             #[cfg(feature = "mongo")]
-            ExternDB::Mongo(db) => db.get_schema(),
-            ExternDB::None => Schemas::default(),
+            ExternDb::Mongo(db) => db.get_schema(),
+            ExternDb::None => Schemas::default(),
         }
     }
 }
