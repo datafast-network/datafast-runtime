@@ -47,9 +47,13 @@ impl ExternDB {
                 ExternDB::Mongo(MongoDB::new(uri, database, schemas).await?)
             }
             #[cfg(feature = "postgres")]
-            DatabaseConfig::Postgres { uri } => {
-                ExternDB::Postgres(PostgresDB::new(uri, schemas).await?)
-            }
+            DatabaseConfig::Postgres {
+                uri,
+                chain_id,
+                schema,
+            } => ExternDB::Postgres(
+                PostgresDB::new(uri, schemas, &schema, chain_id.to_owned()).await?,
+            ),
         };
 
         Ok(db)
@@ -123,6 +127,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.create_entity_tables().await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.create_entity_tables().await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.create_entity_tables().await,
             ExternDB::None => Ok(()),
         }
     }
@@ -133,6 +139,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.create_block_ptr_table().await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.create_block_ptr_table().await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.create_block_ptr_table().await,
             ExternDB::None => Ok(()),
         }
     }
@@ -143,6 +151,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.create_datasource_table().await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.create_datasource_table().await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.create_datasource_table().await,
             ExternDB::None => Ok(()),
         }
     }
@@ -157,6 +167,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.load_entity(entity_type, entity_id).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.load_entity(entity_type, entity_id).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.load_entity(entity_type, entity_id).await,
             ExternDB::None => Ok(None),
         }
     }
@@ -171,6 +183,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.load_entities(entity_type, ids).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.load_entities(entity_type, ids).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.load_entities(entity_type, ids).await,
             ExternDB::None => Ok(vec![]),
         }
     }
@@ -186,6 +200,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.create_entity(block_ptr, entity_type, data).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.create_entity(block_ptr, entity_type, data).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.create_entity(block_ptr, entity_type, data).await,
             ExternDB::None => Ok(()),
         }
     }
@@ -196,6 +212,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.save_block_ptr(block_ptr).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.save_block_ptr(block_ptr).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.save_block_ptr(block_ptr).await,
             ExternDB::None => Ok(()),
         }
     }
@@ -209,6 +227,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.load_recent_block_ptrs(number_of_blocks).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.load_recent_block_ptrs(number_of_blocks).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.load_recent_block_ptrs(number_of_blocks).await,
             ExternDB::None => Ok(vec![]),
         }
     }
@@ -219,6 +239,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.get_earliest_block_ptr().await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.get_earliest_block_ptr().await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.get_earliest_block_ptr().await,
             ExternDB::None => Ok(None),
         }
     }
@@ -229,6 +251,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.save_datasources(datasources).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.save_datasources(datasources).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.save_datasources(datasources).await,
             ExternDB::None => Ok(()),
         }
     }
@@ -239,6 +263,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.load_datasources().await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.load_datasources().await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.load_datasources().await,
             ExternDB::None => Ok(None),
         }
     }
@@ -253,6 +279,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.batch_insert_entities(block_ptr, values).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.batch_insert_entities(block_ptr, values).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.batch_insert_entities(block_ptr, values).await,
             ExternDB::None => Ok(()),
         }
     }
@@ -263,6 +291,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.revert_from_block(from_block).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.revert_from_block(from_block).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.revert_from_block(from_block).await,
             ExternDB::None => Ok(()),
         }
     }
@@ -277,6 +307,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.remove_snapshots(entities, to_block).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.remove_snapshots(entities, to_block).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.remove_snapshots(entities, to_block).await,
             ExternDB::None => Ok(0),
         }
     }
@@ -287,6 +319,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.clean_data_history(to_block).await,
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.clean_data_history(to_block).await,
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.clean_data_history(to_block).await,
             ExternDB::None => Ok(1),
         }
     }
@@ -297,6 +331,8 @@ impl ExternDBTrait for ExternDB {
             ExternDB::Scylla(db) => db.get_schema(),
             #[cfg(feature = "mongo")]
             ExternDB::Mongo(db) => db.get_schema(),
+            #[cfg(feature = "postgres")]
+            ExternDB::Postgres(db) => db.get_schema(),
             ExternDB::None => Schemas::default(),
         }
     }

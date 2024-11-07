@@ -30,7 +30,11 @@ pub enum DatabaseConfig {
     #[cfg(feature = "mongo")]
     Mongo { uri: String, database: String },
     #[cfg(feature = "postgres")]
-    Postgres { uri: String },
+    Postgres {
+        uri: String,
+        chain_id: Option<String>,
+        schema: String,
+    },
 }
 
 #[derive(Deserialize, Default, Clone, Debug)]

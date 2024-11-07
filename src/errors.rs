@@ -151,6 +151,10 @@ pub enum DatabaseError {
     #[cfg(feature = "mongo")]
     #[error("Init failed")]
     MongoDBInit(#[from] MongoError::Error),
+
+    #[cfg(feature = "postgres")]
+    #[error("Postgres Error: `{0}`")]
+    PostgresErr(#[from] sqlx::Error),
 }
 
 #[derive(Debug, Error)]
