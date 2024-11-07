@@ -1,11 +1,17 @@
-use std::{fmt::Debug, sync::Arc};
-
-use crate::{
-    config::Config, database::DatabaseAgent, errors::MainError, rpc_client::RpcAgent,
-    BlockInspectionResult, BlockSource, DataFilter, Inspector, ManifestAgent, Subgraph, Valve,
-};
+use crate::config::Config;
+use crate::database::DatabaseAgent;
+use crate::errors::MainError;
+use crate::rpc_client::RpcAgent;
+use crate::BlockInspectionResult;
+use crate::BlockSource;
+use crate::DataFilter;
+use crate::Inspector;
+use crate::ManifestAgent;
+use crate::Subgraph;
+use crate::Valve;
 use df_logger::*;
 use prometheus::Registry;
+use std::fmt::Debug;
 
 #[derive(Debug, Default)]
 pub struct Processor {}
