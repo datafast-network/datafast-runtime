@@ -256,7 +256,9 @@ impl DatabaseAgent {
         tokio::task::spawn(async move {
             let mut db = db.lock().await;
             let result = db.handle_store_request(message).await?;
-            sender.send(result).unwrap();
+            sender
+                .send(result)
+                .expect("Failed to send store-request response");
             Ok::<(), DatabaseError>(())
         });
 
