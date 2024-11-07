@@ -59,7 +59,7 @@ impl FilteredDataMessage {
 }
 
 #[derive(Debug)]
-pub enum StoreOperationData {
+pub enum StoreOperationMessage {
     Create((EntityType, RawEntity)),
     Load((EntityType, EntityID)),
     Update((EntityType, EntityID, RawEntity)),
@@ -68,12 +68,7 @@ pub enum StoreOperationData {
     LoadInBlock((EntityType, EntityID)),
 }
 
-pub struct StoreRequest {
-    pub op: StoreOperationData,
-    pub callback: tokio::sync::channel::oneshot::Sender<StoreRequestResult>,
-}
-
-impl StoreOperationData {
+impl StoreOperationMessage {
     pub fn operation_type(&self) -> String {
         match self {
             Self::Create(_) => "CREATE".to_owned(),

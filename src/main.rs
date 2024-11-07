@@ -23,7 +23,6 @@ use metrics::default_registry;
 use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
-use std::fs;
 
 fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
     info!(main, format!("{task_name} has finished"); result => format!("{:?}", r));
@@ -32,8 +31,6 @@ fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logger();
-
-    welcome();
 
     let config = Config::load();
     info!(main, "Config loaded!");
