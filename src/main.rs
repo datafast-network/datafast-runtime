@@ -4,7 +4,6 @@ mod components;
 mod config;
 mod database;
 mod errors;
-// mod logger_macros;
 mod metrics;
 mod proto;
 mod rpc_client;
@@ -25,15 +24,6 @@ use metrics::run_metric_server;
 use rpc_client::RpcAgent;
 use std::fmt::Debug;
 use std::fs;
-
-fn welcome() {
-    // TODO: include file in build script
-    let contents =
-        fs::read_to_string("./welcome.txt").expect("Should have been able to read the file");
-
-    warn!(DatafastRuntime, "\nWelcome to Datafast-Runtime");
-    df_logger::log::info!("\n\n{contents}");
-}
 
 fn handle_task_result<E: Debug>(r: Result<(), E>, task_name: &str) {
     info!(main, format!("{task_name} has finished"); result => format!("{:?}", r));
