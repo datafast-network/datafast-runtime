@@ -29,10 +29,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::load();
     info!(main, "Config loaded!");
     let registry = default_registry();
-    let processor = Processor::default();
+    let processor = Processor::new(config.clone(), registry).await?;
 
     tokio::select!(
-        r = processor.run(&config, registry) => {
+        r = processor.run() => {
             if let Err(e) = r {
                 critical!(main, "Processor failed!"; error => format!("{:?}", e));
                 panic!("{:?}", e);

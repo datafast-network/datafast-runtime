@@ -230,4 +230,6 @@ pub enum MainError {
     Subgraph(#[from] SubgraphError),
     #[error("filter error: `{0}`")]
     Filter(#[from] FilterError),
+    #[error("block-source error: `{0}`")]
+    Source(#[from] SourceError),
 }

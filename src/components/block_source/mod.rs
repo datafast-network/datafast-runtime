@@ -61,11 +61,11 @@ impl BlockSource {
     }
 
     pub async fn run(
-        self,
+        &self,
         sender: AsyncSender<Vec<BlockDataMessage>>,
         valve: Valve,
     ) -> Result<(), SourceError> {
-        match self.source {
+        match &self.source {
             #[cfg(feature = "deltalake")]
             Source::Delta(source) => {
                 let query_blocks = match self.chain {

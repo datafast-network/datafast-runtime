@@ -16,6 +16,7 @@ use wasmer::Function;
 use wasmer::Value;
 
 pub struct Handler {
+    #[allow(dead_code)]
     pub name: String,
     inner: Function,
 }
@@ -40,6 +41,7 @@ pub struct EthereumHandlers {
 }
 
 pub struct DatasourceWasmInstance {
+    #[allow(dead_code)]
     pub name: String,
     // NOTE: Add more chain-based handler here....
     pub ethereum_handlers: EthereumHandlers,
