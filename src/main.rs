@@ -12,12 +12,8 @@ mod runtime;
 
 use components::*;
 use config::Config;
-use df_logger::critical;
-use df_logger::debug;
-use df_logger::error;
-use df_logger::info;
 use df_logger::loggers::init_logger;
-use df_logger::warn;
+use df_logger::*;
 use metrics::default_registry;
 use metrics::run_metric_server;
 use processor::Processor;
