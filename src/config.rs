@@ -5,7 +5,6 @@ use figment::providers::Toml;
 use figment::Figment;
 use serde::Deserialize;
 
-#[cfg(feature = "deltalake")]
 #[derive(Clone, Debug, Deserialize)]
 pub struct DeltaConfig {
     pub table_path: String,
@@ -16,10 +15,7 @@ pub struct DeltaConfig {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceTypes {
-    #[cfg(feature = "deltalake")]
     Delta(DeltaConfig),
-    #[cfg(feature = "pubsub")]
-    PubSub { sub_id: String, compression: bool },
 }
 
 #[derive(Deserialize, Clone, Debug)]

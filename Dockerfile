@@ -18,7 +18,7 @@ RUN apt-get update && apt install apt-transport-https ca-certificates gnupg open
 
 COPY --from=builder /app/target/release/datafast-runtime /usr/local/bin/datafast-runtime
 
-WORKDIR app
+WORKDIR /app
 
 COPY --from=builder /app/welcome.txt welcome.txt
 
