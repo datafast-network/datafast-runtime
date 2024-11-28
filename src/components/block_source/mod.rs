@@ -18,7 +18,7 @@ enum Source {
 }
 
 pub struct BlockSource {
-    source: Source,
+    cold_source: Source,
     chain: Chain,
 }
 
@@ -28,7 +28,7 @@ impl BlockSource {
         start_block: StartBlock,
         registry: &Registry,
     ) -> Result<Self, SourceError> {
-        let source = match &config.source {
+        let cold_source = match &config.source {
             SourceTypes::Delta(delta_cfg) => match start_block {
                 StartBlock::Number(block) => {
                     Source::Delta(DeltaClient::new(delta_cfg.to_owned(), block, registry).await?)
@@ -37,7 +37,7 @@ impl BlockSource {
             },
         };
         Ok(Self {
-            source,
+            cold_source,
             chain: config.chain.clone(),
         })
     }
@@ -47,7 +47,7 @@ impl BlockSource {
         sender: AsyncSender<Vec<BlockDataMessage>>,
         valve: Valve,
     ) -> Result<(), SourceError> {
-        match &self.source {
+        match &self.cold_source {
             Source::Delta(source) => {
                 let query_blocks = match self.chain {
                     Chain::Ethereum => {
